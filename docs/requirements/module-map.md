@@ -1,223 +1,186 @@
 # Module Map & User Stories
 
-Working requirements map for **EMFS Book Shelf**, extracted from
-[`../PRD.md`](../PRD.md) (MVP V1 – Consistency System). **This file is the
-citable story SSOT.** The PRD remains the narrative product brief.
+Working requirements map for **EMFS Book Shelf**. **Citable story SSOT.**
 
-How to use this file:
-
-- **Story IDs are stable** (`US-REG-01`, `US-RDG-02`, …). Cite them in plans,
-  PRs, tests, and reviews instead of paraphrasing scope.
-- **Priorities are MoSCoW** (Must / Should / Could).
-- **Source** tells provenance: `PRD` (agreed in PRD), `Derived` (needed for a
-  coherent production release — confirm if unsure), `Future` (explicitly out of
-  MVP V1).
-- **Open items** link to [`../domain/open-decisions.md`](../domain/open-decisions.md).
-  Do not invent policy.
-- **Code status** reflects the repo today. Verify in source before relying on it.
+Open items → [`../domain/open-decisions.md`](../domain/open-decisions.md).  
+Admin/intake policy → [`../domain/admin-ops.md`](../domain/admin-ops.md),
+[`../domain/batch-and-intake.md`](../domain/batch-and-intake.md).
 
 ## The spine
 
-Everything connects through the **batch** (cohort isolation) and the **pace
-group** (5/10/20/40 pages). The member loop is:
+**register → approve → contact+code handoff → join pace group → daily progress →
+attendance window → admin review** (removal / waitlist as needed).
 
-**register → approve → join pace group → daily progress → weekly reflection →
-attendance**.
+## Module index
 
-Domains: Identity, Intake, Groups, Reading, Accountability, Library, Platform.
-
-## Module index and code status
-
-| # | Module | Source | MVP V1 | Code status (verified 2026-08-11) |
-|---|--------|--------|--------|-----------------------------------|
-| 01 | Auth & Identity | Derived | Must | Not started — docs-only scaffold |
-| 02 | Registration & Batch Intake | PRD FR-4 | Must | Not started |
-| 03 | Pace Groups & Schedules | PRD Group structure | Must | Not started |
-| 04 | Daily Reading Tracking | PRD FR-1 | Must | Not started |
-| 05 | Reflections | PRD FR-2 | Must | Not started |
-| 06 | Attendance (Admin) | PRD FR-3 | Must | Not started |
-| 07 | Reading Portfolio & Library | PRD FR-5 + Library | Should (basic) | Not started — FR-5 listed basic; Library semantics open (`OD-008`) |
-| 08 | General Group / Communication | PRD Group structure | Could / confirm | Not started — visibility model open (`OD-002`) |
-| 09 | Admin Operations Shell | Derived | Must | Not started |
-| 10 | Notifications & Reminders | PRD Future work | Future | Out of MVP V1 |
-| 11 | Engagement (streaks, leaderboard, reactions) | PRD Future work | Future | Out of MVP V1 |
+| # | Module | MVP V1 | Status |
+|---|--------|--------|--------|
+| 01 | Auth & Identity | Must | Not started |
+| 02 | Registration & Batch Intake | Must | Policy resolved |
+| 03 | Pace Groups & Schedules | Must | Policy resolved |
+| 04 | Daily Reading Tracking | Must | Not started |
+| 05 | Reflections & Attendance posts | Must | Policy resolved |
+| 06 | Attendance (Admin) + removal | Must | Policy resolved (window clock open) |
+| 07 | Portfolio & Library | Should | Schedule-based completion (`OD-008`) |
+| 08 | In-app groups & messaging | Must | Policy resolved (`OD-017`, `OD-018`) |
+| 09 | Admin Operations Shell | Must | Policy resolved |
+| 10 | Notifications | Should | In-app first; Telegram optional |
+| 11 | Engagement (streaks, leaderboard, reactions) | Should | Public view/react (`OD-020`) |
 
 ---
 
-## 01 · Auth & Identity — Derived
-
-**Key users:** Members · Admins  
-**Purpose:** Sign-up / sign-in, session, and the app user record that roles attach to.  
-**Relates to:** Registration, Admin shell, all authorized actions.  
-**Tech note:** Better Auth owns credentials/sessions; the app owns profile + role.
+## 01 · Auth & Identity
 
 | ID | User story | Priority | Source |
 |----|-----------|----------|--------|
-| US-AUTH-01 | As a user, I can register with email and password so that I have a secure account. | Must | Derived |
-| US-AUTH-02 | As a user, I can sign in and stay signed in via a secure HTTP-only session so that I can return daily without re-entering credentials every page. | Must | Derived |
-| US-AUTH-03 | As a user, I can sign out so that my session ends on a shared device. | Must | Derived |
-| US-AUTH-04 | As the system, I distinguish Better Auth identity from the app profile/role record so that auth and business rules stay separable. | Must | Derived |
+| US-AUTH-01 | As a user, I can register with email and password. | Must | Derived |
+| US-AUTH-02 | As a user, I stay signed in via HTTP-only session. | Must | Derived |
+| US-AUTH-03 | As a user, I can sign out. | Must | Derived |
+| US-AUTH-04 | As the system, I separate Better Auth identity from app profile/role. | Must | Derived |
 
 ---
 
-## 02 · Registration & Batch Intake — PRD FR-4
+## 02 · Registration & Batch Intake
 
-**Key users:** Members (apply) · Admins (approve)  
-**Purpose:** Controlled onboarding into a **batch/session** with open/closed join windows and admin approval.  
-**Relates to:** Auth, Pace groups, Admin shell.  
-**Open:** `OD-003`, `OD-004`, `OD-005`.
+**Policy:** [`batch-and-intake.md`](../domain/batch-and-intake.md), [`admin-ops.md`](../domain/admin-ops.md).
 
 | ID | User story | Priority | Source |
 |----|-----------|----------|--------|
-| US-REG-01 | As a member, I can register for a reading session/batch so that I can request entry. | Must | PRD |
-| US-REG-02 | As a member, I see whether joining is open or closed for the current session so that I know if I can apply. | Must | PRD |
-| US-REG-03 | As an admin, I can approve or reject a registration request so that only intended members join. | Must | PRD |
-| US-REG-04 | As an admin, I can send a group access link after approval so that the member can enter their pace group. | Must | PRD · confirm `OD-005` |
-| US-REG-05 | As a member in batch A, I cannot see roster, groups, or content from batch B so that cohorts stay isolated. | Must | PRD · `OD-004` |
-| US-REG-06 | As an admin, I can open or close registration for a batch/session so that intake matches the cohort calendar. | Must | PRD · confirm `OD-003` |
-
-> **Confirm:** always-on registration vs batch windows (`OD-003`); exact invite-link behavior (`OD-005`).
+| US-REG-01 | As a member, I can apply to a batch with name, email, Telegram username, phone, and pace group preference. | Must | Meeting |
+| US-REG-02 | As a member, I see whether registration is open or closed for a batch. | Must | Meeting |
+| US-REG-03 | As a batch admin, I can approve or reject applicants. | Must | Meeting |
+| US-REG-04 | As a batch admin, after approval I send admin contact + code (not the Telegram link); member DMs me for the access link. | Must | Meeting · `OD-005` |
+| US-REG-05 | As a member in batch A, I cannot see batch B ops/roster data. | Must | Meeting |
+| US-REG-06 | As a batch admin, I can open or close registration for my batch. | Must | Meeting |
+| US-REG-07 | As a super admin, I create a batch with max members, pace-group count, and books. | Must | Meeting |
+| US-REG-08 | As an applicant, when the batch is full or registration is closed I can join a waiting list. | Must | Meeting |
+| US-REG-09 | As a batch admin, when a seat opens I can advance the next waitlisted person. | Must | Meeting |
 
 ---
 
-## 03 · Pace Groups & Schedules — PRD Group structure
-
-**Key users:** Members · Admins  
-**Purpose:** Divide members by daily page target (5 / 10 / 20 / 40) with one or more admins and a reading schedule per group.  
-**Relates to:** Daily tracking, Reflections, Attendance, Library.  
-**Open:** `OD-006`, `OD-010`.
+## 03 · Pace Groups & Schedules
 
 | ID | User story | Priority | Source |
 |----|-----------|----------|--------|
-| US-GRP-01 | As a member, I belong to exactly one pace group in my batch (5/10/20/40 pages) so that my daily target is clear. | Must | PRD |
-| US-GRP-02 | As a member, I can view my group's reading schedule so that I know what to read. | Must | PRD |
-| US-GRP-03 | As an admin, I can be assigned to one or more pace groups so that I can oversee those members. | Must | PRD · confirm `OD-006` |
-| US-GRP-04 | As an admin, I can manage membership of my assigned pace group(s) within my batch so that the roster stays correct. | Must | Derived |
-| US-GRP-05 | As an authorized admin, I can create or update a pace group's reading schedule for a batch so that members have a plan. | Must | PRD · confirm `OD-010` |
+| US-GRP-01 | As a member, I belong to one pace group in my batch (batch may have only one pace group, e.g. 5 or 10 only). | Must | Meeting |
+| US-GRP-02 | As a member, I can view my group's reading schedule. | Must | PRD |
+| US-GRP-03 | As a pace admin, I can be assigned to one or more pace groups (reuse allowed; may post without being a reading member). | Must | Meeting |
+| US-GRP-04 | As a batch admin, I create pace groups and assign pace admins with optional duty/book split. | Must | Meeting |
+| US-GRP-05 | As a pace admin, the system proposes today's page target; I approve and may add/subtract pages; the system advances the next day's pages. | Must | Meeting · `OD-014` |
+| US-GRP-06 | As a batch admin, I create the yearly schedule with assigned pace admins and can add/assign books. | Must | Meeting · `OD-010` |
+| US-GRP-07 | As an admin, I can pull a prepared post from the post library/source and forward it into a pace group. | Must | Meeting · `OD-022` |
 
 ---
 
-## 04 · Daily Reading Tracking — PRD FR-1
-
-**Key users:** Members · Assigned admins  
-**Purpose:** Simple daily Done / Not Done progress against the pace-group page target.  
-**Relates to:** Pace groups, Admin visibility, Attendance (indirect).  
-**Open:** `OD-007`, `OD-009`.
+## 04 · Daily Reading Tracking
 
 | ID | User story | Priority | Source |
 |----|-----------|----------|--------|
-| US-RDG-01 | As a member, I can mark today's reading as completed so that my daily status is Done. | Must | PRD |
-| US-RDG-02 | As a member, I can see whether today is Done or Not Done so that I know my status. | Must | PRD |
-| US-RDG-03 | As a member, when I mark progress, the status updates immediately so that I get fast feedback. | Must | PRD |
-| US-RDG-04 | As an assigned admin, I can see my members' daily activity so that I can coach accountability. | Must | PRD · confirm `OD-007` |
-| US-RDG-05 | As a member, the daily tracking screen loads in under 2 seconds on a typical mobile connection so that the habit stays frictionless. | Must | PRD |
+| US-RDG-01 | As a member, I can mark today Done. | Must | PRD |
+| US-RDG-02 | As a member, I can see Done / Not Done. | Must | PRD |
+| US-RDG-03 | As a member, progress updates immediately. | Must | PRD |
+| US-RDG-04 | As a pace admin, I can see my members' daily activity on the group dashboard. | Must | Meeting |
+| US-RDG-05 | As a member, daily tracking loads in under 2s on mobile. | Must | PRD |
 
 ---
 
-## 05 · Reflections — PRD FR-2
+## 05 · Reflections & Attendance posts
 
-**Key users:** Members · Admins (view per policy)  
-**Purpose:** Store reflections; exactly one designated submission counts toward weekly attendance.  
-**Relates to:** Attendance, Portfolio, General group (visibility).  
-**Open:** `OD-001`, `OD-002`, `OD-009`.
+**Policy:** [`reflections.md`](../domain/reflections.md).
 
 | ID | User story | Priority | Source |
 |----|-----------|----------|--------|
-| US-REF-01 | As a member, I can submit a reflection linked to my current book so that my thinking is recorded. | Must | PRD |
-| US-REF-02 | As a member, I can write more than one reflection per book over time so that daily/weekly notes are allowed. | Must | PRD · confirm `OD-001` |
-| US-REF-03 | As a member, I can designate (or the system designates) one reflection that counts for this week's attendance so that only one counts. | Must | PRD · confirm `OD-001` |
-| US-REF-04 | As a member, I can view my past reflections with timestamps so that I can revisit them. | Must | PRD |
-| US-REF-05 | As a permitted viewer (per policy), I can see reflections I am allowed to see so that accountability/visibility works as designed. | Must | PRD · confirm `OD-002` |
+| US-REF-01 | As a member, I write personal reflections on Profile (author-only). | Must | Resolved |
+| US-REF-02 | As a member, I can write many personal reflections per book. | Must | Resolved |
+| US-REF-03 | As a member, in the attendance window I submit a text attendance post to my pace group. | Must | Meeting |
+| US-REF-04 | As a member, I can view my personal and posted reflections on Profile. | Must | Resolved |
+| US-REF-05 | As a batch member, I can read pace-group posts; I post only to my pace group. | Must | Resolved |
+| US-REF-06 | As a member, I can edit/delete my own reflections. | Must | Resolved |
+| US-REF-08 | As any website visitor, I can view and react to posted reflections but cannot submit unless I am an active pace-group member. | Must | Meeting · `OD-020` |
 
 ---
 
-## 06 · Attendance (Admin) — PRD FR-3
+## 06 · Attendance (Admin) + removal
 
-**Key users:** Admins  
-**Purpose:** Automated weekly attendance from the designated reflection submission.  
-**Relates to:** Reflections, Pace groups, Admin shell.  
-**Open:** `OD-001`, `OD-009`.
+**Policy:** [`admin-ops.md`](../domain/admin-ops.md).
 
 | ID | User story | Priority | Source |
 |----|-----------|----------|--------|
-| US-ATT-01 | As an admin, I can view all members in my scope for a given week so that I see the roster. | Must | PRD |
-| US-ATT-02 | As an admin, I see each member marked Submitted or Not Submitted for the week so that I can spot inactive members quickly. | Must | PRD |
-| US-ATT-03 | As an admin, I can view a weekly attendance summary so that I can report consistency. | Must | PRD |
-| US-ATT-04 | As an admin, the attendance view loads in under 2 seconds for a typical group size so that ops stay efficient. | Must | PRD |
-| US-ATT-05 | As the system, I derive attendance from the single counted reflection for the week so that admins do not track manually. | Must | PRD |
+| US-ATT-01 | As a pace admin, I can view my group roster for a given attendance window. | Must | Meeting |
+| US-ATT-02 | As a pace admin, I see Submitted / Not Submitted per member. | Must | Meeting |
+| US-ATT-03 | As a pace admin, I can review attendance (text posts). | Must | Meeting |
+| US-ATT-04 | As an admin, attendance views load in under 2s for typical group size. | Must | PRD |
+| US-ATT-05 | As the system, I derive attendance from qualifying in-window posts. | Must | Meeting |
+| US-ATT-06 | As the system, I block attendance posts after the window unless second-chance is granted. | Must | Meeting |
+| US-ATT-07 | As a pace/batch admin, after 3 misses I can outreach and grant grace with a **duration I set**; otherwise the system auto-removes. | Must | Meeting · `OD-021` |
+| US-ATT-08 | As a pace admin, I can grant a second chance to submit after the window. | Must | Meeting |
 
 ---
 
-## 07 · Reading Portfolio & Library — PRD FR-5 + Library
-
-**Key users:** Members · (optional) Admins  
-**Purpose:** Long-term record of completed books and linked reflections; Library stores completed/read books for the community or batch.  
-**Relates to:** Reflections, Pace groups.  
-**Open:** `OD-008`.  
-**MVP note:** PRD lists FR-5 as basic; MVP V1 feature list emphasizes FR-1–FR-4. Ship a minimal personal portfolio if capacity allows; do not block Consistency System on full Library.
+## 07 · Portfolio & Library
 
 | ID | User story | Priority | Source |
 |----|-----------|----------|--------|
-| US-LIB-01 | As a member, I can view my completed books so that I see personal growth. | Should | PRD |
-| US-LIB-02 | As a member, I can open reflections linked to a completed book so that history stays connected. | Should | PRD |
-| US-LIB-03 | As a member, my portfolio data persists across sessions so that history is not lost. | Should | PRD |
-| US-LIB-04 | As a member, I can browse the Library of completed/read books for my batch (once policy is set) so that shared reading history is visible. | Could | PRD · confirm `OD-008` |
+| US-LIB-01 | As a member, I can see a book as completed on my portfolio when the schedule completes it for me. | Should | Meeting · `OD-008` |
+| US-LIB-02 | As a member, I can open personal reflections linked to a book. | Should | PRD |
+| US-LIB-03 | As a member, portfolio data persists. | Should | PRD |
+| US-LIB-04 | As a pace group / batch, a book can be marked completed from the group schedule perspective. | Should | Meeting · `OD-008` |
 
 ---
 
-## 08 · General Group / Communication — PRD Group structure
+## 08 · In-app groups & messaging
 
-**Key users:** Members · Admins  
-**Purpose:** A space for all members in a batch to communicate.  
-**Open:** `OD-002` (Discord-like vs simpler).  
-**MVP note:** Do not build chat infrastructure until `OD-002` is answered. Stubbable as announcements-only.
+**Policy:** App is primary. Per batch: pace group(s), **announcement**,
+**discussion**. Telegram optional for some features only (`OD-018`).
 
 | ID | User story | Priority | Source |
 |----|-----------|----------|--------|
-| US-GEN-01 | As a member, I can access the General group for my batch so that I can see shared communication. | Could | PRD · confirm `OD-002` |
-| US-GEN-02 | As an admin, I can post to the General group so that I can announce schedule or discipline notes. | Could | Derived · confirm `OD-002` |
+| US-MSG-01 | As an admin, I can reach any member individually in the app (identity via registration fields). | Must | Meeting |
+| US-MSG-02 | As an admin, I can send a group-wide message to each member's personal inbox (in-app). | Must | Meeting |
+| US-MSG-03 | As a batch member, I can access in-app **announcement** and **discussion** groups for my batch. | Must | Meeting · `OD-017` |
+| US-MSG-04 | As a member, I can use my pace group's in-app feed for tasks and attendance (not dependent on Telegram). | Must | Meeting · `OD-018` |
+| US-MSG-05 | As the system, Telegram may still support selected supplementary features without owning core groups. | Should | Meeting · `OD-018` |
 
 ---
 
-## 09 · Admin Operations Shell — Derived
-
-**Key users:** Admins  
-**Purpose:** Navigation and queues for approval, attendance, member activity, and group management.  
-**Relates to:** All admin stories.
+## 09 · Admin Operations Shell
 
 | ID | User story | Priority | Source |
 |----|-----------|----------|--------|
-| US-ADM-01 | As an admin, I land in an admin shell with links to approvals, attendance, and my pace groups so that I can operate the cohort. | Must | Derived |
-| US-ADM-02 | As an admin, I only see data for batches/groups I am authorized for so that isolation and least privilege hold. | Must | Derived · `OD-004`, `OD-006` |
+| US-ADM-01 | As a pace admin, I see dashboard: members, streaks, attendance, review, book(s). | Must | Meeting |
+| US-ADM-02 | As an admin, I only see data for batches/groups I am authorized for (super: all). | Must | Meeting |
+| US-ADM-03 | As a pace admin, I can cover Reflection, Inspiration, Attendance, and/or Daily post duties as assigned (≥4; more later). | Must | Meeting |
+| US-ADM-04 | As a super admin, I can perform any batch or pace admin action. | Must | Meeting |
 
 ---
 
-## 10 · Notifications & Reminders — Future
+## 10 · Notifications
 
 | ID | User story | Priority | Source |
 |----|-----------|----------|--------|
-| US-NOT-01 | As a member, I receive reminders to mark daily reading or submit the weekly reflection so that consistency improves. | Could | Future |
-| US-NOT-02 | As a member, I receive a notification when my registration is approved so that I know I can join. | Should | Future / Derived |
+| US-NOT-01 | As a member, I receive in-app reminders for daily reading / attendance window. | Should | Meeting |
+| US-NOT-02 | As a waitlisted user, I am notified when a seat opens (in-app; Telegram optional). | Should | Meeting · `OD-018` |
 
 ---
 
-## 11 · Engagement extras — Future
+## 11 · Engagement
 
 | ID | User story | Priority | Source |
 |----|-----------|----------|--------|
-| US-ENG-01 | As a member, I can see a reading streak so that I stay motivated. | Could | Future |
-| US-ENG-02 | As a member, I can see a leaderboard so that peer visibility motivates me. | Could | Future |
-| US-ENG-03 | As a member, I can react to reflections (like/comment) so that peers encourage each other. | Could | Future |
+| US-ENG-01 | As a member, I can see a reading streak. | Should | Meeting |
+| US-ENG-02 | As a member, I can see a leaderboard based on likes/reactions. | Should | Meeting |
+| US-ENG-03 | As a viewer, I can like/react to reflections. | Should | Meeting |
 
 ---
 
-## Cross-reference: PRD feature → modules
+## Cross-reference
 
-| PRD | Modules | Must-ship stories (MVP V1) |
-|-----|---------|----------------------------|
-| FR-1 | 04 | `US-RDG-01` … `US-RDG-05` |
-| FR-2 | 05 | `US-REF-01` … `US-REF-05` (policy via OD-001/002) |
-| FR-3 | 06 | `US-ATT-01` … `US-ATT-05` |
-| FR-4 | 02, 03 | `US-REG-*`, `US-GRP-*` |
-| FR-5 | 07 | `US-LIB-01` … `US-LIB-03` (Should) |
-| Auth / shell | 01, 09 | `US-AUTH-*`, `US-ADM-*` |
+| Area | Stories |
+|------|---------|
+| Intake | `US-REG-01` … `US-REG-09` |
+| Groups / posts | `US-GRP-*` |
+| Reflections | `US-REF-01` … `US-REF-06`, `US-REF-08` |
+| Attendance | `US-ATT-01` … `US-ATT-08` |
+| Admin shell | `US-ADM-*` |
+| Messaging | `US-MSG-*` |
+| Engagement | `US-ENG-*` |
