@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: emfs-book-shelf-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: emfs
+      POSTGRES_PASSWORD: emfs_dev_password
+      POSTGRES_DB: emfs_book_shelf
+    ports:
+      - "5432:5432"
+    volumes:
+      - emfs_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U emfs -d emfs_book_shelf"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  emfs_pgdata:

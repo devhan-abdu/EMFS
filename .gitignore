@@ -41,6 +41,3 @@ yarn-error.log*
 next-env.d.ts
 note.txt
 docs
-db 
-docker-compose.yml
-drizzle.config.ts
