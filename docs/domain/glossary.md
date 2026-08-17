@@ -38,6 +38,10 @@ Read with:
 | **Attendance post** | In-window **text** submission that counts for attendance. | Not daily Done; not voice/AI (out of MVP). |
 | **Attendance** | Submitted / Not Submitted for the window; drives miss count and removal. | Not daily progress. |
 | **Miss streak** | Count of missed attendance windows; **3** triggers outreach → grace → auto-remove. | Not daily Not Done alone. |
+| **Batch removal** | Member leaves a batch (admin action, auto-remove after misses, etc.). Default outcome; **not** an automatic move to a later batch. | Not cross-batch reassignment. |
+| **Cross-batch reassignment** | Removed member joins a **later/lower** batch when admin-set criteria are met and they are invited or re-register. Opt-in; removal does not guarantee it. | Not waitlist seat fill in the same batch. |
+| **Pace-group move (in-batch)** | Member changes pace group within the **same** batch via normal request/approval. Unrelated to removal or reassignment criteria. | Not batch removal. |
+| **Membership move log** | Admin-auditable record: who moved, from/to, when; whether a removed member was reassigned or left for good. Prior history stays viewable. | Not deletion of attendance/reflections/progress. |
 | **Second chance** | Explicit permission to submit attendance after the window closes. | Not default late submit. |
 | **Access handoff** | After approval: admin contact + code; member DMs admin for Telegram link. Alternatives welcome. | Not auto-sending the join link. |
 | **Leaderboard** | Ranking by likes/reactions on reflections. | Not attendance score alone. |

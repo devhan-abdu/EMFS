@@ -131,6 +131,28 @@ reachability problem equally well.
   **dynamic duration set by the admin** at grant time → else auto-remove; seat
   may open for waitlist (`OD-021`).
 
+### Batch removal vs cross-batch reassignment
+
+**Default outcome is full removal** — not an automatic move to a lower/later
+batch. Reassignment to a later batch is **opt-in**: the member must meet
+admin-set criteria **and** then either (a) be directly invited by a batch admin,
+or (b) re-register through the normal application flow for that batch. Removal
+does **not** guarantee reassignment. Story IDs: `US-REG-10`, `US-REG-11`,
+`US-ATT-09` in [`module-map.md`](../requirements/module-map.md).
+
+### In-batch pace-group moves
+
+A member may move from one pace group to another **within the same batch** via
+a normal request/approval flow — unrelated to removal or cross-batch
+reassignment criteria (`US-GRP-08`).
+
+### History & move audit
+
+After any pace-group move or batch removal/reassignment, the member's prior
+attendance, reflections, and progress **remain intact and viewable** (nothing
+deleted). Admins see a log of who moved, from where to where, when, and whether
+a removed member was later reassigned or left for good (`US-ADM-05`, `US-ADM-06`).
+
 ## Attendance format (MVP)
 
 - **Text** attendance / group reflection in the window.

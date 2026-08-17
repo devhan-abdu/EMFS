@@ -33,9 +33,28 @@ Telegram identity temporarily.
 2. In window, member submits **text** attendance to own pace group.
 3. Late blocked unless second chance.
 4. 3 misses → outreach → admin grants **grace with duration they set**, or
-   auto-remove; waitlist may fill seat.
+   auto-remove (**full removal** from batch — not auto-reassignment); waitlist
+   may fill the **same-batch** seat.
 
 **Open:** `OD-009`.
+
+---
+
+## Journey 3b: Removal, reassignment, and pace-group moves
+
+1. **Batch removal (default):** Member is fully removed from the batch. System
+   does **not** automatically place them in a later batch.
+2. **Cross-batch reassignment (opt-in):** Only if the member meets admin-set
+   criteria **and** (a) a batch admin directly invites them, or (b) they
+   re-register through normal intake for that later batch.
+3. **In-batch pace-group move:** Member or admin requests a move between pace
+   groups in the **same** batch — normal ops, not tied to removal criteria.
+4. **Admin view:** Full prior history (attendance, reflections, progress) remains
+   viewable; move log shows from/to, when, and reassignment vs permanent
+   departure.
+
+Policy: [`admin-ops.md`](./admin-ops.md) · Stories: `US-REG-10` … `US-REG-11`,
+`US-GRP-08`, `US-ADM-05` … `US-ADM-06`.
 
 ---
 

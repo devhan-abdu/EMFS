@@ -15,7 +15,7 @@ is not listed here. Link open policy to [`open-decisions.md`](./open-decisions.m
 | `rejected` | Rejected; not in cohort |
 | `active` | In a pace group; may track/read/attend |
 | `grace` | After 3 misses + valid reason; extension **duration set by admin** (`OD-021`) |
-| `removed` | Removed (ops or auto after misses); seat may open for waitlist |
+| `removed` | Removed from batch (ops or auto after misses); seat may open for waitlist; **not** auto-reassigned to a later batch |
 
 ### Allowed transitions
 
@@ -30,11 +30,23 @@ active -> grace                      # after 3 misses + admin grants grace
 active -> removed                    # admin remove or auto-remove path
 grace -> active                      # resumes compliance
 grace -> removed                     # no response / continued misses
-waitlisted -> active                 # seat opened; offered and accepted
+waitlisted -> active                 # seat opened in same batch; offered and accepted
+active -> active                     # in-batch pace-group move (same batch; admin/request path)
+removed -> applied                   # cross-batch re-registration when criteria met (later batch)
+removed -> active                    # cross-batch direct admin invite when criteria met (later batch)
 ```
 
 - `registration_open` and `max_members` are batch properties.
 - Post-approval: **contact + code**, not direct link blast.
+- **Batch removal default:** `active`/`grace` → `removed` is full removal. No
+  automatic transition to a later batch.
+- **Cross-batch reassignment** (`removed` → `applied` or `removed` → `active`):
+  only when admin-set criteria are met **and** the member is invited or
+  re-registers — not implied by removal.
+- **In-batch pace-group move** (`active` → `active`): member changes pace group
+  within the same batch; unrelated to removal or reassignment criteria.
+- Prior attendance, reflections, and progress **persist** across moves; admins
+  audit via membership move log (`US-ADM-05`, `US-ADM-06`).
 
 ## Daily progress
 

@@ -14,6 +14,8 @@ Read with: [`glossary.md`](./glossary.md), [`admin-ops.md`](./admin-ops.md),
 | **Batch** | Cohort | `max_members`, `registration_open`, books, pace_group_count ≥ 1 | May be a single pace group only |
 | **Waiting list entry** | Queue | user ↔ batch | |
 | **Membership** | Intake state | waitlisted → applied → … → active / removed | [lifecycles](./lifecycles.md) |
+| **Pace group membership** | Current pace group in batch | member ↔ pace group; in-batch moves | Distinct from batch membership end |
+| **Membership move log** | Audit trail | who, from, to, when; reassignment vs departure | History preserved; nothing deleted |
 | **Pace group** | 5/10/20/40 | belongs to batch | |
 | **Pace group admin** | Assignment | admin ↔ pace group; duties; optional book_ids; may be non-member poster | Multi-admin; multi-group OK |
 | **Batch admin assignment** | Assignment | admin ↔ batch | Max 3 |
@@ -35,3 +37,8 @@ Read with: [`glossary.md`](./glossary.md), [`admin-ops.md`](./admin-ops.md),
 - Derive attendance from qualifying posts; track miss count for removal.
 - Personal reflections: `author_id` only.
 - Capacity enforced before `applied`/`active` when at `max_members`.
+- Batch removal is full removal by default; cross-batch reassignment is
+  criteria-gated (invite or re-register) — see [`admin-ops.md`](./admin-ops.md).
+- In-batch pace-group moves and cross-batch reassignment both append to a
+  **membership move log**; prior progress/reflections/attendance rows are never
+  deleted on move.

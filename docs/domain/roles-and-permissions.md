@@ -83,7 +83,9 @@ super_admin
 4. **Attendance window** — late posts blocked unless second-chance flag
    ([`admin-ops.md`](./admin-ops.md)).
 5. **Removal** — after 3 misses + outreach; grace duration is **admin-set**
-   (`OD-021`); else auto-remove.
+   (`OD-021`); else auto-remove (**full removal** from batch — not automatic
+   cross-batch reassignment). Reassignment and in-batch pace-group moves:
+   [`admin-ops.md`](./admin-ops.md).
 6. **Derived attendance** — from in-window **text** submission; no voice/AI in MVP.
 
 ## How to extend

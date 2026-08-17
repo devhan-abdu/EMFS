@@ -9,7 +9,8 @@ Admin/intake policy → [`../domain/admin-ops.md`](../domain/admin-ops.md),
 ## The spine
 
 **register → approve → contact+code handoff → join pace group → daily progress →
-attendance window → admin review** (removal / waitlist as needed).
+attendance window → admin review** (removal / waitlist as needed; reassignment
+to a later batch is **not** automatic — see §02 and §06).
 
 ## Module index
 
@@ -55,6 +56,15 @@ attendance window → admin review** (removal / waitlist as needed).
 | US-REG-07 | As a super admin, I create a batch with max members, pace-group count, and books. | Must | Meeting |
 | US-REG-08 | As an applicant, when the batch is full or registration is closed I can join a waiting list. | Must | Meeting |
 | US-REG-09 | As a batch admin, when a seat opens I can advance the next waitlisted person. | Must | Meeting |
+| US-REG-10 | As a batch admin, I can invite a removed member into a lower/later-starting batch when they meet admin-set reassignment criteria (direct invite path). | Must | Policy |
+| US-REG-11 | As a removed member who meets reassignment criteria, I can re-enter through the normal application flow for a later batch (re-registration path). | Must | Policy |
+
+**Removal vs reassignment (batch):** Removing a member from a batch is the **default
+outcome** — full removal, not an automatic move to another batch. Reassignment to a
+lower/later-starting batch happens **only** when the member meets criteria set by the
+admin **and** is then either (a) directly invited by an admin (`US-REG-10`), or (b)
+re-registers through the normal application flow (`US-REG-11`). Being removed does
+**not** guarantee reassignment.
 
 ---
 
@@ -69,6 +79,11 @@ attendance window → admin review** (removal / waitlist as needed).
 | US-GRP-05 | As a pace admin, the system proposes today's page target; I approve and may add/subtract pages; the system advances the next day's pages. | Must | Meeting · `OD-014` |
 | US-GRP-06 | As a batch admin, I create the yearly schedule with assigned pace admins and can add/assign books. | Must | Meeting · `OD-010` |
 | US-GRP-07 | As an admin, I can pull a prepared post from the post library/source and forward it into a pace group. | Must | Meeting · `OD-022` |
+| US-GRP-08 | As a member, I can request (or an admin can approve) a move from one pace group to another **within the same batch** — a normal in-batch change, unrelated to removal or reassignment criteria. | Must | Policy |
+
+**Pace-group move (in-batch):** Moving between pace groups inside one batch is
+independent of batch removal or cross-batch reassignment. No eligibility criteria
+beyond admin approval / normal request flow.
 
 ---
 
@@ -104,6 +119,11 @@ attendance window → admin review** (removal / waitlist as needed).
 
 **Policy:** [`admin-ops.md`](../domain/admin-ops.md).
 
+**Batch removal default:** When a member is removed from a batch (attendance path,
+admin action, or auto-remove after misses), the outcome is **full removal** from that
+batch. The system does **not** automatically reassign them to a lower/later batch.
+Any cross-batch reassignment follows `US-REG-10` / `US-REG-11` in §02.
+
 | ID | User story | Priority | Source |
 |----|-----------|----------|--------|
 | US-ATT-01 | As a pace admin, I can view my group roster for a given attendance window. | Must | Meeting |
@@ -114,6 +134,7 @@ attendance window → admin review** (removal / waitlist as needed).
 | US-ATT-06 | As the system, I block attendance posts after the window unless second-chance is granted. | Must | Meeting |
 | US-ATT-07 | As a pace/batch admin, after 3 misses I can outreach and grant grace with a **duration I set**; otherwise the system auto-removes. | Must | Meeting · `OD-021` |
 | US-ATT-08 | As a pace admin, I can grant a second chance to submit after the window. | Must | Meeting |
+| US-ATT-09 | As an admin, when a member is removed I see that removal as the default outcome; reassignment to a later batch is a separate, criteria-gated step (not implied by removal). | Must | Policy |
 
 ---
 
@@ -151,6 +172,13 @@ attendance window → admin review** (removal / waitlist as needed).
 | US-ADM-02 | As an admin, I only see data for batches/groups I am authorized for (super: all). | Must | Meeting |
 | US-ADM-03 | As a pace admin, I can cover Reflection, Inspiration, Attendance, and/or Daily post duties as assigned (≥4; more later). | Must | Meeting |
 | US-ADM-04 | As a super admin, I can perform any batch or pace admin action. | Must | Meeting |
+| US-ADM-05 | As an admin, after a member moves pace groups (in-batch) or is removed/reassigned (cross-batch), I can still view their full prior history — attendance, reflections, and progress — nothing deleted. | Must | Policy |
+| US-ADM-06 | As an admin, I can see a log of membership moves: who moved, from where to where, when, and whether a removed member was later reassigned or left for good. | Must | Policy |
+
+**History & audit:** For both in-batch pace-group moves (`US-GRP-08`) and cross-batch
+removal/reassignment (`US-REG-10`, `US-REG-11`), prior records remain intact and
+viewable. Admins rely on the move log to distinguish reassignment from permanent
+departure.
 
 ---
 
@@ -177,10 +205,11 @@ attendance window → admin review** (removal / waitlist as needed).
 
 | Area | Stories |
 |------|---------|
-| Intake | `US-REG-01` … `US-REG-09` |
+| Intake | `US-REG-01` … `US-REG-11` |
 | Groups / posts | `US-GRP-*` |
 | Reflections | `US-REF-01` … `US-REF-06`, `US-REF-08` |
-| Attendance | `US-ATT-01` … `US-ATT-08` |
+| Attendance / removal | `US-ATT-01` … `US-ATT-09` |
 | Admin shell | `US-ADM-*` |
 | Messaging | `US-MSG-*` |
 | Engagement | `US-ENG-*` |
+| Membership moves & history | `US-GRP-08`, `US-REG-10` … `US-REG-11`, `US-ADM-05` … `US-ADM-06` |

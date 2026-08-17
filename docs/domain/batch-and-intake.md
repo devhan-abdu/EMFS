@@ -74,6 +74,12 @@ Purpose: identify inactive joiners and keep a reachable inbox thread.
      offered/added.
 - Prefer **in-app** notifications for waitlist/seat events; Telegram optional.
 
+**Waitlist ≠ reassignment.** Filling an open seat in the **same** batch (via
+waitlist) is separate from **cross-batch reassignment** after removal. The latter
+is never automatic — see removal/reassignment policy in
+[`admin-ops.md`](./admin-ops.md) and `US-REG-10` … `US-REG-11` in
+[`module-map.md`](../requirements/module-map.md).
+
 ## Hard batch isolation
 
 Members of **batch A must never see batch B** ops data (roster, schedules,
