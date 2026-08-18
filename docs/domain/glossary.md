@@ -22,14 +22,16 @@ Read with:
 | **Member** | App user in an active pace group (reads, reflects, marks daily progress). | Not automatically an admin. |
 | **Admin** | Generic operator. Prefer `pace_admin`, `batch_admin`, or `super_admin`. | Not a single flat permission. |
 | **Pace admin** | Group admin for one or more pace groups; may post without being a reading member. Duties include Reflection, Inspiration, Attendance, Daily post (≥4; more later). | Not batch-wide intake owner. |
-| **Batch admin** | 1–3 per batch: registration, pace groups, **yearly schedule**, pace-admin assignment, books, approvals, Telegram handoff. | Not system-wide boss. |
-| **Super admin** | System boss: year books; create batches (capacity, pace-group count, books); can do all batch + pace actions. | Not limited to one batch. |
+| **Book catalog** | Global sequenced library of books + metadata (title, cover, language). Super admin only. | Not a batch-owned copy. |
+| **Master curriculum** | Shared tasks tied to catalog books (`day_number` relative steps). Super admin content. | Not a calendar date; not per-batch. |
+| **Batch admin** | 1–3 per batch: registration, pace groups, batch pacing setup, pace-admin assignment, approvals, Telegram handoff. | Not system-wide boss; does not create catalog books. |
+| **Super admin** | Book catalog + curriculum; assign batch admins; create batches (capacity, pace-group count, start/pacing); can do all batch + pace actions. | Not limited to one batch. |
 | **Batch** | Cohort with `max_members`, registration window, waiting list, pace groups (**≥1**; may be only one pace), books. Ops data isolated across batches. | Not a pace group; not a login session. |
 | **Pace group** | Subdivision inside a batch by daily page target (5/10/20/40). A batch may have only one. | Not the batch. |
 | **Waiting list** | Queue for next batch and/or when a full batch has a seat open. | Not active membership. |
-| **Reading schedule** | Planned daily tasks/readings; drives auto **draft** daily posts. | Not Done/Not Done. |
+| **Reading schedule** | Batch pacing config + per–pace-group page cursor; drives auto **draft** daily posts. See [`curriculum-and-pacing.md`](./curriculum-and-pacing.md). | Not Done/Not Done; not a duplicated yearly calendar. |
 | **Daily progress** | Per-member Done / Not Done for the calendar day. | Not attendance. |
-| **Daily task post** | System proposes today’s pages → admin approves +/- → system advances next day. May **forward from post library/source**. | Not member attendance. |
+| **Daily task post** | System proposes today’s pages **per pace group** → admin approves +/- → system advances **that group’s** cursor. Edits do not change other batches or master curriculum. May **forward from post library/source**. | Not member attendance. |
 | **Post library / source** | Place where prepared posts live so admins can forward into pace groups (`OD-022`). | Not a live member chat; not another group’s roster. |
 | **Inspiration** | Pace-admin duty / content type. | Not member personal notes. |
 | **Profile page** | Personal reflections + portfolio; **author-only**. | Not Groups page. |
@@ -59,3 +61,4 @@ Read with:
 - Admin / intake / attendance policy → [`admin-ops.md`](./admin-ops.md).
 - Reflections → [`reflections.md`](./reflections.md).
 - Batch intake → [`batch-and-intake.md`](./batch-and-intake.md).
+- Book catalog & pacing → [`curriculum-and-pacing.md`](./curriculum-and-pacing.md).
