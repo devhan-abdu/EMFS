@@ -15,6 +15,13 @@
       "when": 1786952101144,
       "tag": "0001_deep_dragon_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787390815811,
+      "tag": "0002_freezing_ezekiel",
+      "breakpoints": true
     }
   ]
 }
