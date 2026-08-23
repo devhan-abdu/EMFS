@@ -4,7 +4,7 @@ import {
   createBatchMembership,
   transitionBatchMembership,
   MembershipError,
-} from "./membership";
+} from "@/lib/services/membership";
 import type { BatchMembershipStatus } from "@/db/schema/batch-memberships";
 
 // Mock the db module
@@ -23,7 +23,6 @@ vi.mock("@/db", () => {
 });
 
 import { db } from "@/db";
-
 
 describe("Membership State Machine - isValidTransition", () => {
   describe("Valid transitions", () => {
@@ -222,4 +221,3 @@ describe("Membership Service - Same-batch vs Cross-batch Conflict Rules", () => 
     expect(result).toEqual(newMembership);
   });
 });
-
