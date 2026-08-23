@@ -1,5 +1,5 @@
 {
-  "id": "6282541d-a6f6-40eb-8d2d-69fd98c07e2b",
+  "id": "29c51f27-dcd1-4755-8e0a-57e21a48d8d5",
   "prevId": "2e8b2235-c878-4660-9027-e96aa8b1ec9d",
   "version": "7",
   "dialect": "postgresql",
@@ -1127,10 +1127,11 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "tasks_day_number_unique": {
-          "name": "tasks_day_number_unique",
+        "tasks_book_id_day_number_unique": {
+          "name": "tasks_book_id_day_number_unique",
           "nullsNotDistinct": false,
           "columns": [
+            "book_id",
             "day_number"
           ]
         }

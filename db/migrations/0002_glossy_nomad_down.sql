@@ -1,4 +1,4 @@
--- Down-migration for 0002_breezy_lord_hawal
+-- Down-migration for 0002_glossy_nomad
 -- Reverses: CREATE books, tasks tables + FKs + indexes
 --
 -- Backfill / data safety analysis:
