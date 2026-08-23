@@ -18,7 +18,7 @@ CREATE TABLE "tasks" (
 	"content" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "tasks_book_id_day_number_unique" UNIQUE("book_id","day_number")
+	CONSTRAINT "tasks_day_number_unique" UNIQUE("day_number")
 );
 --> statement-breakpoint
 ALTER TABLE "books" ADD CONSTRAINT "books_paired_book_id_books_id_fk" FOREIGN KEY ("paired_book_id") REFERENCES "public"."books"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
