@@ -2,12 +2,12 @@ import { describe, it, expect } from "vitest";
 import {
   setBatchScheduleSchema,
   createPacingOffsetSchema,
-} from "./batch-schedule";
+} from "../lib/validations/batch-schedule";
 
 const validSchedule = {
   batchId: "550e8400-e29b-41d4-a716-446655440000",
   startDate: "2026-01-15",
-  pacingType: "daily" as const,
+  readingDaysPerWeek: 6,
 };
 
 const validOffset = {
@@ -24,25 +24,49 @@ describe("setBatchScheduleSchema", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.batchId).toBe(validSchedule.batchId);
-      expect(result.data.pacingType).toBe("daily");
+      expect(result.data.readingDaysPerWeek).toBe(6);
       expect(result.data.startDate).toBeInstanceOf(Date);
     }
   });
 
-  it("accepts all valid pacing types", () => {
-    for (const pt of ["daily", "three_times_week", "custom"] as const) {
+  it("accepts all valid reading days per week (1-7)", () => {
+    for (const days of [1, 2, 3, 4, 5, 6, 7]) {
       const result = setBatchScheduleSchema.safeParse({
         ...validSchedule,
-        pacingType: pt,
+        readingDaysPerWeek: days,
       });
       expect(result.success).toBe(true);
     }
   });
 
-  it("rejects invalid pacingType", () => {
+  it("rejects readingDaysPerWeek of 0", () => {
     const result = setBatchScheduleSchema.safeParse({
       ...validSchedule,
-      pacingType: "weekly",
+      readingDaysPerWeek: 0,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects negative readingDaysPerWeek", () => {
+    const result = setBatchScheduleSchema.safeParse({
+      ...validSchedule,
+      readingDaysPerWeek: -1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-integer readingDaysPerWeek", () => {
+    const result = setBatchScheduleSchema.safeParse({
+      ...validSchedule,
+      readingDaysPerWeek: 1.5,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects readingDaysPerWeek greater than 7", () => {
+    const result = setBatchScheduleSchema.safeParse({
+      ...validSchedule,
+      readingDaysPerWeek: 8,
     });
     expect(result.success).toBe(false);
   });
@@ -67,8 +91,8 @@ describe("setBatchScheduleSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects missing pacingType", () => {
-    const { pacingType: _pacingType, ...rest } = validSchedule;
+  it("rejects missing readingDaysPerWeek", () => {
+    const { readingDaysPerWeek: _readingDaysPerWeek, ...rest } = validSchedule;
     const result = setBatchScheduleSchema.safeParse(rest);
     expect(result.success).toBe(false);
   });

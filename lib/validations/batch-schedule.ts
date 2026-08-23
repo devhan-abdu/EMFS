@@ -1,10 +1,9 @@
 import { z } from "zod";
-import { PACING_TYPES } from "../../db/schema";
 
 export const setBatchScheduleSchema = z.object({
   batchId: z.string().uuid(),
   startDate: z.coerce.date(),
-  pacingType: z.enum(PACING_TYPES),
+  readingDaysPerWeek: z.number().int().min(1).max(7),
 });
 
 export type SetBatchScheduleInput = z.infer<typeof setBatchScheduleSchema>;

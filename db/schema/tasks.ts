@@ -22,7 +22,7 @@ export const tasks = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
-    unique("tasks_day_number_unique").on(table.dayNumber),
+    unique("tasks_book_day_unique").on(table.bookId, table.dayNumber),
     index("tasks_book_id_idx").on(table.bookId),
   ],
 );
