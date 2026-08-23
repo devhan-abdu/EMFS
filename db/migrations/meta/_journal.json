@@ -15,6 +15,48 @@
       "when": 1786952101144,
       "tag": "0001_deep_dragon_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787341504034,
+      "tag": "0002_breezy_lord_hawal",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787420000000,
+      "tag": "0003_lonely_masque",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787499265092,
+      "tag": "0004_parallel_saracen",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787499338269,
+      "tag": "0005_melted_domino",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787499358494,
+      "tag": "0006_nostalgic_brother_voodoo",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787499530054,
+      "tag": "0007_next_tinkerer",
+      "breakpoints": true
     }
   ]
 }
