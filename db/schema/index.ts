@@ -7,5 +7,8 @@ export * from "./batch-memberships";
 export * from "./pace-group-memberships";
 export * from "./applications";
 export * from "./waitlist";
+export * from "./handoff-records";
+export * from "./membership-audit-logs";
+
 
 
