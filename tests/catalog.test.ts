@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createBookSchema, createTaskSchema } from "./catalog";
+import { createBookSchema, createTaskSchema } from "../lib/validations/catalog";
 
 const validBook = {
   title: "Atomic Habits",
