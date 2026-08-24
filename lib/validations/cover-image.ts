@@ -45,7 +45,8 @@ export type CoverImageErrorCode =
   | "COVER_UNREADABLE"
   | "COVER_DIMENSIONS_TOO_SMALL"
   | "COVER_DIMENSIONS_TOO_LARGE"
-  | "COVER_PROCESS_FAILED";
+  | "COVER_PROCESS_FAILED"
+  | "COVER_UPLOAD_FAILED";
 
 export type ApprovedCoverImage = {
   contentType: CoverImageContentType;
@@ -54,6 +55,10 @@ export type ApprovedCoverImage = {
   height: number;
   byteLength: number;
 };
+
+export type CoverImageValidationResult =
+  | { ok: true; data: ApprovedCoverImage }
+  | { ok: false; errors: FieldError[] };
 
 export type CoverImageProcessResult =
   | { ok: true; data: ProcessedCoverImage }

@@ -50,10 +50,21 @@ export async function uploadCoverImage(
       },
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Object storage upload failed.";
+    const errorName = error instanceof Error ? error.name : "UnknownError";
+    console.error("Cover upload failed", {
+      code: "COVER_UPLOAD_FAILED",
+      errorName,
+      message: "storage upload failed",
+    });
+
     return {
       ok: false,
-      errors: [coverFieldError("COVER_PROCESS_FAILED", message)],
+      errors: [
+        coverFieldError(
+          "COVER_UPLOAD_FAILED",
+          "Cover image could not be uploaded. Please try again.",
+        ),
+      ],
     };
   }
 }

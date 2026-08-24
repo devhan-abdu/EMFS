@@ -5,4 +5,8 @@ export {
   type StorageService,
   type UploadObjectInput,
 } from "./storage-service";
-export { generateObjectKey } from "./generate-object-key";
+export {
+  COVER_OBJECT_KEY_PREFIX,
+  generateCoverObjectKey,
+  generateObjectKey,
+} from "./generate-object-key";
