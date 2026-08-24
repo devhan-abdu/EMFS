@@ -1,6 +1,6 @@
 {
-  "id": "6282541d-a6f6-40eb-8d2d-69fd98c07e2b",
-  "prevId": "2e8b2235-c878-4660-9027-e96aa8b1ec9d",
+  "id": "5cf88eec-8a93-4808-a43b-e283567d690e",
+  "prevId": "bd7e96ca-86fb-4af6-a86c-d0a79a542a95",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -494,7 +494,20 @@
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
-          "default": true
+          "default": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reading_days_per_week": {
+          "name": "reading_days_per_week",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 6
         },
         "created_by": {
           "name": "created_by",
@@ -535,6 +548,127 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "reading_days_per_week_check": {
+          "name": "reading_days_per_week_check",
+          "value": "\"batches\".\"reading_days_per_week\" BETWEEN 1 AND 7"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.batch_pacing_offsets": {
+      "name": "batch_pacing_offsets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_from_day_number": {
+          "name": "effective_from_day_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "offset_days": {
+          "name": "offset_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "editor_id": {
+          "name": "editor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "batch_pacing_offsets_batch_id_idx": {
+          "name": "batch_pacing_offsets_batch_id_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "batch_pacing_offsets_batch_id_batches_id_fk": {
+          "name": "batch_pacing_offsets_batch_id_batches_id_fk",
+          "tableFrom": "batch_pacing_offsets",
+          "tableTo": "batches",
+          "columnsFrom": [
+            "batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "batch_pacing_offsets_editor_id_profiles_id_fk": {
+          "name": "batch_pacing_offsets_editor_id_profiles_id_fk",
+          "tableFrom": "batch_pacing_offsets",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "editor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "batch_pacing_offsets_batch_id_effective_from_day_number_unique": {
+          "name": "batch_pacing_offsets_batch_id_effective_from_day_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "batch_id",
+            "effective_from_day_number"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -768,7 +902,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'applied'"
+          "default": "'active'"
         },
         "start_date": {
           "name": "start_date",
@@ -797,30 +931,7 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "unique_active_batch_membership_idx": {
-          "name": "unique_active_batch_membership_idx",
-          "columns": [
-            {
-              "expression": "profile_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "batch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "status IN ('waitlisted', 'applied', 'approved', 'active', 'grace')",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "batch_memberships_profile_id_profiles_id_fk": {
           "name": "batch_memberships_profile_id_profiles_id_fk",
@@ -1178,13 +1289,9 @@
       "name": "batch_membership_status",
       "schema": "public",
       "values": [
-        "waitlisted",
-        "applied",
-        "approved",
-        "rejected",
         "active",
-        "grace",
-        "removed"
+        "removed",
+        "completed"
       ]
     },
     "public.membership_status": {

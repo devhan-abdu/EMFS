@@ -65,13 +65,16 @@ helping members grow and stay accountable.
 
 ### Batch admin (1–3 per batch)
 
-- Opens registration; creates pace groups (batch may have only one); **yearly
-  schedule**; assigns pace admins; books; approvals
+- Opens registration **after** pace groups and pace admins are ready
+- Creates pace groups (batch may have only one); assigns pace admins; batch
+  pacing setup; approvals
 - Manages Telegram access-link handoff (contact + code; alternatives welcome)
+- Does **not** create global catalog books
 
 ### Super admin
 
-- Year books; creates batches (capacity, pace-group count, books)
+- **Book catalog** + master curriculum (sequenced books, metadata, tasks)
+- Assigns batch admins; creates batches (capacity, pace-group count, start/pacing)
 - Can perform all batch and pace admin actions
 
 ## Group structure
@@ -224,7 +227,7 @@ Start date: To be confirmed
 1. Super admin creates batch (capacity, pace groups, books); batch admin opens registration
 2. User applies (name, email, Telegram, phone, pace preference) or joins waiting list
 3. Batch admin approves → contact + code → member DMs admin → Telegram link → active
-4. Pace admin approves daily pages (+/-); member marks Done (Am+En both if dual)
+4. Pace admin approves daily pages (+/-); member marks Done in their edition (Am or En)
 5. Member submits **text** attendance in window; admin reviews
 6. After 3 misses: outreach → grace or full removal from batch (reassignment to a later batch is separate, criteria-gated); same-batch seat may open for waitlist
 7. Reactions / leaderboard; completed books (member + group schedule)
