@@ -7,6 +7,10 @@ import {
   membershipAuditLogs,
 } from "@/db/schema";
 
+export type DbClient = typeof db;
+export type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type DbOrTx = DbClient | DbTransaction;
+
 export type MembershipErrorCode =
   | "NOT_FOUND"
   | "INVALID_TRANSITION"
@@ -40,7 +44,7 @@ export const ALLOWED_TRANSITIONS: Record<
   BatchMembershipStatus,
   readonly BatchMembershipStatus[]
 > = {
-  waitlisted: ["applied"],
+  waitlisted: ["applied", "removed"],
   applied: ["approved", "rejected"],
   approved: ["active"],
   rejected: [],
@@ -68,7 +72,8 @@ export function isValidTransition(
 export async function createBatchMembership(
   profileId: string,
   batchId: string,
-  status: BatchMembershipStatus = "applied"
+  status: BatchMembershipStatus = "applied",
+  executor: DbOrTx = db
 ) {
   if (!BATCH_MEMBERSHIP_STATUSES.includes(status)) {
     throw new MembershipError(
@@ -78,7 +83,7 @@ export async function createBatchMembership(
   }
 
   // Check for existing non-terminal membership in the SAME batch
-  const existingActive = await db.query.batchMemberships.findFirst({
+  const existingActive = await executor.query.batchMemberships.findFirst({
     where: and(
       eq(batchMemberships.profileId, profileId),
       eq(batchMemberships.batchId, batchId),
@@ -93,16 +98,23 @@ export async function createBatchMembership(
     );
   }
 
-  const [inserted] = await db
-    .insert(batchMemberships)
-    .values({
-      profileId,
-      batchId,
-      status,
-    })
-    .returning();
+  try {
+    const [inserted] = await executor
+      .insert(batchMemberships)
+      .values({
+        profileId,
+        batchId,
+        status,
+      })
+      .returning();
 
-  return inserted;
+    return inserted;
+  } catch (error) {
+    if (error instanceof MembershipError) {
+      throw error;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -113,7 +125,8 @@ export async function transitionBatchMembership(
   membershipId: string,
   targetStatus: BatchMembershipStatus,
   reason?: string,
-  actorId?: string
+  actorId?: string,
+  executor: DbOrTx = db
 ) {
   if (!BATCH_MEMBERSHIP_STATUSES.includes(targetStatus)) {
     throw new MembershipError(
@@ -122,7 +135,7 @@ export async function transitionBatchMembership(
     );
   }
 
-  return await db.transaction(async (tx) => {
+  const runTransition = async (tx: DbOrTx) => {
     const existing = await tx.query.batchMemberships.findFirst({
       where: eq(batchMemberships.id, membershipId),
     });
@@ -170,7 +183,15 @@ export async function transitionBatchMembership(
     }
 
     return updated;
-  });
+  };
+
+  if (executor === db) {
+    return await db.transaction(async (tx) => {
+      return await runTransition(tx);
+    });
+  } else {
+    return await runTransition(executor);
+  }
 }
 
 /**

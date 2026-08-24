@@ -1,4 +1,4 @@
-import { pgTable, timestamp, integer, uuid, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, timestamp, integer, uuid, uniqueIndex } from "drizzle-orm/pg-core";
 import { profiles } from "./users";
 import { batches } from "./batches";
 
@@ -21,10 +21,6 @@ export const waitlist = pgTable(
       table.userId
     ),
     uniqueIndex("unique_batch_queue_pos_idx").on(
-      table.batchId,
-      table.queuePosition
-    ),
-    index("waitlist_batch_queue_pos_idx").on(
       table.batchId,
       table.queuePosition
     ),

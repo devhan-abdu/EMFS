@@ -5,7 +5,9 @@ import {
   getWaitlistHead,
   getWaitlistQueue,
   WaitlistError,
-} from "./waitlist";
+} from "@/lib/services/waitlist";
+import { waitlist } from "@/db/schema/waitlist";
+import { getTableConfig } from "drizzle-orm/pg-core";
 
 // Mock the db module
 vi.mock("@/db", () => {
@@ -23,6 +25,9 @@ const dbTx = {
       findFirst: vi.fn(),
     },
     waitlist: {
+      findFirst: vi.fn(),
+    },
+    batchMemberships: {
       findFirst: vi.fn(),
     },
   },
@@ -47,7 +52,7 @@ describe("Waitlist Service - addToWaitlist & Queue Ordering", () => {
   const userId1 = "user-uuid-1";
   const userId2 = "user-uuid-2";
 
-  it("locks batch FOR UPDATE and creates a waitlist entry with position 1 when queue is empty", async () => {
+  it("locks batch FOR UPDATE and creates a waitlist entry with position 1 when queue is empty, creating a waitlisted membership", async () => {
     // Mock batch select .for("update")
     const forUpdateMock = vi.fn().mockResolvedValue([{ id: batchId }]);
     const whereBatchMock = vi.fn().mockReturnValue({ for: forUpdateMock });
@@ -68,6 +73,7 @@ describe("Waitlist Service - addToWaitlist & Queue Ordering", () => {
     });
 
     vi.mocked(dbTx.query.waitlist.findFirst).mockResolvedValue(undefined);
+    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(undefined);
 
     const insertedEntry = {
       id: "wl-1",
@@ -77,15 +83,42 @@ describe("Waitlist Service - addToWaitlist & Queue Ordering", () => {
       joinedAt: new Date(),
     };
 
-    const returningMock = vi.fn().mockResolvedValue([insertedEntry]);
-    const valuesMock = vi.fn().mockReturnValue({ returning: returningMock });
-    vi.mocked(dbTx.insert).mockReturnValue({ values: valuesMock } as unknown as ReturnType<typeof dbTx.insert>);
+    const insertedMembership = {
+      id: "mem-wl-1",
+      profileId: userId1,
+      batchId,
+      status: "waitlisted",
+      startDate: new Date(),
+      endDate: null,
+      removalReason: null,
+      createdAt: new Date(),
+    };
+
+    let insertCallCount = 0;
+    vi.mocked(dbTx.insert).mockImplementation(() => {
+      insertCallCount++;
+      if (insertCallCount === 1) {
+        // waitlist insert
+        return {
+          values: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([insertedEntry]),
+          }),
+        } as unknown as ReturnType<typeof dbTx.insert>;
+      }
+      // batch_memberships insert
+      return {
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([insertedMembership]),
+        }),
+      } as unknown as ReturnType<typeof dbTx.insert>;
+    });
 
     const result = await addToWaitlist(userId1, batchId);
 
     expect(result).toEqual(insertedEntry);
     expect(result.queuePosition).toBe(1);
     expect(forUpdateMock).toHaveBeenCalled();
+    expect(dbTx.insert).toHaveBeenCalledTimes(2); // waitlist insert + membership insert
   });
 
   it("assigns sequential queue_positions (e.g. 2) for subsequent users in the same batch", async () => {
@@ -107,6 +140,7 @@ describe("Waitlist Service - addToWaitlist & Queue Ordering", () => {
     });
 
     vi.mocked(dbTx.query.waitlist.findFirst).mockResolvedValue(undefined);
+    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(undefined);
 
     const insertedEntry = {
       id: "wl-2",
@@ -116,9 +150,33 @@ describe("Waitlist Service - addToWaitlist & Queue Ordering", () => {
       joinedAt: new Date(),
     };
 
-    const returningMock = vi.fn().mockResolvedValue([insertedEntry]);
-    const valuesMock = vi.fn().mockReturnValue({ returning: returningMock });
-    vi.mocked(dbTx.insert).mockReturnValue({ values: valuesMock } as unknown as ReturnType<typeof dbTx.insert>);
+    const insertedMembership = {
+      id: "mem-wl-2",
+      profileId: userId2,
+      batchId,
+      status: "waitlisted",
+      startDate: new Date(),
+      endDate: null,
+      removalReason: null,
+      createdAt: new Date(),
+    };
+
+    let insertCallCount = 0;
+    vi.mocked(dbTx.insert).mockImplementation(() => {
+      insertCallCount++;
+      if (insertCallCount === 1) {
+        return {
+          values: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([insertedEntry]),
+          }),
+        } as unknown as ReturnType<typeof dbTx.insert>;
+      }
+      return {
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([insertedMembership]),
+        }),
+      } as unknown as ReturnType<typeof dbTx.insert>;
+    });
 
     const result = await addToWaitlist(userId2, batchId);
 
@@ -164,7 +222,7 @@ describe("Waitlist Service - addToWaitlist & Queue Ordering", () => {
   });
 });
 
-describe("Waitlist Service - removeFromWaitlist & Ownership / Authorization", () => {
+describe("Waitlist Service - removeFromWaitlist & Membership Synchronization", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(db.transaction).mockImplementation((cb: unknown) =>
@@ -180,48 +238,90 @@ describe("Waitlist Service - removeFromWaitlist & Ownership / Authorization", ()
     joinedAt: new Date(),
   };
 
-  it("allows owner of waitlist entry to remove their own entry and compacts queue", async () => {
+  const existingMembership = {
+    id: "mem-wl-2",
+    profileId: "user-owner-uuid",
+    batchId: "batch-1",
+    status: "waitlisted",
+    startDate: new Date(),
+    endDate: null,
+    removalReason: null,
+    createdAt: new Date(),
+  };
+
+  it("allows owner to remove waitlist entry and synchronizes membership status to 'removed'", async () => {
     vi.mocked(dbTx.query.waitlist.findFirst).mockResolvedValue(existingWl);
+    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(existingMembership);
 
     const forUpdateMock = vi.fn().mockResolvedValue([{ id: "batch-1" }]);
     const whereBatchMock = vi.fn().mockReturnValue({ for: forUpdateMock });
     const fromBatchMock = vi.fn().mockReturnValue({ where: whereBatchMock });
     vi.mocked(dbTx.select).mockReturnValue({ from: fromBatchMock } as unknown as ReturnType<typeof dbTx.select>);
 
-    const whereDeleteMock = vi.fn().mockResolvedValue([]);
-    vi.mocked(dbTx.delete).mockReturnValue({ where: whereDeleteMock } as unknown as ReturnType<typeof dbTx.delete>);
+    const updatedMembership = { ...existingMembership, status: "removed" };
+    const returningMock = vi.fn().mockResolvedValue([updatedMembership]);
+    const whereUpdateMembershipMock = vi.fn().mockReturnValue({ returning: returningMock });
+    const setUpdateMembershipMock = vi.fn().mockReturnValue({ where: whereUpdateMembershipMock });
 
-    const whereUpdateMock = vi.fn().mockResolvedValue([]);
-    const setUpdateMock = vi.fn().mockReturnValue({ where: whereUpdateMock });
-    vi.mocked(dbTx.update).mockReturnValue({ set: setUpdateMock } as unknown as ReturnType<typeof dbTx.update>);
+    const whereDeleteMock = vi.fn().mockResolvedValue([]);
+
+    const whereCompactionMock = vi.fn().mockResolvedValue([]);
+    const setCompactionMock = vi.fn().mockReturnValue({ where: whereCompactionMock });
+
+    let updateCallCount = 0;
+    vi.mocked(dbTx.update).mockImplementation(() => {
+      updateCallCount++;
+      if (updateCallCount === 1) {
+        // Membership update
+        return { set: setUpdateMembershipMock } as unknown as ReturnType<typeof dbTx.update>;
+      }
+      // Pass 1 & Pass 2 queue position compaction
+      return { set: setCompactionMock } as unknown as ReturnType<typeof dbTx.update>;
+    });
+
+    vi.mocked(dbTx.delete).mockReturnValue({ where: whereDeleteMock } as unknown as ReturnType<typeof dbTx.delete>);
 
     const removed = await removeFromWaitlist("wl-2", "user-owner-uuid", "member");
 
     expect(removed).toEqual(existingWl);
     expect(dbTx.delete).toHaveBeenCalled();
-    expect(dbTx.update).toHaveBeenCalledTimes(2); // Pass 1 negation + Pass 2 compaction
+    expect(dbTx.update).toHaveBeenCalledTimes(3); // 1 membership transition + 2 queue compaction passes
   });
 
-  it("allows batch_admin to remove any user's waitlist entry", async () => {
+  it("allows batch_admin to remove waitlist entry and synchronizes membership status to 'removed'", async () => {
     vi.mocked(dbTx.query.waitlist.findFirst).mockResolvedValue(existingWl);
+    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(existingMembership);
 
     const forUpdateMock = vi.fn().mockResolvedValue([{ id: "batch-1" }]);
     const whereBatchMock = vi.fn().mockReturnValue({ for: forUpdateMock });
     const fromBatchMock = vi.fn().mockReturnValue({ where: whereBatchMock });
     vi.mocked(dbTx.select).mockReturnValue({ from: fromBatchMock } as unknown as ReturnType<typeof dbTx.select>);
 
-    const whereDeleteMock = vi.fn().mockResolvedValue([]);
-    vi.mocked(dbTx.delete).mockReturnValue({ where: whereDeleteMock } as unknown as ReturnType<typeof dbTx.delete>);
+    const updatedMembership = { ...existingMembership, status: "removed" };
+    const returningMock = vi.fn().mockResolvedValue([updatedMembership]);
+    const whereUpdateMembershipMock = vi.fn().mockReturnValue({ returning: returningMock });
+    const setUpdateMembershipMock = vi.fn().mockReturnValue({ where: whereUpdateMembershipMock });
 
-    const whereUpdateMock = vi.fn().mockResolvedValue([]);
-    const setUpdateMock = vi.fn().mockReturnValue({ where: whereUpdateMock });
-    vi.mocked(dbTx.update).mockReturnValue({ set: setUpdateMock } as unknown as ReturnType<typeof dbTx.update>);
+    const whereDeleteMock = vi.fn().mockResolvedValue([]);
+    const whereCompactionMock = vi.fn().mockResolvedValue([]);
+    const setCompactionMock = vi.fn().mockReturnValue({ where: whereCompactionMock });
+
+    let updateCallCount = 0;
+    vi.mocked(dbTx.update).mockImplementation(() => {
+      updateCallCount++;
+      if (updateCallCount === 1) {
+        return { set: setUpdateMembershipMock } as unknown as ReturnType<typeof dbTx.update>;
+      }
+      return { set: setCompactionMock } as unknown as ReturnType<typeof dbTx.update>;
+    });
+
+    vi.mocked(dbTx.delete).mockReturnValue({ where: whereDeleteMock } as unknown as ReturnType<typeof dbTx.delete>);
 
     const removed = await removeFromWaitlist("wl-2", "admin-user-uuid", "batch_admin");
 
     expect(removed).toEqual(existingWl);
     expect(dbTx.delete).toHaveBeenCalled();
-    expect(dbTx.update).toHaveBeenCalledTimes(2);
+    expect(dbTx.update).toHaveBeenCalledTimes(3);
   });
 
   it("REJECTS unauthorized user who is not owner and not admin", async () => {
@@ -290,5 +390,16 @@ describe("Waitlist Service - getWaitlistHead & getWaitlistQueue", () => {
     const result = await getWaitlistQueue("batch-1");
     expect(result).toEqual(queueEntries);
     expect(result.length).toBe(2);
+  });
+});
+
+describe("Waitlist Schema Index Verification", () => {
+  it("verifies redundant waitlist_batch_queue_pos_idx was removed and unique_batch_queue_pos_idx remains", () => {
+    const config = getTableConfig(waitlist);
+    const indexNames = config.indexes.map((idx) => idx.config.name);
+
+    expect(indexNames).not.toContain("waitlist_batch_queue_pos_idx");
+    expect(indexNames).toContain("unique_batch_queue_pos_idx");
+    expect(indexNames).toContain("unique_batch_user_waitlist_idx");
   });
 });

@@ -60,15 +60,19 @@ import {
   moveBatchMembership,
   reenterBatchMembership,
   MembershipError,
-} from "./membership";
+} from "@/lib/services/membership";
 import type { BatchMembershipStatus } from "@/db/schema/batch-memberships";
-import * as membershipService from "./membership";
+import * as membershipService from "@/lib/services/membership";
 import { db } from "@/db";
 
 describe("Membership State Machine - isValidTransition", () => {
   describe("Valid transitions", () => {
     it("allows waitlisted -> applied", () => {
       expect(isValidTransition("waitlisted", "applied")).toBe(true);
+    });
+
+    it("allows waitlisted -> removed", () => {
+      expect(isValidTransition("waitlisted", "removed")).toBe(true);
     });
 
     it("allows applied -> approved", () => {
