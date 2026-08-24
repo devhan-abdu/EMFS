@@ -39,6 +39,7 @@ Use `docs/domain/*` for what is true about the business:
 | [User Journeys](./domain/user-journeys.md) | Spine flows, failure recovery, linked open decisions. |
 | [Data Model](./domain/data-model.md) | Planned aggregates before/while schema lands. |
 | [Open Decisions](./domain/open-decisions.md) | Remaining open items only — do not guess. |
+| [Curriculum & pacing](./domain/curriculum-and-pacing.md) | Book catalog, master curriculum, batch pacing, today's task scoping. |
 
 ## Requirements
 
