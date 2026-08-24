@@ -3,7 +3,7 @@ import {
   transitionMembershipAction,
   moveMembershipAction,
   reenterMembershipAction,
-} from "./membership";
+} from "@/actions/membership";
 import * as authorizeModule from "@/lib/auth/authorize";
 import * as membershipService from "@/lib/services/membership";
 
