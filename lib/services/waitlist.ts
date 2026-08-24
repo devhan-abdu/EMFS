@@ -1,6 +1,10 @@
 import { eq, and, sql, asc, gt, lt } from "drizzle-orm";
 import { db } from "@/db";
-import { waitlist, batches } from "@/db/schema";
+import { waitlist, batches, batchMemberships } from "@/db/schema";
+import {
+  createBatchMembership,
+  transitionBatchMembership,
+} from "@/lib/services/membership";
 
 export type WaitlistErrorCode =
   | "BATCH_NOT_FOUND"
@@ -21,6 +25,7 @@ export class WaitlistError extends Error {
  * Adds a user to the waitlist for a specific batch.
  * Computes the next 1-based queue_position for the batch atomically.
  * Locks the batch row FOR UPDATE to prevent race conditions during concurrent insertions.
+ * Also creates a corresponding batch membership record with status "waitlisted".
  */
 export async function addToWaitlist(userId: string, batchId: string) {
   return await db.transaction(async (tx) => {
@@ -68,6 +73,9 @@ export async function addToWaitlist(userId: string, batchId: string) {
       })
       .returning();
 
+    // Create corresponding batch membership with status "waitlisted"
+    await createBatchMembership(userId, batchId, "waitlisted", tx);
+
     return inserted;
   });
 }
@@ -75,6 +83,7 @@ export async function addToWaitlist(userId: string, batchId: string) {
 /**
  * Removes an entry from the waitlist and re-compacts subsequent queue positions
  * in the same batch to guarantee strict, unambiguous ordering.
+ * Synchronizes batch membership state to "removed".
  * Enforces ownership / admin authorization.
  */
 export async function removeFromWaitlist(
@@ -111,6 +120,24 @@ export async function removeFromWaitlist(
       .from(batches)
       .where(eq(batches.id, existing.batchId))
       .for("update");
+
+    // Find and update/transition the user's waitlisted batch membership
+    const membership = await tx.query.batchMemberships.findFirst({
+      where: and(
+        eq(batchMemberships.profileId, existing.userId),
+        eq(batchMemberships.batchId, existing.batchId),
+        eq(batchMemberships.status, "waitlisted")
+      ),
+    });
+
+    if (membership) {
+      await transitionBatchMembership(
+        membership.id,
+        "removed",
+        "Removed from waitlist",
+        tx
+      );
+    }
 
     await tx.delete(waitlist).where(eq(waitlist.id, waitlistId));
 
@@ -168,4 +195,3 @@ export async function getWaitlistQueue(batchId: string) {
     .where(eq(waitlist.batchId, batchId))
     .orderBy(asc(waitlist.queuePosition));
 }
-

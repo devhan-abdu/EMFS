@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, pgEnum, uuid, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, pgEnum, uuid, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { profiles } from "./users";
 import { batches } from "./batches";
 
@@ -33,6 +33,7 @@ export const applications = pgTable(
       table.userId,
       table.batchId
     ),
+    index("applications_batch_id_idx").on(table.batchId),
   ]
 );
 
