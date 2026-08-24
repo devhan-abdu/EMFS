@@ -768,7 +768,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'active'"
+          "default": "'applied'"
         },
         "start_date": {
           "name": "start_date",
@@ -797,7 +797,30 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "unique_active_batch_membership_idx": {
+          "name": "unique_active_batch_membership_idx",
+          "columns": [
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "status IN ('waitlisted', 'applied', 'approved', 'active', 'grace')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "batch_memberships_profile_id_profiles_id_fk": {
           "name": "batch_memberships_profile_id_profiles_id_fk",
@@ -1155,9 +1178,13 @@
       "name": "batch_membership_status",
       "schema": "public",
       "values": [
+        "waitlisted",
+        "applied",
+        "approved",
+        "rejected",
         "active",
-        "removed",
-        "completed"
+        "grace",
+        "removed"
       ]
     },
     "public.membership_status": {
