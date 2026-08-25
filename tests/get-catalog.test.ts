@@ -13,6 +13,13 @@ const mocks = vi.hoisted(() => {
 const { selectMock, selectDistinctMock, findManyMock } = mocks;
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/services/storage/get-storage-service", () => ({
+  getStorageService: vi.fn(() => ({
+    upload: vi.fn(),
+    delete: vi.fn(),
+    getPublicUrl: (key: string) => `https://cdn.example.com/${key}`,
+  })),
+}));
 vi.mock("@/db", () => ({
   db: {
     select: mocks.selectMock,

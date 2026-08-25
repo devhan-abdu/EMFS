@@ -2,6 +2,7 @@ import { asc, count, countDistinct, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { books } from "@/db/schema";
+import type { StorageService } from "@/lib/services/storage/storage-service";
 import {
   getCatalogSchema,
   zodErrorToFieldErrors,
@@ -61,6 +62,7 @@ export type PaginatedCatalogResult = {
  */
 export async function getCatalog(
   input?: GetCatalogInput,
+  storageService?: StorageService,
 ): Promise<ActionResult<PaginatedCatalogResult>> {
   const parsed = getCatalogSchema.safeParse(input ?? {});
   if (!parsed.success) {
@@ -159,12 +161,17 @@ export async function getCatalog(
     title: b.title,
     language: b.language,
     author: b.author,
-    coverUrl: b.coverUrl,
+    coverUrl: toPublicCoverUrl(b.coverUrl, storageService),
     sequenceOrder: b.sequenceOrder,
     pairedBookId: b.pairedBookId,
     createdAt: b.createdAt,
     updatedAt: b.updatedAt,
-    pairedBook: b.pairedBook ?? null,
+    pairedBook: b.pairedBook
+      ? {
+          ...b.pairedBook,
+          coverUrl: toPublicCoverUrl(b.pairedBook.coverUrl, storageService),
+        }
+      : null,
     tasksCount: b.tasks?.length ?? 0,
   }));
 
@@ -202,4 +209,14 @@ export async function getCatalog(
       },
     },
   };
+}
+
+function toPublicCoverUrl(
+  coverKey: string | null,
+  storageService?: StorageService,
+): string | null {
+  if (!coverKey || !storageService) {
+    return coverKey;
+  }
+  return storageService.getPublicUrl(coverKey);
 }

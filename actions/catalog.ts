@@ -98,7 +98,7 @@ export async function createBookAction(
       errors: [
         {
           field: "form",
-          message: error instanceof Error ? error.message : "Failed to create book.",
+          message: "Failed to create book.",
           code: "INTERNAL_ERROR",
         },
       ],
@@ -189,8 +189,7 @@ export async function addPairedEditionAction(
       errors: [
         {
           field: "form",
-          message:
-            error instanceof Error ? error.message : "Failed to add paired edition.",
+          message: "Failed to add paired edition.",
           code: "INTERNAL_ERROR",
         },
       ],
@@ -243,8 +242,7 @@ export async function reorderCatalogSlotsAction(
       errors: [
         {
           field: "form",
-          message:
-            error instanceof Error ? error.message : "Failed to reorder catalog slots.",
+          message: "Failed to reorder catalog slots.",
           code: "INTERNAL_ERROR",
         },
       ],
@@ -261,7 +259,7 @@ export async function getCatalogAction(
   input?: GetCatalogInput,
 ): Promise<GetCatalogActionResult> {
   try {
-    return await getCatalog(input);
+    return await getCatalog(input, getStorageService());
   } catch (error) {
     console.error("getCatalogAction error:", error);
     return {
@@ -269,8 +267,7 @@ export async function getCatalogAction(
       errors: [
         {
           field: "form",
-          message:
-            error instanceof Error ? error.message : "Failed to load catalog.",
+          message: "Failed to load catalog.",
           code: "INTERNAL_ERROR",
         },
       ],
