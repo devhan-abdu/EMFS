@@ -1,4 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  isValidTransition,
+  createBatchMembership,
+  transitionBatchMembership,
+  moveBatchMembership,
+  reenterBatchMembership,
+  MembershipError,
+} from "@/lib/services/membership";
+import type { BatchMembershipStatus } from "@/db/schema/batch-memberships";
 
 const {
   mockFindFirst,

@@ -25,10 +25,11 @@ Read with:
 ### Hierarchy
 
 ```text
-batch (max_members, registration_open, books)
+batch (max_members, registration_open, start_date, pacing)
+  ├── batch_admin (1–3) — assigned by super_admin before intake
   ├── waiting_list
   ├── pace groups (count set at batch create; created by batch admin)
-  │     └── members, pace admins, schedule, group posts
+  │     └── members, pace admins, page cursor, group posts
   └── Telegram group access (managed by batch admin)
 ```
 
@@ -36,9 +37,28 @@ batch (max_members, registration_open, books)
 
 | Action | Role |
 | --- | --- |
-| Select year books; create batch (max members, # pace groups, books) | `super_admin` |
-| Create pace groups (≥1); **yearly schedule** + assign pace admins; open/close registration; add books; approve/reject; access-link handoff | `batch_admin` (1–3) / `super_admin` |
-| Daily ops inside pace group | `pace_admin` |
+| **Book catalog** — create/reorder books, metadata, curriculum tasks | `super_admin` only |
+| Assign **batch admins** (1–3) to a batch | `super_admin` only |
+| Create batch (max members, # pace groups, start date, pacing; catalog always from sequence 1) | `super_admin` |
+| Create pace groups (≥1); configure batch pacing + assign pace admins; open/close registration; approve/reject; access-link handoff | `batch_admin` (1–3) / `super_admin` |
+| Daily ops inside pace group (approve/edit today’s page draft) | `pace_admin` |
+
+## Pre-intake setup (super admin → batch admin)
+
+Registration must **not** open until the steps below are done. Order matters.
+
+```text
+1. super_admin — build book catalog (sequence 1, 2, 3, … + metadata + curriculum tasks)
+2. super_admin — assign 1–3 batch_admin users to the batch
+3. super_admin — create batch (capacity, pace_group_count, start_date, pacing)
+                 (batch reads from catalog sequence 1; no per-batch book copies)
+4. batch_admin — create pace groups; assign pace admins (+ duty/book split)
+5. batch_admin — confirm batch pacing / offsets if needed
+6. batch_admin — open registration  ← intake begins here
+7. members apply → batch_admin approves → contact+code handoff → active
+```
+
+Until step 6, applicants must see registration **closed** for that batch.
 
 ## Registration — per batch
 

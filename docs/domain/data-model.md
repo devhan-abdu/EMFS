@@ -3,7 +3,8 @@
 Planned aggregates **before** Drizzle schema exists. Code wins on drift.
 
 Read with: [`glossary.md`](./glossary.md), [`admin-ops.md`](./admin-ops.md),
-[`batch-and-intake.md`](./batch-and-intake.md), [`reflections.md`](./reflections.md).
+[`batch-and-intake.md`](./batch-and-intake.md), [`curriculum-and-pacing.md`](./curriculum-and-pacing.md),
+[`reflections.md`](./reflections.md).
 
 ## Aggregate map
 
@@ -19,8 +20,10 @@ Read with: [`glossary.md`](./glossary.md), [`admin-ops.md`](./admin-ops.md),
 | **Pace group** | 5/10/20/40 | belongs to batch | |
 | **Pace group admin** | Assignment | admin ↔ pace group; duties; optional book_ids; may be non-member poster | Multi-admin; multi-group OK |
 | **Batch admin assignment** | Assignment | admin ↔ batch | Max 3 |
-| **Book** | Title / materials | year + batch; Am+En pair when dual | Both required for Done (`OD-015`) |
-| **Reading schedule** | Yearly plan | batch + pace group + page cursor | Batch admin creates; feeds daily target |
+| **Book** | Catalog **edition** row: title, cover, `language`, `sequence_order` (program slot); optional `paired_book_id` | Am + En share slot; member reads one edition |
+| **Curriculum task** | Master-library step: `book_id`, `day_number`, content/target | Shared across batches; not calendar-dated |
+| **Pace group page cursor** | Per batch + pace group reading position | Feeds daily page draft; admin +/- applies here only |
+| **Reading schedule** | Batch `start_date` + pacing + offsets + pace-group cursors | Replaces hand-built “yearly calendar”; see [`curriculum-and-pacing.md`](./curriculum-and-pacing.md) |
 | **Admin post** | Daily task / inspiration | draft \| published \| held; optional `source_post_id` from library | `OD-022` |
 | **Post library entry** | Prepared content to forward | reusable templates / drafts | `OD-022` |
 | **Daily progress** | Done/Not Done | member + date; dual-lang flag | `OD-009` |

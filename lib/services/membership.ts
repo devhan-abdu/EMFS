@@ -93,16 +93,23 @@ export async function createBatchMembership(
     );
   }
 
-  const [inserted] = await db
-    .insert(batchMemberships)
-    .values({
-      profileId,
-      batchId,
-      status,
-    })
-    .returning();
+  try {
+    const [inserted] = await db
+      .insert(batchMemberships)
+      .values({
+        profileId,
+        batchId,
+        status,
+      })
+      .returning();
 
-  return inserted;
+    return inserted;
+  } catch (error) {
+    if (error instanceof MembershipError) {
+      throw error;
+    }
+    throw error;
+  }
 }
 
 /**
