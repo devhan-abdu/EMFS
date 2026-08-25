@@ -70,7 +70,6 @@ export async function createBookWithCover(
         language: data.language,
         author: data.author,
         coverUrl,
-        pairedBookId: data.pairedBookId,
         sequenceOrder: nextSequenceOrder,
       })
       .returning({
@@ -177,6 +176,19 @@ export async function addPairedEditionWithCover(
               field: "language",
               message: `Paired edition cannot have the same language ('${data.language}') as the target book.`,
               code: "DUPLICATE_LANGUAGE",
+            },
+          ],
+        };
+      }
+
+      if (targetBook.pairedBookId) {
+        return {
+          ok: false as const,
+          errors: [
+            {
+              field: "pairedBookId",
+              message: "Target book is already paired with another edition.",
+              code: "TARGET_ALREADY_PAIRED",
             },
           ],
         };
