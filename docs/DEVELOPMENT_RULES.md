@@ -27,6 +27,31 @@ pnpm verify
 No feature, refactor, dependency change, or env/schema change is done until the
 relevant verification commands pass.
 
+## Git workflow (NON-NEGOTIABLE)
+
+- **Do not push directly to `main`.** `main` is protected; all work lands via
+  pull request after review.
+- Create a **feature branch** from the latest `main` for every change:
+
+```bash
+git checkout main
+git pull origin main
+git checkout -b feat/your-short-topic
+```
+
+- Use branch prefixes that match the work: `feat/`, `fix/`, `docs/`, `chore/`.
+- **One logical change per branch** — avoid mixing unrelated fixes on one branch.
+- Commit with **Conventional Commits** (`feat:`, `fix:`, `docs:`, …); small,
+  focused commits are better than one large dump.
+- Push your branch and open a **pull request** — do not merge your own PR unless
+  the team has agreed that is allowed.
+
+```bash
+git push -u origin feat/your-short-topic
+```
+
+- After merge, delete the branch and pull `main` before starting the next task.
+
 ## Global hard gates
 
 - No known build errors or type errors.

@@ -8,7 +8,8 @@ Admin/intake policy → [`../domain/admin-ops.md`](../domain/admin-ops.md),
 
 ## The spine
 
-**register → approve → contact+code handoff → join pace group → daily progress →
+**catalog setup → assign batch admins → create batch → pace groups → open registration →
+register → approve → contact+code handoff → join pace group → daily progress →
 attendance window → admin review** (removal / waitlist as needed; reassignment
 to a later batch is **not** automatic — see §02 and §06).
 
@@ -27,6 +28,7 @@ to a later batch is **not** automatic — see §02 and §06).
 | 09 | Admin Operations Shell | Must | Policy resolved |
 | 10 | Notifications | Should | In-app first; Telegram optional |
 | 11 | Engagement (streaks, leaderboard, reactions) | Should | Public view/react (`OD-020`) |
+| 12 | Book Catalog & Curriculum | Must | Policy in [`curriculum-and-pacing.md`](../domain/curriculum-and-pacing.md) |
 
 ---
 
@@ -53,7 +55,8 @@ to a later batch is **not** automatic — see §02 and §06).
 | US-REG-04 | As a batch admin, after approval I send admin contact + code (not the Telegram link); member DMs me for the access link. | Must | Meeting · `OD-005` |
 | US-REG-05 | As a member in batch A, I cannot see batch B ops/roster data. | Must | Meeting |
 | US-REG-06 | As a batch admin, I can open or close registration for my batch. | Must | Meeting |
-| US-REG-07 | As a super admin, I create a batch with max members, pace-group count, and books. | Must | Meeting |
+| US-REG-07 | As a super admin, I create a batch with max members, pace-group count, start date, and pacing (reads from catalog sequence 1). | Must | Meeting |
+| US-REG-12 | As a super admin, I assign 1–3 batch admins to a batch before opening registration. | Must | Policy |
 | US-REG-08 | As an applicant, when the batch is full or registration is closed I can join a waiting list. | Must | Meeting |
 | US-REG-09 | As a batch admin, when a seat opens I can advance the next waitlisted person. | Must | Meeting |
 | US-REG-10 | As a batch admin, I can invite a removed member into a lower/later-starting batch when they meet admin-set reassignment criteria (direct invite path). | Must | Policy |
@@ -76,8 +79,8 @@ re-registers through the normal application flow (`US-REG-11`). Being removed do
 | US-GRP-02 | As a member, I can view my group's reading schedule. | Must | PRD |
 | US-GRP-03 | As a pace admin, I can be assigned to one or more pace groups (reuse allowed; may post without being a reading member). | Must | Meeting |
 | US-GRP-04 | As a batch admin, I create pace groups and assign pace admins with optional duty/book split. | Must | Meeting |
-| US-GRP-05 | As a pace admin, the system proposes today's page target; I approve and may add/subtract pages; the system advances the next day's pages. | Must | Meeting · `OD-014` |
-| US-GRP-06 | As a batch admin, I create the yearly schedule with assigned pace admins and can add/assign books. | Must | Meeting · `OD-010` |
+| US-GRP-05 | As a pace admin, the system proposes today's page target **for my pace group**; I approve and may add/subtract pages; the system advances **this group's** cursor only. | Must | Meeting · `OD-014` |
+| US-GRP-06 | As a batch admin, I configure batch pacing, assign pace admins (optional duty/book split), and confirm pace groups are ready before registration opens. | Must | Meeting · `OD-010` |
 | US-GRP-07 | As an admin, I can pull a prepared post from the post library/source and forward it into a pace group. | Must | Meeting · `OD-022` |
 | US-GRP-08 | As a member, I can request (or an admin can approve) a move from one pace group to another **within the same batch** — a normal in-batch change, unrelated to removal or reassignment criteria. | Must | Policy |
 
@@ -201,11 +204,28 @@ departure.
 
 ---
 
+## 12 · Book Catalog & Curriculum
+
+**Policy:** [`curriculum-and-pacing.md`](../domain/curriculum-and-pacing.md).
+
+| ID | User story | Priority | Source |
+|----|-----------|----------|--------|
+| US-CAT-01 | As a super admin, I add program books; the system auto-assigns the next `sequence_order` (no manual number entry). | Must | Stakeholder |
+| US-CAT-07 | As a super admin, I can reorder program books; the system renumbers slots to stay contiguous (no gaps). | Must | Stakeholder |
+| US-CAT-02 | As a super admin, I set book metadata (title, cover, language) and may link Am+En pairs. | Must | Stakeholder |
+| US-CAT-03 | As a super admin, I attach master curriculum tasks to each book (relative day steps, not calendar dates). | Must | Stakeholder |
+| US-CAT-04 | As the system, every new batch starts at catalog sequence 1 without copying book rows. | Must | Stakeholder |
+| US-CAT-05 | As a pace admin, when I edit today's page target it affects only my batch + pace group, not other batches or master curriculum. | Must | Stakeholder · `OD-014` |
+| US-CAT-06 | As a super admin, I can optionally prefill book metadata from an external lookup (ISBN/title). | Out of V1 | `OD-023` — manual only |
+
+---
+
 ## Cross-reference
 
 | Area | Stories |
 |------|---------|
-| Intake | `US-REG-01` … `US-REG-11` |
+| Catalog / curriculum | `US-CAT-*` |
+| Intake | `US-REG-01` … `US-REG-12` |
 | Groups / posts | `US-GRP-*` |
 | Reflections | `US-REF-01` … `US-REF-06`, `US-REF-08` |
 | Attendance / removal | `US-ATT-01` … `US-ATT-09` |
