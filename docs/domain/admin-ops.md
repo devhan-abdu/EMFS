@@ -14,14 +14,15 @@ Read with:
 
 | Role | Cardinality | Scope |
 | --- | --- | --- |
-| `super_admin` | System-wide | Year books; create batches (capacity, pace-group count, books); **superset** of batch + pace admin powers |
-| `batch_admin` | **1–3 per batch** | Open registration; create pace groups (batch may have **one or many**); assign pace admins; yearly schedule with assigned admins; books; approve/reject; Telegram access handoff |
+| `super_admin` | System-wide | **Book catalog** + master curriculum; assign batch admins; create batches (capacity, pace-group count, start/pacing); **superset** of batch + pace admin powers |
+| `batch_admin` | **1–3 per batch** | Open registration; create pace groups (batch may have **one or many**); assign pace admins; batch pacing setup; approve/reject; Telegram access handoff |
 | `pace_admin` (group admin) | **One or more per pace group**; same person may admin **multiple** groups | Daily task (approve/adjust pages); reflection / inspiration / attendance (+ more duties later); review attendance; group dashboard |
 
 ```text
 super_admin
-  └── batch (max_members, pace_group_count ≥ 1, books)
-        └── batch_admin (1–3) — yearly schedule + assign pace admins
+  └── book catalog (sequence 1, 2, 3, …) + master curriculum tasks
+  └── batch (max_members, pace_group_count ≥ 1, start_date, pacing)
+        └── batch_admin (1–3) — assigned before intake; batch pacing + pace admins
               └── pace_admin(s) on pace groups (may reuse; may be out-of-batch poster)
                     └── members
 ```
@@ -57,35 +58,47 @@ what they need to post (not necessarily another live batch/pace group feed).
 
 **Out of MVP:** voice attendance, AI content detection.
 
-## Super admin at batch creation
+## Super admin — catalog and batch creation
 
-When creating a batch, super admin sets:
+**Book catalog** (before any batch intake):
 
-1. **Max members** (capacity)
-2. **How many pace groups** (may be **1** only — e.g. a batch that only has a
-   5-page or 10-page group)
-3. **Which book(s)** the batch will read
+1. Create books in **sequence order** (1 = first book every new batch reads).
+2. Set metadata: title, cover, language; link Am+En pairs when both run (`OD-015`).
+3. Attach **master curriculum tasks** per book (`day_number` steps — not calendar dates).
 
-Super admin also selects/adds year books. Super admin **can do everything**
-batch and pace admins can do.
+**Batch creation:**
+
+1. **Assign 1–3 batch admins** (only super admin may do this).
+2. **Max members** (capacity).
+3. **How many pace groups** (may be **1** only — e.g. a batch that only has a
+   5-page or 10-page group).
+4. **Start date** and **pacing** (daily / N-times-week / custom cadence).
+5. Batch always begins at **catalog sequence 1** — no per-batch book copies.
+
+Super admin **can do everything** batch and pace admins can do.
+
+Pre-intake order: [`batch-and-intake.md`](./batch-and-intake.md) § Pre-intake setup.
 
 ## Batch admin duties
 
-- Open/close **registration** (with **waiting list** — see
-  [`batch-and-intake.md`](./batch-and-intake.md))
+- Open/close **registration** (only **after** pace groups + pace admins are ready —
+  see pre-intake checklist in [`batch-and-intake.md`](./batch-and-intake.md))
 - Create **pace groups** (one or more)
 - **Assign pace admins** (reuse existing admins across groups)
-- Create the **yearly reading schedule** with assigned pace admins
-- Add books; assign books to pace admins when split
+- Confirm **batch pacing** / offsets; assign books to pace admins when duty split
 - **Approve or reject** applicants
 - Manage **Telegram access-link handoff** (contact + code)
+
+Batch admin does **not** create catalog books or reorder the global sequence.
 
 ## Pace admin duties
 
 - Manage their pace group(s)
-- **Daily task:** system proposes **today’s target/pages** from schedule →
-  admin **approves** and may **add or subtract pages** → system advances
-  **next page** for the following day
+- **Daily task:** system proposes **today’s target/pages per pace group** from
+  batch schedule state + group page cursor → admin **approves** and may **add or
+  subtract pages** → system advances **that group’s** cursor only (does not
+  change master curriculum or other batches) → see
+  [`curriculum-and-pacing.md`](./curriculum-and-pacing.md)
 - Daily content **varies by book**
 - Cover assigned duties (reflection / inspiration / attendance / posting)
 - Review attendance; coach members (system notification and/or admin outreach)
@@ -161,10 +174,14 @@ a removed member was later reassigned or left for good (`US-ADM-05`, `US-ADM-06`
 
 ## Dual language (Amharic + English) — `OD-015`
 
-- Finishing a day’s reading means **both** Amharic and English (when both are
-  assigned) so **topics match**.
-- Treated as **one admin task** / one Done criterion when dual editions are used
-  — see [`admin-ops` / schedule](#pace-admin-duties).
+- One pace group may include members on **Amharic** and **English** editions of the
+  **same program book** (same `sequence_order` / curriculum day).
+- Each member reads **one** edition — the language they can read — not both every day.
+- The group stays aligned: same curriculum step, same pace-group schedule; everyone
+  finishes the slot on the same timeline.
+- **One admin daily task** per pace group; topics match because the curriculum step
+  is shared (`OD-022`).
+- Member **Done** = completed today's pages in **their** assigned edition.
 
 ## Library / completed books — `OD-008`
 

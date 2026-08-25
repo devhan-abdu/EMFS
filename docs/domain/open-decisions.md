@@ -18,12 +18,12 @@ Status: `Open` | `Stubbable` | `Answered` | `Dropped`
 | **OD-007** | Answered | Admin | Dashboard: members, streaks, attendance, review, book(s). No voice/AI in MVP. | — | [`admin-ops.md`](./admin-ops.md) |
 | **OD-008** | Answered | Member / Admin | **Resolved.** Completion is schedule-based: **member** portfolio completion and **group** schedule completion. See [`admin-ops.md`](./admin-ops.md). | — | [`admin-ops.md`](./admin-ops.md) |
 | **OD-009** | Stubbable | Member / Admin | Exact attendance **day/time** + timezone. | Attendance | [`admin-ops.md`](./admin-ops.md) |
-| **OD-010** | Answered | Super / Batch admin | Super creates batch (capacity, # groups, books). **Batch admin** creates **yearly schedule** with assigned pace admins; opens reg; creates groups; assigns admins; approvals. Super can do all. | — | [`admin-ops.md`](./admin-ops.md) |
+| **OD-010** | Answered | Super / Batch admin | Super creates batch (capacity, # groups, start/pacing). **Batch admin** configures pacing, creates pace groups, assigns pace admins; opens reg; approvals. Super can do all. Catalog books: super admin only — [`curriculum-and-pacing.md`](./curriculum-and-pacing.md). | — | [`admin-ops.md`](./admin-ops.md) |
 | **OD-011** | Answered | All admins | `super_admin`, `batch_admin` (1–3), `pace_admin`. | — | [`admin-ops.md`](./admin-ops.md) |
 | **OD-012** | Answered | Batch / Pace admin | Duties in [`admin-ops.md`](./admin-ops.md). Pace duties: ≥4 today (reflection, inspiration, attendance, daily post); more may be added. | — | [`admin-ops.md`](./admin-ops.md) |
 | **OD-013** | Answered | Pace admin | Duty/book split; multi-admin; multi-group. | — | [`admin-ops.md`](./admin-ops.md) |
 | **OD-014** | Answered | Pace admin | System proposes today’s page target → admin **approves** and may **+/- pages** → system sets **next** pages. | — | [`admin-ops.md`](./admin-ops.md) |
-| **OD-015** | Answered | Pace / Batch admin | When Am + En assigned: **both** must be finished for the day so topics match; one admin task / Done criterion. | — | [`admin-ops.md`](./admin-ops.md) |
+| **OD-015** | Answered | Pace / Batch admin | Am + En **editions** of the same program book in one pace group. Each member reads **one** language (Am **or** En). Group shares one curriculum day; **one** admin task; member Done = their edition's pages for today. | — | [`admin-ops.md`](./admin-ops.md) |
 | **OD-016** | Answered | All admins | Dashboards in [`admin-ops.md`](./admin-ops.md). | — | [`admin-ops.md`](./admin-ops.md) |
 | **OD-017** | Answered | Member / Admin | **In-app** discussion + announcement groups per batch (plus pace-group surfaces). See `OD-018`. | — | [`admin-ops.md`](./admin-ops.md) |
 | **OD-018** | Answered | All | **Resolved.** The **app is a separate system** (not “Telegram only”). Product groups live **in the app**: per **batch**, per **pace group**, plus **announcement** and **discussion**. UX may feel Telegram-like. **Telegram may still be used** for some supplementary features (e.g. optional TG groups, outreach, handoff) — not as the primary group home. | — | [`admin-ops.md`](./admin-ops.md) |
@@ -31,6 +31,7 @@ Status: `Open` | `Stubbable` | `Answered` | `Dropped`
 | **OD-020** | Answered | Public | **Resolved.** **Anyone who visits the website** can **see** (and react to) posted reflections. They **cannot submit** attendance/reflections unless they are an active pace-group member. Personal Profile notes stay author-only. | — | [`reflections.md`](./reflections.md) |
 | **OD-021** | Answered | Admin | **Resolved.** Grace period after 3 misses is **dynamic — set by admin** when granting grace (not a fixed global constant). | — | [`admin-ops.md`](./admin-ops.md) |
 | **OD-022** | Answered | Admin | **Resolved.** Prepared daily content lives in a **post source / library** (a place to get what to post — not necessarily another batch’s live group). Admins **forward** from that source into the target pace group. | — | [`admin-ops.md`](./admin-ops.md) |
+| **OD-023** | Answered | Super admin | **Resolved.** V1 catalog entry is **manual only** (title, language, optional author, cover upload). No Open Library / Google Books / ISBN lookup in V1. | — | [`curriculum-and-pacing.md`](./curriculum-and-pacing.md) |
 
 ## Stakeholder follow-ups (remaining)
 
