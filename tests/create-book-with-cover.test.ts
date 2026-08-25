@@ -44,19 +44,25 @@ describe("createBookWithCover", () => {
     insertMock.mockReset();
 
     selectMock.mockImplementation(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => {
-          const rows = [{ maxSequenceOrder: 3 }];
-          (rows as { limit?: (limit: number) => Promise<unknown[]> }).limit = async () => rows;
-          return rows;
-        }),
-      })),
+      from: vi.fn(() => {
+        const rows = [{ maxSequenceOrder: 3 }];
+        const promise = Promise.resolve(rows);
+        return Object.assign(promise, {
+          where: vi.fn(() => {
+            const wherePromise = Promise.resolve(rows);
+            return Object.assign(wherePromise, {
+              limit: vi.fn(async () => rows),
+            });
+          }),
+        });
+      }),
     }));
 
     insertMock.mockReturnValue({
       values: insertValuesMock,
     });
   });
+
 
   it("uploads the cover and stores only the storage key in the book row", async () => {
     const validPng = await sharp({
@@ -117,13 +123,14 @@ describe("createBookWithCover", () => {
     };
 
     selectMock.mockImplementation(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => {
-          const rows: Array<Record<string, unknown>> = [];
-          (rows as { limit?: (limit: number) => Promise<Array<Record<string, unknown>>> }).limit = async () => rows;
-          return rows;
-        }),
-      })),
+      from: vi.fn(() => {
+        const rows: Array<Record<string, unknown>> = [];
+        return Object.assign(Promise.resolve(rows), {
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => rows),
+          })),
+        });
+      }),
     }));
 
     insertMock.mockReturnValue({
