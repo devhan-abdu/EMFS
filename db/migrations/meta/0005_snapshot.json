@@ -1,6 +1,6 @@
 {
-  "id": "5cf88eec-8a93-4808-a43b-e283567d690e",
-  "prevId": "bd7e96ca-86fb-4af6-a86c-d0a79a542a95",
+  "id": "db9a5b1f-3fcf-459a-ab1b-caee6e86de75",
+  "prevId": "c8232cfa-9a6a-470b-ad56-33fcb64c5467",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -549,12 +549,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "reading_days_per_week_check": {
-          "name": "reading_days_per_week_check",
-          "value": "\"batches\".\"reading_days_per_week\" BETWEEN 1 AND 7"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.batch_pacing_offsets": {
@@ -902,7 +897,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'active'"
+          "default": "'applied'"
         },
         "start_date": {
           "name": "start_date",
@@ -931,7 +926,30 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "unique_active_batch_membership_idx": {
+          "name": "unique_active_batch_membership_idx",
+          "columns": [
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "status IN ('waitlisted', 'applied', 'approved', 'active', 'grace')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "batch_memberships_profile_id_profiles_id_fk": {
           "name": "batch_memberships_profile_id_profiles_id_fk",
@@ -1045,6 +1063,488 @@
           "tableTo": "pace_groups",
           "columnsFrom": [
             "pace_group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.applications": {
+      "name": "applications",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "registration_name": {
+          "name": "registration_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telegram_username": {
+          "name": "telegram_username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone_number": {
+          "name": "phone_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pace_group": {
+          "name": "pace_group",
+          "type": "pace_group_preference",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "unique_user_batch_application_idx": {
+          "name": "unique_user_batch_application_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "applications_user_id_profiles_id_fk": {
+          "name": "applications_user_id_profiles_id_fk",
+          "tableFrom": "applications",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "applications_batch_id_batches_id_fk": {
+          "name": "applications_batch_id_batches_id_fk",
+          "tableFrom": "applications",
+          "tableTo": "batches",
+          "columnsFrom": [
+            "batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.waitlist": {
+      "name": "waitlist",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "queue_position": {
+          "name": "queue_position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "joined_at": {
+          "name": "joined_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "unique_batch_user_waitlist_idx": {
+          "name": "unique_batch_user_waitlist_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "unique_batch_queue_pos_idx": {
+          "name": "unique_batch_queue_pos_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "queue_position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "waitlist_batch_queue_pos_idx": {
+          "name": "waitlist_batch_queue_pos_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "queue_position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "waitlist_batch_id_batches_id_fk": {
+          "name": "waitlist_batch_id_batches_id_fk",
+          "tableFrom": "waitlist",
+          "tableTo": "batches",
+          "columnsFrom": [
+            "batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "waitlist_user_id_profiles_id_fk": {
+          "name": "waitlist_user_id_profiles_id_fk",
+          "tableFrom": "waitlist",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.handoff_records": {
+      "name": "handoff_records",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "application_id": {
+          "name": "application_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "admin_contact_shown": {
+          "name": "admin_contact_shown",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "used_at": {
+          "name": "used_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "unique_handoff_code_idx": {
+          "name": "unique_handoff_code_idx",
+          "columns": [
+            {
+              "expression": "code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "unique_handoff_application_idx": {
+          "name": "unique_handoff_application_idx",
+          "columns": [
+            {
+              "expression": "application_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "handoff_records_application_id_applications_id_fk": {
+          "name": "handoff_records_application_id_applications_id_fk",
+          "tableFrom": "handoff_records",
+          "tableTo": "applications",
+          "columnsFrom": [
+            "application_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.membership_audit_logs": {
+      "name": "membership_audit_logs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "member_id": {
+          "name": "member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_state": {
+          "name": "from_state",
+          "type": "batch_membership_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "to_state": {
+          "name": "to_state",
+          "type": "batch_membership_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_batch_id": {
+          "name": "from_batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "to_batch_id": {
+          "name": "to_batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "membership_audit_logs_member_id_profiles_id_fk": {
+          "name": "membership_audit_logs_member_id_profiles_id_fk",
+          "tableFrom": "membership_audit_logs",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "membership_audit_logs_from_batch_id_batches_id_fk": {
+          "name": "membership_audit_logs_from_batch_id_batches_id_fk",
+          "tableFrom": "membership_audit_logs",
+          "tableTo": "batches",
+          "columnsFrom": [
+            "from_batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "membership_audit_logs_to_batch_id_batches_id_fk": {
+          "name": "membership_audit_logs_to_batch_id_batches_id_fk",
+          "tableFrom": "membership_audit_logs",
+          "tableTo": "batches",
+          "columnsFrom": [
+            "to_batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "membership_audit_logs_actor_id_profiles_id_fk": {
+          "name": "membership_audit_logs_actor_id_profiles_id_fk",
+          "tableFrom": "membership_audit_logs",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "actor_id"
           ],
           "columnsTo": [
             "id"
@@ -1261,10 +1761,11 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "tasks_day_number_unique": {
-          "name": "tasks_day_number_unique",
+        "tasks_book_day_unique": {
+          "name": "tasks_book_day_unique",
           "nullsNotDistinct": false,
           "columns": [
+            "book_id",
             "day_number"
           ]
         }
@@ -1289,9 +1790,13 @@
       "name": "batch_membership_status",
       "schema": "public",
       "values": [
+        "waitlisted",
+        "applied",
+        "approved",
+        "rejected",
         "active",
-        "removed",
-        "completed"
+        "grace",
+        "removed"
       ]
     },
     "public.membership_status": {
@@ -1301,6 +1806,16 @@
         "active",
         "switched",
         "removed"
+      ]
+    },
+    "public.pace_group_preference": {
+      "name": "pace_group_preference",
+      "schema": "public",
+      "values": [
+        "5",
+        "10",
+        "20",
+        "40"
       ]
     }
   },

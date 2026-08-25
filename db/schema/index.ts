@@ -6,16 +6,11 @@ export * from "./pace-groups";
 export * from "./admin-assignments";
 export * from "./batch-memberships";
 export * from "./pace-group-memberships";
-<<<<<<< HEAD
 export * from "./applications";
 export * from "./waitlist";
 export * from "./handoff-records";
 export * from "./membership-audit-logs";
-
-
-=======
 export * from "./books";
 export * from "./tasks";
 export * from "./catalog-relations";
->>>>>>> main
 
