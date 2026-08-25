@@ -18,6 +18,9 @@ const { mockRequireSuperAdmin, AuthzErrorMock } = vi.hoisted(() => {
 });
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/db", () => ({
+  db: {},
+}));
 vi.mock("@/lib/auth/authorize", () => ({
   AuthzError: AuthzErrorMock,
   requireSuperAdmin: mockRequireSuperAdmin,
@@ -29,10 +32,18 @@ vi.mock("@/lib/auth/authorize", () => ({
 }));
 vi.mock("../lib/services/create-book", () => ({
   createBookWithCover: vi.fn(),
+  addPairedEditionWithCover: vi.fn(),
+}));
+vi.mock("../lib/services/reorder-catalog", () => ({
+  reorderCatalogSlots: vi.fn(),
+}));
+vi.mock("../lib/services/get-catalog", () => ({
+  getCatalog: vi.fn(),
 }));
 vi.mock("../lib/services/storage/get-storage-service", () => ({
   getStorageService: vi.fn(),
 }));
+
 
 describe("createBookAction", () => {
   const mockStorageService: StorageService = {

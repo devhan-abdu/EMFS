@@ -2,8 +2,20 @@
 
 import { requireSuperAdmin, AuthzError, authzErrorToFieldError } from "@/lib/auth/authorize";
 import { getStorageService } from "@/lib/services/storage/get-storage-service";
-import { createBookWithCover, type CreateBookWithCoverInput } from "@/lib/services/create-book";
-import type { ActionResult } from "@/lib/validations/catalog";
+import {
+  createBookWithCover,
+  addPairedEditionWithCover,
+  type CreateBookWithCoverInput,
+  type AddPairedEditionWithCoverInput,
+} from "@/lib/services/create-book";
+import { reorderCatalogSlots } from "@/lib/services/reorder-catalog";
+import { getCatalog, type PaginatedCatalogResult } from "@/lib/services/get-catalog";
+import {
+  reorderSlotsSchema,
+  zodErrorToFieldErrors,
+  type ActionResult,
+  type GetCatalogInput,
+} from "@/lib/validations/catalog";
 
 export type CreateBookActionResult = ActionResult<{
   id: string;
@@ -115,7 +127,7 @@ export type AddPairedEditionActionResult = ActionResult<{
  * 5. Cleans up orphaned uploads if database insertion fails.
  */
 export async function addPairedEditionAction(
-  input: FormData | import("@/lib/services/create-book").AddPairedEditionWithCoverInput,
+  input: FormData | AddPairedEditionWithCoverInput,
 ): Promise<AddPairedEditionActionResult> {
   // 1. Authorize: super_admin only
   try {
@@ -128,7 +140,7 @@ export async function addPairedEditionAction(
   }
 
   // 2. Parse input into AddPairedEditionWithCoverInput format
-  let parsedInput: import("@/lib/services/create-book").AddPairedEditionWithCoverInput;
+  let parsedInput: AddPairedEditionWithCoverInput;
 
   if (input instanceof FormData) {
     const rawPairedBookId = input.get("pairedBookId");
@@ -169,9 +181,6 @@ export async function addPairedEditionAction(
   // 3. Delegate to service layer with storage service
   const storageService = getStorageService();
   try {
-    const { addPairedEditionWithCover } = await import(
-      "@/lib/services/create-book"
-    );
     return await addPairedEditionWithCover(parsedInput, storageService);
   } catch (error) {
     console.error("addPairedEditionAction error:", error);
@@ -219,9 +228,6 @@ export async function reorderCatalogSlotsAction(
   }
 
   // 2. Validate input
-  const { reorderSlotsSchema, zodErrorToFieldErrors } = await import(
-    "@/lib/validations/catalog"
-  );
   const parsed = reorderSlotsSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, errors: zodErrorToFieldErrors(parsed.error) };
@@ -229,9 +235,6 @@ export async function reorderCatalogSlotsAction(
 
   // 3. Delegate to reorder service
   try {
-    const { reorderCatalogSlots } = await import(
-      "@/lib/services/reorder-catalog"
-    );
     return await reorderCatalogSlots(parsed.data);
   } catch (error) {
     console.error("reorderCatalogSlotsAction error:", error);
@@ -249,18 +252,15 @@ export async function reorderCatalogSlotsAction(
   }
 }
 
-export type GetCatalogActionResult = import("@/lib/validations/catalog").ActionResult<
-  import("@/lib/services/get-catalog").PaginatedCatalogResult
->;
+export type GetCatalogActionResult = ActionResult<PaginatedCatalogResult>;
 
 /**
  * Server action / query to fetch paginated catalog entries in deterministic order.
  */
 export async function getCatalogAction(
-  input?: import("@/lib/validations/catalog").GetCatalogInput,
+  input?: GetCatalogInput,
 ): Promise<GetCatalogActionResult> {
   try {
-    const { getCatalog } = await import("@/lib/services/get-catalog");
     return await getCatalog(input);
   } catch (error) {
     console.error("getCatalogAction error:", error);
@@ -277,6 +277,7 @@ export async function getCatalogAction(
     };
   }
 }
+
 
 
 
