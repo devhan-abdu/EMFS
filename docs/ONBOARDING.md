@@ -132,6 +132,8 @@ pnpm db:migrate
 ## Working agreements
 
 - Treat this as production software from the first commit.
+- **Never push directly to `main`.** Branch from `main`, push your branch, open a
+  pull request. Details: [Development Rules](./DEVELOPMENT_RULES.md#git-workflow-non-negotiable).
 - Conventional Commits (`feat:`, `fix:`, `docs:`, …); one logical change per
   commit.
 - Prefer small, logical commits over one large mixed commit.

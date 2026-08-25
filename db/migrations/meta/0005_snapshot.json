@@ -1,6 +1,6 @@
 {
-  "id": "21f8c093-17c0-44f1-a4ac-056c77487cdb",
-  "prevId": "6282541d-a6f6-40eb-8d2d-69fd98c07e2b",
+  "id": "b566e422-e0d5-4de7-860f-0f40ddd22a56",
+  "prevId": "c8232cfa-9a6a-470b-ad56-33fcb64c5467",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -552,6 +552,122 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.batch_pacing_offsets": {
+      "name": "batch_pacing_offsets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_from_day_number": {
+          "name": "effective_from_day_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "offset_days": {
+          "name": "offset_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "editor_id": {
+          "name": "editor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "batch_pacing_offsets_batch_id_idx": {
+          "name": "batch_pacing_offsets_batch_id_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "batch_pacing_offsets_batch_id_batches_id_fk": {
+          "name": "batch_pacing_offsets_batch_id_batches_id_fk",
+          "tableFrom": "batch_pacing_offsets",
+          "tableTo": "batches",
+          "columnsFrom": [
+            "batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "batch_pacing_offsets_editor_id_profiles_id_fk": {
+          "name": "batch_pacing_offsets_editor_id_profiles_id_fk",
+          "tableFrom": "batch_pacing_offsets",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "editor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "batch_pacing_offsets_batch_id_effective_from_day_number_unique": {
+          "name": "batch_pacing_offsets_batch_id_effective_from_day_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "batch_id",
+            "effective_from_day_number"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.pace_groups": {
       "name": "pace_groups",
       "schema": "",
@@ -781,7 +897,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'active'"
+          "default": "'applied'"
         },
         "start_date": {
           "name": "start_date",
@@ -810,7 +926,30 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "unique_active_batch_membership_idx": {
+          "name": "unique_active_batch_membership_idx",
+          "columns": [
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "status IN ('waitlisted', 'applied', 'approved', 'active', 'grace')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "batch_memberships_profile_id_profiles_id_fk": {
           "name": "batch_memberships_profile_id_profiles_id_fk",
@@ -924,6 +1063,262 @@
           "tableTo": "pace_groups",
           "columnsFrom": [
             "pace_group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.applications": {
+      "name": "applications",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "registration_name": {
+          "name": "registration_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telegram_username": {
+          "name": "telegram_username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone_number": {
+          "name": "phone_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pace_group": {
+          "name": "pace_group",
+          "type": "pace_group_preference",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "unique_user_batch_application_idx": {
+          "name": "unique_user_batch_application_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "applications_batch_id_idx": {
+          "name": "applications_batch_id_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "applications_user_id_profiles_id_fk": {
+          "name": "applications_user_id_profiles_id_fk",
+          "tableFrom": "applications",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "applications_batch_id_batches_id_fk": {
+          "name": "applications_batch_id_batches_id_fk",
+          "tableFrom": "applications",
+          "tableTo": "batches",
+          "columnsFrom": [
+            "batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.waitlist": {
+      "name": "waitlist",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "queue_position": {
+          "name": "queue_position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "joined_at": {
+          "name": "joined_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "unique_batch_user_waitlist_idx": {
+          "name": "unique_batch_user_waitlist_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "unique_batch_queue_pos_idx": {
+          "name": "unique_batch_queue_pos_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "queue_position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "waitlist_batch_id_batches_id_fk": {
+          "name": "waitlist_batch_id_batches_id_fk",
+          "tableFrom": "waitlist",
+          "tableTo": "batches",
+          "columnsFrom": [
+            "batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "waitlist_user_id_profiles_id_fk": {
+          "name": "waitlist_user_id_profiles_id_fk",
+          "tableFrom": "waitlist",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "user_id"
           ],
           "columnsTo": [
             "id"
@@ -1140,127 +1535,12 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "tasks_day_number_unique": {
-          "name": "tasks_day_number_unique",
+        "tasks_book_day_unique": {
+          "name": "tasks_book_day_unique",
           "nullsNotDistinct": false,
           "columns": [
+            "book_id",
             "day_number"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.batch_pacing_offsets": {
-      "name": "batch_pacing_offsets",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "batch_id": {
-          "name": "batch_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "effective_from_day_number": {
-          "name": "effective_from_day_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "offset_days": {
-          "name": "offset_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "editor_id": {
-          "name": "editor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "batch_pacing_offsets_batch_id_idx": {
-          "name": "batch_pacing_offsets_batch_id_idx",
-          "columns": [
-            {
-              "expression": "batch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "batch_pacing_offsets_batch_id_batches_id_fk": {
-          "name": "batch_pacing_offsets_batch_id_batches_id_fk",
-          "tableFrom": "batch_pacing_offsets",
-          "tableTo": "batches",
-          "columnsFrom": [
-            "batch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "batch_pacing_offsets_editor_id_profiles_id_fk": {
-          "name": "batch_pacing_offsets_editor_id_profiles_id_fk",
-          "tableFrom": "batch_pacing_offsets",
-          "tableTo": "profiles",
-          "columnsFrom": [
-            "editor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "batch_pacing_offsets_batch_id_effective_from_day_number_unique": {
-          "name": "batch_pacing_offsets_batch_id_effective_from_day_number_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "batch_id",
-            "effective_from_day_number"
           ]
         }
       },
@@ -1284,9 +1564,13 @@
       "name": "batch_membership_status",
       "schema": "public",
       "values": [
+        "waitlisted",
+        "applied",
+        "approved",
+        "rejected",
         "active",
-        "removed",
-        "completed"
+        "grace",
+        "removed"
       ]
     },
     "public.membership_status": {
@@ -1296,6 +1580,16 @@
         "active",
         "switched",
         "removed"
+      ]
+    },
+    "public.pace_group_preference": {
+      "name": "pace_group_preference",
+      "schema": "public",
+      "values": [
+        "5",
+        "10",
+        "20",
+        "40"
       ]
     }
   },
