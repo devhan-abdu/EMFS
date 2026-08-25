@@ -1,7 +1,19 @@
 # User Journeys
 
 Policies: [`batch-and-intake.md`](./batch-and-intake.md), [`admin-ops.md`](./admin-ops.md),
-[`reflections.md`](./reflections.md).
+[`curriculum-and-pacing.md`](./curriculum-and-pacing.md), [`reflections.md`](./reflections.md).
+
+## Journey 0: Super admin — catalog → batch → ready for intake
+
+1. Create **book catalog** entries in sequence (book 1, 2, …) with title, cover,
+   language; link Am+En pairs when needed.
+2. Attach **master curriculum tasks** to each book.
+3. **Assign 1–3 batch admins** to the new batch.
+4. **Create batch** (capacity, pace-group count, start date, pacing).
+5. Batch admin creates pace groups, assigns pace admins, confirms pacing.
+6. Batch admin **opens registration** — member intake begins (Journey 1).
+
+---
 
 ## Journey 1: Register → approve → handoff → active
 
@@ -18,10 +30,12 @@ Telegram identity temporarily.
 
 ## Journey 2: Daily reading + page target
 
-1. System proposes **today’s pages** from yearly schedule.
-2. Pace admin **approves** and may **+/- pages**; system sets **next** pages.
-3. Optional: forward prepared post from **post library/source** (`OD-022`).
-4. Member marks Done (if Am+En assigned, **both** required — `OD-015`).
+1. System resolves **today’s curriculum step** for the batch (from start date +
+   pacing + master library).
+2. System proposes **today’s page target per pace group** (5/10/20/40 + cursor).
+3. Pace admin **approves** and may **+/- pages** — only this group’s cursor moves.
+4. Optional: forward prepared post from **post library/source** (`OD-022`).
+5. Member marks Done for **their** edition (Am **or** En) — same curriculum day as the group (`OD-015`).
 
 **Open:** `OD-009` timezone.
 
@@ -61,7 +75,7 @@ Policy: [`admin-ops.md`](./admin-ops.md) · Stories: `US-REG-10` … `US-REG-11`
 ## Journey 4: Pace admin review
 
 Dashboard: members, streaks, attendance, book(s). Batch admin sees rollup;
-batch admin owns yearly schedule. Super can do all.
+batch admin owns batch pacing setup. Super can do all.
 
 ---
 

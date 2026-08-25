@@ -117,6 +117,7 @@ When schema changes are involved:
 
 ## Project rules
 
+- Do not push directly to `main` — use a feature branch and open a pull request.
 - Use `pnpm` for this repo.
 - Do not commit real secrets; commit only `.env.example`.
 - Do not change schema without a Drizzle migration.
