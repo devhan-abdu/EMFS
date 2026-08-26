@@ -57,6 +57,27 @@
       "when": 1787499530054,
       "tag": "0007_next_tinkerer",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787470121643,
+      "tag": "0003_amused_speed",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787555385195,
+      "tag": "0004_third_deathstrike",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787685921119,
+      "tag": "0005_loud_tana_nile",
+      "breakpoints": true
     }
   ]
 }
