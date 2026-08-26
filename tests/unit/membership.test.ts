@@ -30,6 +30,10 @@ describe("Membership State Machine - isValidTransition", () => {
       expect(isValidTransition("waitlisted", "applied")).toBe(true);
     });
 
+    it("allows waitlisted -> removed", () => {
+      expect(isValidTransition("waitlisted", "removed")).toBe(true);
+    });
+
     it("allows applied -> approved", () => {
       expect(isValidTransition("applied", "approved")).toBe(true);
     });

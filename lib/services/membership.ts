@@ -6,6 +6,10 @@ import {
   BATCH_MEMBERSHIP_STATUSES,
 } from "@/db/schema/batch-memberships";
 
+export type DbClient = typeof db;
+export type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type DbOrTx = DbClient | DbTransaction;
+
 export type MembershipErrorCode =
   | "NOT_FOUND"
   | "INVALID_TRANSITION"
@@ -39,7 +43,7 @@ export const ALLOWED_TRANSITIONS: Record<
   BatchMembershipStatus,
   readonly BatchMembershipStatus[]
 > = {
-  waitlisted: ["applied"],
+  waitlisted: ["applied", "removed"],
   applied: ["approved", "rejected"],
   approved: ["active"],
   rejected: [],
@@ -67,7 +71,8 @@ export function isValidTransition(
 export async function createBatchMembership(
   profileId: string,
   batchId: string,
-  status: BatchMembershipStatus = "applied"
+  status: BatchMembershipStatus = "applied",
+  executor: DbOrTx = db
 ) {
   if (!BATCH_MEMBERSHIP_STATUSES.includes(status)) {
     throw new MembershipError(
@@ -77,7 +82,7 @@ export async function createBatchMembership(
   }
 
   // Check for existing non-terminal membership in the SAME batch
-  const existingActive = await db.query.batchMemberships.findFirst({
+  const existingActive = await executor.query.batchMemberships.findFirst({
     where: and(
       eq(batchMemberships.profileId, profileId),
       eq(batchMemberships.batchId, batchId),
@@ -93,7 +98,7 @@ export async function createBatchMembership(
   }
 
   try {
-    const [inserted] = await db
+    const [inserted] = await executor
       .insert(batchMemberships)
       .values({
         profileId,
@@ -117,7 +122,8 @@ export async function createBatchMembership(
 export async function transitionBatchMembership(
   membershipId: string,
   targetStatus: BatchMembershipStatus,
-  reason?: string
+  reason?: string,
+  executor: DbOrTx = db
 ) {
   if (!BATCH_MEMBERSHIP_STATUSES.includes(targetStatus)) {
     throw new MembershipError(
@@ -126,7 +132,7 @@ export async function transitionBatchMembership(
     );
   }
 
-  const existing = await db.query.batchMemberships.findFirst({
+  const existing = await executor.query.batchMemberships.findFirst({
     where: eq(batchMemberships.id, membershipId),
   });
 
@@ -148,7 +154,7 @@ export async function transitionBatchMembership(
 
   const isTerminal = targetStatus === "removed" || targetStatus === "rejected";
 
-  const [updated] = await db
+  const [updated] = await executor
     .update(batchMemberships)
     .set({
       status: targetStatus,
