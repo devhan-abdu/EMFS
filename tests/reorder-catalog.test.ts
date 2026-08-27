@@ -49,6 +49,21 @@ describe("reorderCatalogSlots Service", () => {
     vi.resetAllMocks();
   });
 
+  it.each([
+    ["UNAUTHENTICATED", "You must be signed in."],
+    ["FORBIDDEN", "Role 'member' is not permitted."],
+    ["FORBIDDEN", "Role 'pace_admin' is not permitted."],
+    ["FORBIDDEN", "Role 'batch_admin' is not permitted."],
+  ] as const)("rejects direct calls for %s callers", async (code, message) => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new AuthzErrorMock(code, message));
+
+    await expect(reorderCatalogSlots({ fromSlot: 2, toSlot: 1 })).rejects.toMatchObject({
+      code,
+      message,
+    });
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
+
   it("handles identical source and destination as a no-op", async () => {
     const result = await reorderCatalogSlots({ fromSlot: 3, toSlot: 3 });
 

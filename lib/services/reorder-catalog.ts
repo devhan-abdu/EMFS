@@ -2,6 +2,7 @@ import { and, eq, gte, gt, lte, lt, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { books } from "@/db/schema";
+import { requireSuperAdmin } from "@/lib/auth/authorize";
 import {
   reorderSlotsSchema,
   zodErrorToFieldErrors,
@@ -28,6 +29,8 @@ export type ReorderCatalogSlotsResult = ActionResult<{
 export async function reorderCatalogSlots(
   input: ReorderSlotsInput,
 ): Promise<ReorderCatalogSlotsResult> {
+  await requireSuperAdmin();
+
   const parsed = reorderSlotsSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, errors: zodErrorToFieldErrors(parsed.error) };
