@@ -4,7 +4,8 @@ import {
   batchMemberships,
   type BatchMembershipStatus,
   BATCH_MEMBERSHIP_STATUSES,
-} from "@/db/schema/batch-memberships";
+  membershipAuditLogs,
+} from "@/db/schema";
 
 export type DbClient = typeof db;
 export type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -118,11 +119,13 @@ export async function createBatchMembership(
 
 /**
  * Transitions an existing batch membership to a target status according to the state machine.
+ * Sinks transition state update and audit log creation into a single atomic transaction.
  */
 export async function transitionBatchMembership(
   membershipId: string,
   targetStatus: BatchMembershipStatus,
   reason?: string,
+  actorId?: string,
   executor: DbOrTx = db
 ) {
   if (!BATCH_MEMBERSHIP_STATUSES.includes(targetStatus)) {
@@ -132,37 +135,173 @@ export async function transitionBatchMembership(
     );
   }
 
-  const existing = await executor.query.batchMemberships.findFirst({
-    where: eq(batchMemberships.id, membershipId),
-  });
+  const runTransition = async (tx: DbOrTx) => {
+    const existing = await tx.query.batchMemberships.findFirst({
+      where: eq(batchMemberships.id, membershipId),
+    });
 
-  if (!existing) {
-    throw new MembershipError(
-      "NOT_FOUND",
-      `Batch membership with ID '${membershipId}' not found.`
-    );
+    if (!existing) {
+      throw new MembershipError(
+        "NOT_FOUND",
+        `Batch membership with ID '${membershipId}' not found.`
+      );
+    }
+
+    const currentStatus = existing.status as BatchMembershipStatus;
+
+    if (!isValidTransition(currentStatus, targetStatus)) {
+      throw new MembershipError(
+        "INVALID_TRANSITION",
+        `Cannot transition membership status from '${currentStatus}' to '${targetStatus}'.`
+      );
+    }
+
+    const isTerminal = targetStatus === "removed" || targetStatus === "rejected";
+
+    const [updated] = await tx
+      .update(batchMemberships)
+      .set({
+        status: targetStatus,
+        endDate: isTerminal ? new Date() : existing.endDate,
+        removalReason: reason ?? existing.removalReason,
+      })
+      .where(eq(batchMemberships.id, membershipId))
+      .returning();
+
+    // If an authenticated actor ID is provided, record exactly one audit log entry atomically
+    if (actorId) {
+      await tx.insert(membershipAuditLogs).values({
+        memberId: existing.profileId,
+        fromState: currentStatus,
+        toState: targetStatus,
+        fromBatchId: existing.batchId,
+        toBatchId: existing.batchId,
+        actorId,
+        reason: reason || `Transitioned status from '${currentStatus}' to '${targetStatus}'.`,
+        timestamp: new Date(),
+      });
+    }
+
+    return updated;
+  };
+
+  if (executor === db) {
+    return await db.transaction(async (tx) => {
+      return await runTransition(tx);
+    });
+  } else {
+    return await runTransition(executor);
   }
+}
 
-  const currentStatus = existing.status as BatchMembershipStatus;
-
-  if (!isValidTransition(currentStatus, targetStatus)) {
+/**
+ * Moves a batch membership from one batch to another.
+ * Records audit row with from_batch_id and to_batch_id atomically.
+ */
+export async function moveBatchMembership(
+  membershipId: string,
+  newBatchId: string,
+  actorId: string,
+  reason: string
+) {
+  if (!reason || reason.trim().length === 0) {
     throw new MembershipError(
       "INVALID_TRANSITION",
-      `Cannot transition membership status from '${currentStatus}' to '${targetStatus}'.`
+      "Reason is required for batch move."
     );
   }
 
-  const isTerminal = targetStatus === "removed" || targetStatus === "rejected";
+  return await db.transaction(async (tx) => {
+    const existing = await tx.query.batchMemberships.findFirst({
+      where: eq(batchMemberships.id, membershipId),
+    });
 
-  const [updated] = await executor
-    .update(batchMemberships)
-    .set({
-      status: targetStatus,
-      endDate: isTerminal ? new Date() : existing.endDate,
-      removalReason: reason ?? existing.removalReason,
-    })
-    .where(eq(batchMemberships.id, membershipId))
-    .returning();
+    if (!existing) {
+      throw new MembershipError(
+        "NOT_FOUND",
+        `Batch membership with ID '${membershipId}' not found.`
+      );
+    }
 
-  return updated;
+    if (existing.batchId === newBatchId) {
+      throw new MembershipError(
+        "INVALID_TRANSITION",
+        "Target batch must be different from current batch."
+      );
+    }
+
+    const currentStatus = existing.status as BatchMembershipStatus;
+
+    const [updated] = await tx
+      .update(batchMemberships)
+      .set({
+        batchId: newBatchId,
+      })
+      .where(eq(batchMemberships.id, membershipId))
+      .returning();
+
+    await tx.insert(membershipAuditLogs).values({
+      memberId: existing.profileId,
+      fromState: currentStatus,
+      toState: currentStatus,
+      fromBatchId: existing.batchId,
+      toBatchId: newBatchId,
+      actorId,
+      reason,
+      timestamp: new Date(),
+    });
+
+    return updated;
+  });
+}
+
+/**
+ * Re-enters a previously removed member into a new or same batch.
+ * Records audit row with from_state = 'removed' and to_state = targetStatus atomically.
+ */
+export async function reenterBatchMembership(
+  profileId: string,
+  fromBatchId: string,
+  toBatchId: string,
+  targetStatus: BatchMembershipStatus,
+  actorId: string,
+  reason: string
+) {
+  if (!BATCH_MEMBERSHIP_STATUSES.includes(targetStatus)) {
+    throw new MembershipError(
+      "INVALID_STATUS",
+      `Invalid membership target status '${targetStatus}'.`
+    );
+  }
+
+  if (!reason || reason.trim().length === 0) {
+    throw new MembershipError(
+      "INVALID_TRANSITION",
+      "Reason is required for member re-entry."
+    );
+  }
+
+  return await db.transaction(async (tx) => {
+    const [inserted] = await tx
+      .insert(batchMemberships)
+      .values({
+        profileId,
+        batchId: toBatchId,
+        status: targetStatus,
+      })
+      .returning();
+
+    await tx.insert(membershipAuditLogs).values({
+      memberId: profileId,
+      fromState: "removed",
+      toState: targetStatus,
+      fromBatchId,
+      toBatchId,
+      actorId,
+      reason,
+      timestamp: new Date(),
+    });
+
+    return inserted;
+  });
 }

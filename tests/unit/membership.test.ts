@@ -1,27 +1,68 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  isValidTransition,
-  createBatchMembership,
-  transitionBatchMembership,
-  MembershipError,
-} from "@/lib/services/membership";
-import type { BatchMembershipStatus } from "@/db/schema/batch-memberships";
 
-// Mock the db module
+const {
+  mockFindFirst,
+  mockInsertValues,
+  mockInsert,
+  mockUpdateSet,
+  mockUpdate,
+  mockTx,
+} = vi.hoisted(() => {
+  const mockInsertValues = vi.fn().mockReturnValue({ returning: vi.fn() });
+  const mockInsert = vi.fn().mockReturnValue({ values: mockInsertValues });
+  const mockUpdateSet = vi.fn().mockReturnValue({
+    where: vi.fn().mockReturnValue({ returning: vi.fn() }),
+  });
+  const mockUpdate = vi.fn().mockReturnValue({ set: mockUpdateSet });
+  const mockFindFirst = vi.fn();
+
+  const mockTx = {
+    query: {
+      batchMemberships: {
+        findFirst: mockFindFirst,
+      },
+    },
+    insert: mockInsert,
+    update: mockUpdate,
+  };
+
+  return {
+    mockFindFirst,
+    mockInsertValues,
+    mockInsert,
+    mockUpdateSet,
+    mockUpdate,
+    mockTx,
+  };
+});
+
 vi.mock("@/db", () => {
   return {
     db: {
       query: {
         batchMemberships: {
-          findFirst: vi.fn(),
+          findFirst: mockFindFirst,
         },
       },
-      insert: vi.fn(),
-      update: vi.fn(),
+      insert: mockInsert,
+      update: mockUpdate,
+      transaction: vi.fn(async (cb: (tx: typeof mockTx) => Promise<unknown>) => {
+        return await cb(mockTx);
+      }),
     },
   };
 });
 
+import {
+  isValidTransition,
+  createBatchMembership,
+  transitionBatchMembership,
+  moveBatchMembership,
+  reenterBatchMembership,
+  MembershipError,
+} from "@/lib/services/membership";
+import type { BatchMembershipStatus } from "@/db/schema/batch-memberships";
+import * as membershipService from "@/lib/services/membership";
 import { db } from "@/db";
 
 describe("Membership State Machine - isValidTransition", () => {
@@ -101,7 +142,7 @@ describe("Membership State Machine - isValidTransition", () => {
 
 describe("Membership Service - Transition Enforcement", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
   });
 
   it("successfully transitions when valid", async () => {
@@ -116,16 +157,11 @@ describe("Membership Service - Transition Enforcement", () => {
       createdAt: new Date(),
     };
 
-    vi.mocked(db.query.batchMemberships.findFirst).mockResolvedValue(
-      existingMembership
-    );
+    mockFindFirst.mockResolvedValue(existingMembership);
 
     const updatedMembership = { ...existingMembership, status: "grace" as BatchMembershipStatus };
     const returningMock = vi.fn().mockResolvedValue([updatedMembership]);
-    const whereMock = vi.fn().mockReturnValue({ returning: returningMock });
-    const setMock = vi.fn().mockReturnValue({ where: whereMock });
-    
-    vi.mocked(db.update).mockReturnValue({ set: setMock } as unknown as ReturnType<typeof db.update>);
+    mockUpdateSet.mockReturnValue({ where: vi.fn().mockReturnValue({ returning: returningMock }) });
 
     const result = await transitionBatchMembership("mem-1", "grace");
     expect(result).toEqual(updatedMembership);
@@ -143,9 +179,7 @@ describe("Membership Service - Transition Enforcement", () => {
       createdAt: new Date(),
     };
 
-    vi.mocked(db.query.batchMemberships.findFirst).mockResolvedValue(
-      existingMembership
-    );
+    mockFindFirst.mockResolvedValue(existingMembership);
 
     await expect(transitionBatchMembership("mem-1", "active")).rejects.toThrow(
       MembershipError
@@ -156,7 +190,7 @@ describe("Membership Service - Transition Enforcement", () => {
   });
 
   it("throws MembershipError when membership is not found", async () => {
-    vi.mocked(db.query.batchMemberships.findFirst).mockResolvedValue(undefined);
+    mockFindFirst.mockResolvedValue(undefined);
 
     await expect(
       transitionBatchMembership("non-existent", "active")
@@ -170,9 +204,198 @@ describe("Membership Service - Transition Enforcement", () => {
   });
 });
 
+describe("Membership Service - Audit Log Integration & Security", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("11. successful rejection creates exactly one audit row", async () => {
+    const existing = {
+      id: "mem-app-1",
+      profileId: "prof-1",
+      batchId: "batch-1",
+      status: "applied" as BatchMembershipStatus,
+      startDate: new Date(),
+      endDate: null,
+      removalReason: null,
+      createdAt: new Date(),
+    };
+
+    mockFindFirst.mockResolvedValue(existing);
+
+    const updated = { ...existing, status: "rejected" as BatchMembershipStatus };
+    const returningMock = vi.fn().mockResolvedValue([updated]);
+    mockUpdateSet.mockReturnValue({ where: vi.fn().mockReturnValue({ returning: returningMock }) });
+    mockInsertValues.mockReturnValue({ returning: vi.fn().mockResolvedValue([]) });
+
+    await transitionBatchMembership(
+      "mem-app-1",
+      "rejected",
+      "Application did not meet requirements",
+      "actor-admin-id"
+    );
+
+    // Expect exactly one insert call for audit log
+    expect(mockInsert).toHaveBeenCalledTimes(1);
+    const auditInsertPayload = mockInsertValues.mock.calls[0][0];
+    expect(auditInsertPayload.memberId).toBe("prof-1");
+    expect(auditInsertPayload.fromState).toBe("applied");
+    expect(auditInsertPayload.toState).toBe("rejected");
+    expect(auditInsertPayload.actorId).toBe("actor-admin-id");
+    expect(auditInsertPayload.reason).toBe("Application did not meet requirements");
+  });
+
+  it("12. successful removal creates exactly one audit row", async () => {
+    const existing = {
+      id: "mem-active-1",
+      profileId: "prof-2",
+      batchId: "batch-1",
+      status: "active" as BatchMembershipStatus,
+      startDate: new Date(),
+      endDate: null,
+      removalReason: null,
+      createdAt: new Date(),
+    };
+
+    mockFindFirst.mockResolvedValue(existing);
+
+    const updated = { ...existing, status: "removed" as BatchMembershipStatus };
+    const returningMock = vi.fn().mockResolvedValue([updated]);
+    mockUpdateSet.mockReturnValue({ where: vi.fn().mockReturnValue({ returning: returningMock }) });
+
+    await transitionBatchMembership(
+      "mem-active-1",
+      "removed",
+      "Missed 3 consecutive attendance windows",
+      "actor-admin-id"
+    );
+
+    expect(mockInsert).toHaveBeenCalledTimes(1);
+    const auditInsertPayload = mockInsertValues.mock.calls[0][0];
+    expect(auditInsertPayload.fromState).toBe("active");
+    expect(auditInsertPayload.toState).toBe("removed");
+    expect(auditInsertPayload.reason).toBe("Missed 3 consecutive attendance windows");
+  });
+
+  it("13. batch move records correct from_batch_id and to_batch_id", async () => {
+    const existing = {
+      id: "mem-move-1",
+      profileId: "prof-3",
+      batchId: "batch-A",
+      status: "active" as BatchMembershipStatus,
+      startDate: new Date(),
+      endDate: null,
+      removalReason: null,
+      createdAt: new Date(),
+    };
+
+    mockFindFirst.mockResolvedValue(existing);
+
+    const updated = { ...existing, batchId: "batch-B" };
+    const returningMock = vi.fn().mockResolvedValue([updated]);
+    mockUpdateSet.mockReturnValue({ where: vi.fn().mockReturnValue({ returning: returningMock }) });
+
+    await moveBatchMembership("mem-move-1", "batch-B", "actor-admin-id", "Transferred to Batch B");
+
+    expect(mockInsert).toHaveBeenCalledTimes(1);
+    const auditInsertPayload = mockInsertValues.mock.calls[0][0];
+    expect(auditInsertPayload.memberId).toBe("prof-3");
+    expect(auditInsertPayload.fromBatchId).toBe("batch-A");
+    expect(auditInsertPayload.toBatchId).toBe("batch-B");
+    expect(auditInsertPayload.actorId).toBe("actor-admin-id");
+  });
+
+  it("14. re-entry creates a new audit row & 15. uses canonical membership states", async () => {
+    const newMembership = {
+      id: "mem-reentry-1",
+      profileId: "prof-4",
+      batchId: "batch-C",
+      status: "applied" as BatchMembershipStatus,
+      startDate: new Date(),
+      endDate: null,
+      removalReason: null,
+      createdAt: new Date(),
+    };
+
+    mockInsertValues.mockReturnValueOnce({ returning: vi.fn().mockResolvedValue([newMembership]) });
+
+    await reenterBatchMembership(
+      "prof-4",
+      "batch-A",
+      "batch-C",
+      "applied",
+      "actor-admin-id",
+      "Re-entered after appeal"
+    );
+
+    expect(mockInsert).toHaveBeenCalledTimes(2); // 1 for membership insert, 1 for audit insert
+    const auditInsertPayload = mockInsertValues.mock.calls[1][0];
+    expect(auditInsertPayload.fromState).toBe("removed");
+    expect(auditInsertPayload.toState).toBe("applied");
+    expect(auditInsertPayload.fromBatchId).toBe("batch-A");
+    expect(auditInsertPayload.toBatchId).toBe("batch-C");
+  });
+
+  it("18. audit records are never updated/deleted by application service", () => {
+    // Inspect service exports to ensure no update/delete methods exist for audit logs
+    expect(membershipService).not.toHaveProperty("updateAuditRecord");
+    expect(membershipService).not.toHaveProperty("deleteAuditRecord");
+    expect(membershipService).not.toHaveProperty("updateMembershipAuditLog");
+    expect(membershipService).not.toHaveProperty("deleteMembershipAuditLog");
+  });
+
+  it("19. failed membership transition does not create a false audit record", async () => {
+    const existing = {
+      id: "mem-failed-1",
+      profileId: "prof-5",
+      batchId: "batch-1",
+      status: "removed" as BatchMembershipStatus,
+      startDate: new Date(),
+      endDate: new Date(),
+      removalReason: null,
+      createdAt: new Date(),
+    };
+
+    mockFindFirst.mockResolvedValue(existing);
+
+    // Attempt illegal transition removed -> active
+    await expect(
+      transitionBatchMembership("mem-failed-1", "active", "Try illegal transition", "actor-admin-id")
+    ).rejects.toThrow();
+
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
+
+  it("20. if membership update succeeds, audit insertion succeeds atomically inside transaction", async () => {
+    const existing = {
+      id: "mem-atomic-1",
+      profileId: "prof-6",
+      batchId: "batch-1",
+      status: "active" as BatchMembershipStatus,
+      startDate: new Date(),
+      endDate: null,
+      removalReason: null,
+      createdAt: new Date(),
+    };
+
+    mockFindFirst.mockResolvedValue(existing);
+
+    const updated = { ...existing, status: "grace" as BatchMembershipStatus };
+    const returningMock = vi.fn().mockResolvedValue([updated]);
+    mockUpdateSet.mockReturnValue({ where: vi.fn().mockReturnValue({ returning: returningMock }) });
+
+    await transitionBatchMembership("mem-atomic-1", "grace", "Grant grace period", "actor-admin-id");
+
+    // Verify transaction wrapper was used
+    expect(db.transaction).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockInsert).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("Membership Service - Same-batch vs Cross-batch Conflict Rules", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
   });
 
   it("rejects creating an active/applied membership when one already exists for the SAME batch", async () => {
@@ -187,9 +410,7 @@ describe("Membership Service - Same-batch vs Cross-batch Conflict Rules", () => 
       createdAt: new Date(),
     };
 
-    vi.mocked(db.query.batchMemberships.findFirst).mockResolvedValue(
-      existingActive
-    );
+    mockFindFirst.mockResolvedValue(existingActive);
 
     await expect(
       createBatchMembership("prof-1", "batch-A", "active")
@@ -203,7 +424,7 @@ describe("Membership Service - Same-batch vs Cross-batch Conflict Rules", () => 
 
   it("allows creating a membership for a DIFFERENT batch even if member is active in another batch", async () => {
     // No existing record found for Member A + Batch B
-    vi.mocked(db.query.batchMemberships.findFirst).mockResolvedValue(undefined);
+    mockFindFirst.mockResolvedValue(undefined);
 
     const newMembership = {
       id: "mem-2",
@@ -217,9 +438,7 @@ describe("Membership Service - Same-batch vs Cross-batch Conflict Rules", () => 
     };
 
     const returningMock = vi.fn().mockResolvedValue([newMembership]);
-    const valuesMock = vi.fn().mockReturnValue({ returning: returningMock });
-
-    vi.mocked(db.insert).mockReturnValue({ values: valuesMock } as unknown as ReturnType<typeof db.insert>);
+    mockInsertValues.mockReturnValue({ returning: returningMock });
 
     const result = await createBatchMembership("prof-1", "batch-B", "applied");
     expect(result).toEqual(newMembership);

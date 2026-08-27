@@ -135,6 +135,7 @@ export async function removeFromWaitlist(
         membership.id,
         "removed",
         "Removed from waitlist",
+        undefined,
         tx
       );
     }
