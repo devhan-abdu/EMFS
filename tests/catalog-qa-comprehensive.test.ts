@@ -209,7 +209,7 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
         sequenceOrder: 9999, // Should be ignored
       };
 
-      const result = await createBookWithCover(clientInput as any, mockStorageService);
+      const result = await createBookWithCover(clientInput, mockStorageService);
       expect(result.ok).toBe(true);
       expect(insertedSequenceOrder).toBe(11); // Server 10 + 1, not 9999
     });
@@ -297,7 +297,9 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
         })),
       };
 
-      transactionMock.mockImplementation(async (cb: any) => cb(txMock));
+      transactionMock.mockImplementation(
+        async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock),
+      );
 
       const result = await addPairedEditionWithCover(
         {
@@ -333,7 +335,9 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
           })),
         })),
       };
-      transactionMock.mockImplementation(async (cb: any) => cb(txMockNotFound));
+      transactionMock.mockImplementation(
+        async (cb: (tx: typeof txMockNotFound) => Promise<unknown>) => cb(txMockNotFound),
+      );
       const notFound = await addPairedEditionWithCover(
         {
           pairedBookId: "550e8400-e29b-41d4-a716-446655440000",
@@ -352,24 +356,26 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
   /* -------------------------------------------------------------------------- */
   describe("3. REORDER", () => {
     it("moves slot forward (e.g. 2 -> 4) and shifts intermediate slots contiguously", async () => {
-      const updates: any[] = [];
+      const updates: Array<{ sequenceOrder: unknown }> = [];
       const txMock = {
-        select: vi
-          .fn()
-          .mockReturnValueOnce({ from: vi.fn(async () => [{ maxSlot: 5 }]) })
+        select: vi.fn(),
+      };
+      txMock.select
+        .mockReturnValueOnce({ from: vi.fn(async () => [{ maxSlot: 5 }]) })
           .mockReturnValueOnce({
             from: vi.fn(() => ({
               where: vi.fn(() => ({ limit: vi.fn(async () => [{ id: "b2" }]) })),
             })),
-          }),
-        update: vi.fn(() => ({
+          });
+      Object.assign(txMock, { update: vi.fn(() => ({
           set: vi.fn((data) => {
             updates.push(data);
             return { where: vi.fn(async () => undefined) };
           }),
-        })),
-      };
-      transactionMock.mockImplementation(async (cb: any) => cb(txMock));
+        })) });
+      transactionMock.mockImplementation(
+        async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock),
+      );
 
       const result = await reorderCatalogSlots({ fromSlot: 2, toSlot: 4 });
       expect(result.ok).toBe(true);
@@ -384,13 +390,7 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
 
     it("moves first slot (1 -> 3) and last slot (5 -> 1)", async () => {
       const txMock = {
-        select: vi.fn(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => [{ id: "b-exists" }]),
-            })),
-          })),
-        })),
+        select: vi.fn(),
         update: vi.fn(() => ({
           set: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
         })),
@@ -410,7 +410,9 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
           })),
         });
 
-      transactionMock.mockImplementation(async (cb: any) => cb(txMock));
+      transactionMock.mockImplementation(
+        async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock),
+      );
 
       const moveFirst = await reorderCatalogSlots({ fromSlot: 1, toSlot: 3 });
       expect(moveFirst.ok).toBe(true);
@@ -528,7 +530,7 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
 
       selectMock.mockImplementation(() => ({
         from: vi.fn(() => {
-          const rows: any[] = [];
+          const rows: Array<Record<string, unknown>> = [];
           return Object.assign(Promise.resolve(rows), {
             where: vi.fn(() => ({ limit: vi.fn(async () => rows) })),
           });

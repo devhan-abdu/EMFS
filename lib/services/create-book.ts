@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { books } from "@/db/schema";
+import { requireSuperAdmin } from "@/lib/auth/authorize";
 import type { StorageService } from "@/lib/services/storage/storage-service";
 import { uploadCoverImage } from "@/lib/services/upload-cover-image";
 import {
@@ -40,6 +41,8 @@ export async function createBookWithCover(
   input: CreateBookWithCoverInput,
   storageService: StorageService,
 ): Promise<CreateBookWithCoverResult> {
+  await requireSuperAdmin();
+
   const parsed = createBookSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, errors: zodErrorToFieldErrors(parsed.error) };
@@ -130,6 +133,8 @@ export async function addPairedEditionWithCover(
   input: AddPairedEditionWithCoverInput,
   storageService: StorageService,
 ): Promise<AddPairedEditionResult> {
+  await requireSuperAdmin();
+
   const parsed = addPairedEditionSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, errors: zodErrorToFieldErrors(parsed.error) };

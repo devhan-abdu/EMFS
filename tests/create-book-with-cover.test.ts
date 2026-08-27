@@ -2,6 +2,7 @@ import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createBookWithCover } from "../lib/services/create-book";
+import * as authorizeModule from "../lib/auth/authorize";
 
 type InsertPayload = {
   title: string;
@@ -38,6 +39,10 @@ vi.mock("@/db", () => ({
   },
 }));
 
+vi.mock("@/lib/auth/authorize", () => ({
+  requireSuperAdmin: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe("createBookWithCover", () => {
   beforeEach(() => {
     selectMock.mockReset();
@@ -61,6 +66,26 @@ describe("createBookWithCover", () => {
     insertMock.mockReturnValue({
       values: insertValuesMock,
     });
+  });
+
+  it.each([
+    ["UNAUTHENTICATED", "You must be signed in."],
+    ["FORBIDDEN", "Role 'member' is not permitted."],
+    ["FORBIDDEN", "Role 'pace_admin' is not permitted."],
+    ["FORBIDDEN", "Role 'batch_admin' is not permitted."],
+  ] as const)("rejects direct calls for %s callers", async (code, message) => {
+    vi.mocked(authorizeModule.requireSuperAdmin).mockRejectedValueOnce(
+      Object.assign(new Error(message), { code }),
+    );
+
+    await expect(
+      createBookWithCover({ title: "Blocked Book", language: "en" }, {
+        upload: vi.fn(),
+        delete: vi.fn(),
+        getPublicUrl: vi.fn(),
+      }),
+    ).rejects.toMatchObject({ code, message });
+    expect(insertMock).not.toHaveBeenCalled();
   });
 
 

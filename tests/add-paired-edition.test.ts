@@ -62,6 +62,27 @@ describe("addPairedEditionWithCover Service", () => {
     vi.resetAllMocks();
   });
 
+  it.each([
+    ["UNAUTHENTICATED", "You must be signed in."],
+    ["FORBIDDEN", "Role 'member' is not permitted."],
+    ["FORBIDDEN", "Role 'pace_admin' is not permitted."],
+    ["FORBIDDEN", "Role 'batch_admin' is not permitted."],
+  ] as const)("rejects direct calls for %s callers", async (code, message) => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new AuthzErrorMock(code, message));
+
+    await expect(
+      addPairedEditionWithCover(
+        {
+          pairedBookId: "550e8400-e29b-41d4-a716-446655440000",
+          title: "Blocked Edition",
+          language: "am",
+        },
+        mockStorageService,
+      ),
+    ).rejects.toMatchObject({ code, message });
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
+
   it("successfully adds a paired edition, inheriting sequence_order and updating links", async () => {
     const targetBook = {
       id: "550e8400-e29b-41d4-a716-446655440000",
