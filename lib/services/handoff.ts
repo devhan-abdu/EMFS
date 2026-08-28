@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { handoffRecords, applications } from "@/db/schema";
+import type { DbOrTx } from "@/lib/services/membership";
 
 export type HandoffErrorCode = "NOT_FOUND" | "ALREADY_EXISTS" | "INVALID_INPUT" | "ALREADY_USED" | "CODE_COLLISION";
 
@@ -36,77 +37,82 @@ export function generateHandoffCode(length = 6): string {
  * Creates a handoff record for an approved application.
  * Note: NEVER passes or persists Telegram invite URLs.
  */
-export async function createHandoffRecord(input: CreateHandoffInput) {
+export async function createHandoffRecord(
+  input: CreateHandoffInput,
+  executor: DbOrTx = db
+) {
   const parsed = createHandoffSchema.safeParse(input);
   if (!parsed.success) {
     throw new HandoffError("INVALID_INPUT", parsed.error.issues[0].message);
   }
 
-  const { applicationId, adminContactShown } = parsed.data;
+  const { applicationId } = parsed.data;
 
-  // Verify application exists
-  const existingApp = await db.query.applications.findFirst({
-    where: eq(applications.id, applicationId),
-  });
+  const runCreate = async (tx: DbOrTx) => {
+    const existingApp = await tx.query.applications.findFirst({
+      where: eq(applications.id, applicationId),
+    });
 
-  if (!existingApp) {
-    throw new HandoffError(
-      "NOT_FOUND",
-      `Application with ID '${applicationId}' not found.`
-    );
-  }
-
-  // Check if handoff record already exists for this application
-  const existingHandoff = await db.query.handoffRecords.findFirst({
-    where: eq(handoffRecords.applicationId, applicationId),
-  });
-
-  if (existingHandoff) {
-    throw new HandoffError(
-      "ALREADY_EXISTS",
-      `Handoff record already exists for application '${applicationId}'.`
-    );
-  }
-
-  const MAX_RETRIES = 3;
-  let attempt = 0;
-
-  while (attempt < MAX_RETRIES) {
-    try {
-      const code = generateHandoffCode(6);
-
-      const [inserted] = await db
-        .insert(handoffRecords)
-        .values({
-          applicationId,
-          code,
-          adminContactShown,
-          issuedAt: new Date(),
-          usedAt: null,
-        })
-        .returning();
-
-      return inserted;
-    } catch (error: unknown) {
-      // Handle Postgres unique constraint violation on the handoff code
-      // constraint names might be "unique_handoff_code_idx" or similar depending on the exact generated name
-      const err = error as { code?: string; message?: string };
-      if (err.code === "23505" && err.message?.includes("unique_handoff_code_idx")) {
-        attempt++;
-        if (attempt >= MAX_RETRIES) {
-          throw new HandoffError(
-            "CODE_COLLISION",
-            "Failed to generate a unique handoff code after multiple attempts."
-          );
-        }
-        continue;
-      }
-      // Rethrow other errors
-      throw error;
+    if (!existingApp) {
+      throw new HandoffError(
+        "NOT_FOUND",
+        `Application with ID '${applicationId}' not found.`
+      );
     }
+
+    const existingHandoff = await tx.query.handoffRecords.findFirst({
+      where: eq(handoffRecords.applicationId, applicationId),
+    });
+
+    if (existingHandoff) {
+      throw new HandoffError(
+        "ALREADY_EXISTS",
+        `Handoff record already exists for application '${applicationId}'.`
+      );
+    }
+
+    const MAX_RETRIES = 3;
+    let attempt = 0;
+
+    while (attempt < MAX_RETRIES) {
+      try {
+        const code = generateHandoffCode(6);
+
+        const [inserted] = await tx
+          .insert(handoffRecords)
+          .values({
+            applicationId,
+            code,
+            issuedAt: new Date(),
+            usedAt: null,
+          })
+          .returning();
+
+        return inserted;
+      } catch (error: unknown) {
+        const err = error as { code?: string; message?: string };
+        if (err.code === "23505" && err.message?.includes("unique_handoff_code_idx")) {
+          attempt++;
+          if (attempt >= MAX_RETRIES) {
+            throw new HandoffError(
+              "CODE_COLLISION",
+              "Failed to generate a unique handoff code after multiple attempts."
+            );
+          }
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new HandoffError("CODE_COLLISION", "Failed to generate a unique handoff code.");
+  };
+
+  if (executor === db) {
+    return await db.transaction(async (tx) => runCreate(tx));
   }
 
-  throw new HandoffError("CODE_COLLISION", "Failed to generate a unique handoff code.");
+  return await runCreate(executor);
 }
 
 /**
