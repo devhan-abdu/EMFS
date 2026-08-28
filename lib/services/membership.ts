@@ -5,6 +5,8 @@ import {
   type BatchMembershipStatus,
   BATCH_MEMBERSHIP_STATUSES,
   membershipAuditLogs,
+  handoffRecords,
+  applications,
 } from "@/db/schema";
 
 export type DbClient = typeof db;
@@ -304,4 +306,73 @@ export async function reenterBatchMembership(
 
     return inserted;
   });
+}
+
+
+export async function activateMembership(
+  applicationId: string,
+  actorId: string,
+  executor: DbOrTx = db
+) {
+  const runActivation = async (tx: DbOrTx) => {
+    const handoff = await tx.query.handoffRecords.findFirst({
+      where: eq(handoffRecords.applicationId, applicationId),
+    });
+
+    if (!handoff || !handoff.usedAt || !handoff.telegramChatId) {
+      throw new MembershipError(
+        "INVALID_TRANSITION",
+        "Cannot activate: member has not completed Telegram bot linking yet.",
+      );
+    }
+
+    const application = await tx.query.applications.findFirst({
+      where: eq(applications.id, applicationId),
+    });
+    if (!application) {
+      throw new MembershipError(
+        "NOT_FOUND",
+        `Application '${applicationId}' not found.`,
+      );
+    }
+
+    const membership = await tx.query.batchMemberships.findFirst({
+      where: and(
+        eq(batchMemberships.profileId, application.userId),
+        eq(batchMemberships.batchId, application.batchId),
+        eq(batchMemberships.status, "approved"),
+      ),
+    });
+    if (!membership) {
+      throw new MembershipError(
+        "INVALID_TRANSITION",
+        "No approved membership found for this application.",
+      );
+    }
+
+    const [updated] = await tx
+      .update(batchMemberships)
+      .set({ status: "active" })
+      .where(eq(batchMemberships.id, membership.id))
+      .returning();
+
+    await tx.insert(membershipAuditLogs).values({
+      memberId: application.userId,
+      fromState: "approved",
+      toState: "active",
+      fromBatchId: application.batchId,
+      toBatchId: application.batchId,
+      actorId,
+      reason: "Activated after Telegram bot link confirmed",
+      timestamp: new Date(),
+    });
+
+    return updated;
+  };
+
+  if (executor === db) {
+    return await db.transaction(async (tx) => runActivation(tx));
+  }
+
+  return await runActivation(executor);
 }

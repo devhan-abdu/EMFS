@@ -10,6 +10,7 @@ import {
 vi.mock("@/db", () => {
   return {
     db: {
+      transaction: vi.fn((cb) => cb(db)),
       query: {
         applications: {
           findFirst: vi.fn(),
@@ -43,13 +44,14 @@ describe("Handoff Service - Code Generation", () => {
 describe("Handoff Service - Persistence & Security", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(db.transaction).mockImplementation((cb: unknown) =>
+      (cb as (tx: unknown) => unknown)(db) as never
+    );
   });
 
   const validUuid = "123e4567-e89b-12d3-a456-426614174000";
 
-  it("1. creates a handoff record, 2. stores application_id, 3. stores code, 4. stores admin_contact_shown, 5. sets issued_at, 6. leaves used_at null initially, 8. no Telegram URL persisted", async () => {
-    const adminContact = "Admin Phone: +251911000000";
-
+  it("1. creates a handoff record, 2. stores application_id, 3. stores code, 5. sets issued_at, 6. leaves used_at null initially, 8. no Telegram URL persisted", async () => {
     vi.mocked(db.query.applications.findFirst).mockResolvedValue({
       id: validUuid,
       userId: "user-1",
@@ -69,47 +71,39 @@ describe("Handoff Service - Persistence & Security", () => {
       id: "handoff-uuid-1",
       applicationId: validUuid,
       code: "ABC123",
-      adminContactShown: adminContact,
       issuedAt: new Date(),
       usedAt: null,
+      telegramChatId: null,
     };
 
     const returningMock = vi.fn().mockResolvedValue([mockHandoff]);
     const valuesMock = vi.fn().mockReturnValue({ returning: returningMock });
     vi.mocked(db.insert).mockReturnValue({ values: valuesMock } as unknown as ReturnType<typeof db.insert>);
 
-    const result = await createHandoffRecord({ applicationId: validUuid, adminContactShown: adminContact });
+    const result = await createHandoffRecord({ applicationId: validUuid });
 
     expect(result.applicationId).toBe(validUuid);
     expect(result.code).toBe("ABC123");
-    expect(result.adminContactShown).toBe(adminContact);
     expect(result.issuedAt).toBeInstanceOf(Date);
     expect(result.usedAt).toBeNull();
 
-    // Verify values passed to db.insert do not contain telegram invite URLs or columns
     const insertedValues = valuesMock.mock.calls[0][0];
     expect(insertedValues).not.toHaveProperty("telegram_invite_link");
     expect(insertedValues).not.toHaveProperty("invite_url");
-    expect(insertedValues.adminContactShown).not.toContain("t.me/");
+    expect(insertedValues).not.toHaveProperty("adminContactShown");
   });
 
   it("throws HandoffError when application is not found", async () => {
     vi.mocked(db.query.applications.findFirst).mockResolvedValue(undefined);
 
     await expect(
-      createHandoffRecord({ applicationId: validUuid, adminContactShown: "Admin Contact" })
+      createHandoffRecord({ applicationId: validUuid })
     ).rejects.toThrow(HandoffError);
-  });
-
-  it("throws HandoffError if admin contact is empty", async () => {
-    await expect(
-      createHandoffRecord({ applicationId: validUuid, adminContactShown: "" })
-    ).rejects.toThrow("Admin contact information must be provided.");
   });
 
   it("throws HandoffError if applicationId is invalid UUID", async () => {
     await expect(
-      createHandoffRecord({ applicationId: "non-existent-app", adminContactShown: "Admin Contact" })
+      createHandoffRecord({ applicationId: "non-existent-app" })
     ).rejects.toThrow("Invalid application ID.");
   });
 
@@ -125,9 +119,9 @@ describe("Handoff Service - Persistence & Security", () => {
       id: "handoff-uuid-1",
       applicationId: validUuid,
       code: "NEW123",
-      adminContactShown: "Admin Contact",
       issuedAt: new Date(),
       usedAt: null,
+      telegramChatId: null,
     };
 
     let insertCount = 0;
@@ -140,7 +134,7 @@ describe("Handoff Service - Persistence & Security", () => {
     });
     vi.mocked(db.insert).mockReturnValue({ values: valuesMock } as unknown as ReturnType<typeof db.insert>);
 
-    const result = await createHandoffRecord({ applicationId: validUuid, adminContactShown: "Admin Contact" });
+    const result = await createHandoffRecord({ applicationId: validUuid });
 
     expect(insertCount).toBe(2);
     expect(result.code).toBe("NEW123");
@@ -160,7 +154,7 @@ describe("Handoff Service - Persistence & Security", () => {
     vi.mocked(db.insert).mockReturnValue({ values: valuesMock } as unknown as ReturnType<typeof db.insert>);
 
     await expect(
-      createHandoffRecord({ applicationId: validUuid, adminContactShown: "Admin Contact" })
+      createHandoffRecord({ applicationId: validUuid })
     ).rejects.toThrow("Failed to generate a unique handoff code after multiple attempts.");
 
     expect(valuesMock).toHaveBeenCalledTimes(3);
@@ -179,7 +173,7 @@ describe("Handoff Service - Persistence & Security", () => {
     vi.mocked(db.insert).mockReturnValue({ values: valuesMock } as unknown as ReturnType<typeof db.insert>);
 
     await expect(
-      createHandoffRecord({ applicationId: validUuid, adminContactShown: "Admin Contact" })
+      createHandoffRecord({ applicationId: validUuid })
     ).rejects.toThrow("Connection failed");
 
     expect(valuesMock).toHaveBeenCalledTimes(1);
@@ -197,9 +191,9 @@ describe("Handoff Service - markHandoffUsed", () => {
       id: handoffId,
       applicationId: "app-1",
       code: "XYZ789",
-      adminContactShown: "Admin Contact",
       issuedAt: new Date(),
       usedAt: null,
+      telegramChatId: null,
     };
 
     vi.mocked(db.query.handoffRecords.findFirst).mockResolvedValue(initialHandoff);
@@ -221,9 +215,9 @@ describe("Handoff Service - markHandoffUsed", () => {
       id: handoffId,
       applicationId: "app-1",
       code: "XYZ789",
-      adminContactShown: "Admin Contact",
       issuedAt: new Date(Date.now() - 20000),
       usedAt: pastDate,
+      telegramChatId: null,
     };
 
     vi.mocked(db.query.handoffRecords.findFirst).mockResolvedValue(initialHandoff);

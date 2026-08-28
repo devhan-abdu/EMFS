@@ -12,11 +12,11 @@ Read with:
 
 ## Roles (confirmed)
 
-| Role | Cardinality | Scope |
-| --- | --- | --- |
-| `super_admin` | System-wide | **Book catalog** + master curriculum; assign batch admins; create batches (capacity, pace-group count, start/pacing); **superset** of batch + pace admin powers |
-| `batch_admin` | **1–3 per batch** | Open registration; create pace groups (batch may have **one or many**); assign pace admins; batch pacing setup; approve/reject; Telegram access handoff |
-| `pace_admin` (group admin) | **One or more per pace group**; same person may admin **multiple** groups | Daily task (approve/adjust pages); reflection / inspiration / attendance (+ more duties later); review attendance; group dashboard |
+| Role                       | Cardinality                                                               | Scope                                                                                                                                                                                                                          |
+| -------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `super_admin`              | System-wide                                                               | **Book catalog** + master curriculum; assign batch admins; create batches (capacity, pace-group count, start/pacing); **superset** of batch + pace admin powers                                                                |
+| `batch_admin`              | **1–3 per batch**                                                         | Open registration; create pace groups (batch may have **one or many**); assign pace admins; batch pacing setup; optional manual review queue when `auto_approve = false`; oversee intake via the bot-mediated approval handoff |
+| `pace_admin` (group admin) | **One or more per pace group**; same person may admin **multiple** groups | Daily task (approve/adjust pages); reflection / inspiration / attendance (+ more duties later); review attendance; group dashboard                                                                                             |
 
 ```text
 super_admin
@@ -70,10 +70,11 @@ what they need to post (not necessarily another live batch/pace group feed).
 
 1. **Assign 1–3 batch admins** (only super admin may do this).
 2. **Max members** (capacity).
-3. **How many pace groups** (may be **1** only — e.g. a batch that only has a
+3. **`auto_approve`** (boolean, per-batch toggle — see § Application approval below).
+4. **How many pace groups** (may be **1** only — e.g. a batch that only has a
    5-page or 10-page group).
-4. **Start date** and **pacing** (daily / N-times-week / custom cadence).
-5. Batch always begins at **catalog sequence 1** — no per-batch book copies.
+5. **Start date** and **pacing** (daily / N-times-week / custom cadence).
+6. Batch always begins at **catalog sequence 1** — no per-batch book copies.
 
 Super admin **can do everything** batch and pace admins can do.
 
@@ -86,10 +87,21 @@ Pre-intake order: [`batch-and-intake.md`](./batch-and-intake.md) § Pre-intake s
 - Create **pace groups** (one or more)
 - **Assign pace admins** (reuse existing admins across groups)
 - Confirm **batch pacing** / offsets; assign books to pace admins when duty split
-- **Approve or reject** applicants
-- Manage **Telegram access-link handoff** (contact + code)
+- **Approve or reject** applicants — **only when `auto_approve = false`** for the batch; the default product pattern is first-come-first-served bot-mediated auto-approval, but the manual review path remains supported for admin-reviewed cohorts (see § Application approval)
+- Monitor intake; members complete **Telegram bot handoff** after approval (no manual DM verification in MVP)
 
 Batch admin does **not** create catalog books or reorder the global sequence.
+
+## Application approval (`auto_approve`)
+
+Each batch has `auto_approve` (boolean, set at batch creation by `super_admin`):
+
+| `auto_approve` | Behavior at submission                                                                                                                                                                                                                                                                                                 |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `true`         | **Automatic (first-come-first-served):** if `registration_open` and capacity remains, the system approves instantly, issues a handoff code, and skips the manual review queue. Uses a transaction-safe capacity check with `SELECT … FOR UPDATE` on the batch row — same locking pattern as waitlist seat advancement. |
+| `false`        | **Manual:** application enters `applied`; batch admin reviews and transitions to `approved` or `rejected`.                                                                                                                                                                                                             |
+
+If capacity is full or registration is closed, both modes route to the **waiting list** per existing rules. Both modes remain supported; `auto_approve` is per-batch configuration, not a global replacement of the manual review fallback. In the default product flow, batches should use `auto_approve = true` so applications are approved on submission when capacity remains and the bot then completes the handoff.
 
 ## Pace admin duties
 
@@ -105,12 +117,12 @@ Batch admin does **not** create catalog books or reorder the global sequence.
 
 ## Registration fields (required)
 
-| Field | Notes |
-| --- | --- |
-| Registration name | Display / legal name for ops |
-| Email | Account + contact |
-| Telegram username | Identity for Telegram ops |
-| Phone number | Reachability |
+| Field                 | Notes                                     |
+| --------------------- | ----------------------------------------- |
+| Registration name     | Display / legal name for ops              |
+| Email                 | Account + contact                         |
+| Telegram username     | Identity for Telegram ops                 |
+| Phone number          | Reachability                              |
 | Pace group assignment | Preferred or assigned 5/10/20/40 at apply |
 
 ## Intake handoff after approval (`OD-005`)
@@ -118,16 +130,15 @@ Batch admin does **not** create catalog books or reorder the global sequence.
 **Pain:** Members join Telegram but stay inactive; hard to identify later by
 username (especially if they change it).
 
-**Current product decision:**
+**Current product decision (bot-mediated — no manual admin DM in MVP):**
 
-1. Admin **approves** in the app.
-2. System does **not** send the Telegram access link directly.
-3. Member receives **admin contact** + a **code**.
-4. Member **messages the admin** to request the access link.
-5. Admin verifies and shares the Telegram group link.
+1. Member is **approved** (automatically when `auto_approve = true`, or by batch admin when `auto_approve = false`).
+2. System issues a **handoff code** in the app (does **not** blast a Telegram group invite link).
+3. Member opens the **Telegram bot** via deep link / `start` payload carrying the code.
+4. Bot verifies the code, records `telegram_chat_id` + `used_at` on the handoff record, and **activates** membership (`approved` → `active`) in the **same database transaction**.
+5. Member is fully linked — no batch-admin DM step required for identity verification in MVP.
 
-**Open to alternatives** if another feature solves the same identity /
-reachability problem equally well.
+Batch admins may still manage optional supplementary Telegram groups; core activation is bot-driven.
 
 ## Capacity & waiting list (`OD-003`)
 
@@ -207,17 +218,20 @@ record for groups.
 
 ### In-app group surfaces (Must)
 
-| Surface | Scope | Purpose |
-| --- | --- | --- |
-| **Pace group** | Per pace group inside a batch | Daily tasks, attendance posts, pace feed |
-| **Batch** | Whole batch | Batch-wide membership context |
-| **Announcement** | Per batch | Official announcements only |
-| **Discussion** | Per batch | Member discussion |
+| Surface          | Scope                         | Purpose                                  |
+| ---------------- | ----------------------------- | ---------------------------------------- |
+| **Pace group**   | Per pace group inside a batch | Daily tasks, attendance posts, pace feed |
+| **Batch**        | Whole batch                   | Batch-wide membership context            |
+| **Announcement** | Per batch                     | Official announcements only              |
+| **Discussion**   | Per batch                     | Member discussion                        |
 
 ### Telegram (optional / supplementary)
 
 - Telegram may still be used for **some** features (optional TG group, outreach,
-  registration handoff identity).
+  **bot-mediated intake handoff**).
+- The **Telegram bot** is the system integration for intake linking and may also
+  **deliver batch/group messages** to members who have linked their chat ID
+  (supplement to in-app inbox; useful for reminders and announcements).
 - Prefer **in-app** notifications and messaging for new work.
 - Core reading / attendance / admin flows must work **in the app**.
 
@@ -225,10 +239,14 @@ record for groups.
 
 - Know all members; support **individual outreach**.
 - Support **group-wide message** to each member’s **personal inbox** (in-app
-  first; Telegram bridge optional).
+  first; **Telegram bot** may deliver the same message to linked `telegram_chat_id`
+  values as an optional bridge).
+- For batch/group updates, the bot is the preferred push channel to linked
+  Telegram members; use in-app inbox as the default fallback when a member has
+  not linked a chat yet.
 
 ## Still open
 
-| ID | Topic |
-| --- | --- |
+| ID       | Topic                                |
+| -------- | ------------------------------------ |
 | `OD-009` | Exact attendance day/time + timezone |

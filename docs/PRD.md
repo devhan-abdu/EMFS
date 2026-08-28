@@ -68,7 +68,7 @@ helping members grow and stay accountable.
 - Opens registration **after** pace groups and pace admins are ready
 - Creates pace groups (batch may have only one); assigns pace admins; batch
   pacing setup; approvals
-- Manages Telegram access-link handoff (contact + code; alternatives welcome)
+- Oversees intake; members complete **Telegram bot handoff** after approval
 - Does **not** create global catalog books
 
 ### Super admin
@@ -158,21 +158,24 @@ that drive attendance.
 ### FR-4: User registration & batch joining
 
 **Description.** Apply to a **batch** with required fields; per-batch registration;
-capacity + waiting list; post-approval **contact + code** handoff before Telegram
-link. See [`domain/batch-and-intake.md`](./domain/batch-and-intake.md).
+capacity + waiting list; `auto_approve` toggle for instant first-come-first-served
+approval; post-approval **Telegram bot handoff** before active membership.
+See [`domain/batch-and-intake.md`](./domain/batch-and-intake.md).
 
 **User goal.** Join a reading batch and pace group with reachable identity.
 
 **Pain point.** Many join Telegram but never activate; usernames hard to track.
 
-**Solution.** Rich registration fields + DM handoff + waiting list.
+**Solution.** Rich registration fields + bot-mediated handoff + waiting list.
 
 **Acceptance criteria**
 
 - Fields: name, email, Telegram username, phone, pace preference
-- Registration open/closed per batch; max members set by super admin
+- Registration open/closed per batch; max members and `auto_approve` set by super admin
 - Waiting list for next batch / seat opens
-- Approve → contact + code → member DMs admin → access link
+- Auto-approve (`auto_approve = true`): default product path — instant approval at submission when capacity remains (transaction-safe row lock)
+- Manual approve (`auto_approve = false`): supported fallback for admin-reviewed batches; batch admin reviews `applied` applicants only in that mode
+- Approve → handoff code → member links Telegram bot → membership activated
 - Hard isolation of batch ops data
 
 ### FR-5: Reading portfolio (basic)
@@ -224,9 +227,9 @@ Start date: To be confirmed
 
 ## User flow
 
-1. Super admin creates batch (capacity, pace groups, books); batch admin opens registration
+1. Super admin creates batch (capacity, `auto_approve`, pace groups, books); batch admin opens registration
 2. User applies (name, email, Telegram, phone, pace preference) or joins waiting list
-3. Batch admin approves → contact + code → member DMs admin → Telegram link → active
+3. Approved (auto when `auto_approve = true`, else batch admin) → handoff code → Telegram bot link → active
 4. Pace admin approves daily pages (+/-); member marks Done in their edition (Am or En)
 5. Member submits **text** attendance in window; admin reviews
 6. After 3 misses: outreach → grace or full removal from batch (reassignment to a later batch is separate, criteria-gated); same-batch seat may open for waitlist
