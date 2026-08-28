@@ -3,6 +3,25 @@ import { createApplication } from "@/lib/services/application";
 import { createApplicationSchema, paceGroupPreferenceSchema } from "@/lib/validations/application";
 import { applications } from "@/db/schema/applications";
 import { getTableConfig } from "drizzle-orm/pg-core";
+import { createBatchMembership } from "@/lib/services/membership";
+import { createHandoffRecord } from "@/lib/services/handoff";
+import { addToWaitlist } from "@/lib/services/waitlist";
+
+vi.mock("@/lib/services/membership", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/services/membership")>();
+  return {
+    ...actual,
+    createBatchMembership: vi.fn(),
+  };
+});
+
+vi.mock("@/lib/services/handoff", () => ({
+  createHandoffRecord: vi.fn(),
+}));
+
+vi.mock("@/lib/services/waitlist", () => ({
+  addToWaitlist: vi.fn(),
+}));
 
 // Mock the db module
 vi.mock("@/db", () => {
@@ -10,9 +29,6 @@ vi.mock("@/db", () => {
     db: {
       transaction: vi.fn((cb) => cb(dbTx)),
       query: {
-        batches: {
-          findFirst: vi.fn(),
-        },
         batchMemberships: {
           findFirst: vi.fn(),
         },
@@ -24,13 +40,11 @@ vi.mock("@/db", () => {
 
 const dbTx = {
   query: {
-    batches: {
-      findFirst: vi.fn(),
-    },
     batchMemberships: {
       findFirst: vi.fn(),
     },
   },
+  select: vi.fn(),
   insert: vi.fn(),
 };
 
@@ -111,19 +125,38 @@ describe("Application Service - createApplication", () => {
     paceGroup: "20" as const,
   };
 
-  it("creates an application and batch membership with 'applied' status when user has no active membership", async () => {
-    vi.mocked(dbTx.query.batches.findFirst).mockResolvedValue({
-      id: validAppInput.batchId,
-      name: "Batch 1",
-      maxMembers: 50,
-      paceGroupCount: 4,
-      registrationOpen: true,
-      createdBy: "admin-1",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+  const mockBatch = {
+    id: validAppInput.batchId,
+    name: "Batch 1",
+    maxMembers: 50,
+    paceGroupCount: 4,
+    registrationOpen: true,
+    autoApprove: true,
+    createdBy: "admin-1",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
-    // No non-terminal membership
+  function mockBatchQueries(batch: typeof mockBatch | null, activeCount = 0) {
+    const forUpdateMock = vi.fn().mockResolvedValue(batch ? [batch] : []);
+    const whereBatchMock = vi.fn().mockReturnValue({ for: forUpdateMock });
+    const fromBatchMock = vi.fn().mockReturnValue({ where: whereBatchMock });
+
+    const whereCountMock = vi.fn().mockResolvedValue([{ activeCount }]);
+    const fromCountMock = vi.fn().mockReturnValue({ where: whereCountMock });
+
+    let selectCallCount = 0;
+    vi.mocked(dbTx.select).mockImplementation(() => {
+      selectCallCount++;
+      if (selectCallCount === 1) {
+        return { from: fromBatchMock } as unknown as ReturnType<typeof dbTx.select>;
+      }
+      return { from: fromCountMock } as unknown as ReturnType<typeof dbTx.select>;
+    });
+  }
+
+  it("creates an application and auto-approves when capacity is available", async () => {
+    mockBatchQueries(mockBatch, 0);
     vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(undefined);
 
     const insertedRecord = {
@@ -134,42 +167,57 @@ describe("Application Service - createApplication", () => {
       updatedAt: new Date(),
     };
 
-    const insertedMembership = {
-      id: "mem-123",
-      profileId: "profile-123",
-      batchId: validAppInput.batchId,
-      status: "applied",
-      startDate: new Date(),
-      endDate: null,
-      removalReason: null,
-      createdAt: new Date(),
-    };
-
-    let insertCallCount = 0;
-    vi.mocked(dbTx.insert).mockImplementation(() => {
-      insertCallCount++;
-      if (insertCallCount === 1) {
-        // Application insert with onConflictDoUpdate
-        return {
-          values: vi.fn().mockReturnValue({
-            onConflictDoUpdate: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([insertedRecord]),
-            }),
-          }),
-        } as unknown as ReturnType<typeof dbTx.insert>;
-      }
-      // Membership insert
-      return {
-        values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([insertedMembership]),
-        }),
-      } as unknown as ReturnType<typeof dbTx.insert>;
-    });
+    vi.mocked(dbTx.insert).mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([insertedRecord]),
+      }),
+    } as unknown as ReturnType<typeof dbTx.insert>);
 
     const result = await createApplication("profile-123", "jane@example.com", validAppInput);
 
     expect(result).toEqual(insertedRecord);
-    expect(dbTx.insert).toHaveBeenCalledTimes(2);
+    expect(createBatchMembership).toHaveBeenCalledWith(
+      "profile-123",
+      validAppInput.batchId,
+      "approved",
+      dbTx
+    );
+    expect(createHandoffRecord).toHaveBeenCalledWith(
+      { applicationId: insertedRecord.id },
+      dbTx
+    );
+    expect(addToWaitlist).not.toHaveBeenCalled();
+  });
+
+  it("creates applied membership when auto_approve is false and capacity is available", async () => {
+    mockBatchQueries({ ...mockBatch, autoApprove: false }, 0);
+    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(undefined);
+
+    const insertedRecord = {
+      id: "app-123",
+      userId: "profile-123",
+      ...validAppInput,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    vi.mocked(dbTx.insert).mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([insertedRecord]),
+      }),
+    } as unknown as ReturnType<typeof dbTx.insert>);
+
+    const result = await createApplication("profile-123", "jane@example.com", validAppInput);
+
+    expect(result).toEqual(insertedRecord);
+    expect(createBatchMembership).toHaveBeenCalledWith(
+      "profile-123",
+      validAppInput.batchId,
+      "applied",
+      dbTx
+    );
+    expect(createHandoffRecord).not.toHaveBeenCalled();
+    expect(addToWaitlist).not.toHaveBeenCalled();
   });
 
   it("REJECTS application when submitted email does not match authenticated user email", async () => {
@@ -182,26 +230,16 @@ describe("Application Service - createApplication", () => {
   });
 
   it("throws ApplicationError if batch is not found", async () => {
-    vi.mocked(dbTx.query.batches.findFirst).mockResolvedValue(undefined);
+    mockBatchQueries(null);
 
     await expect(
       createApplication("profile-123", "jane@example.com", validAppInput)
-    ).rejects.toThrow("Batch with ID '123e4567-e89b-12d3-a456-426614174000' not found.");
+    ).rejects.toThrow("Batch '123e4567-e89b-12d3-a456-426614174000' not found.");
   });
 
   it("REJECTS duplicate application when user currently has a non-terminal membership", async () => {
-    vi.mocked(dbTx.query.batches.findFirst).mockResolvedValue({
-      id: validAppInput.batchId,
-      name: "Batch 1",
-      maxMembers: 50,
-      paceGroupCount: 4,
-      registrationOpen: true,
-      createdBy: "admin-1",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    mockBatchQueries(mockBatch, 0);
 
-    // User already has a non-terminal membership (e.g. status: "applied")
     vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue({
       id: "mem-active",
       profileId: "profile-123",
@@ -215,22 +253,41 @@ describe("Application Service - createApplication", () => {
 
     await expect(
       createApplication("profile-123", "jane@example.com", validAppInput)
-    ).rejects.toThrow("User has already submitted an application for this batch.");
+    ).rejects.toThrow("You already have an application for this batch.");
+  });
+
+  it("waitlists the user when registration is closed", async () => {
+    mockBatchQueries({ ...mockBatch, registrationOpen: false }, 0);
+    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(undefined);
+
+    const insertedRecord = {
+      id: "app-123",
+      userId: "profile-123",
+      ...validAppInput,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    vi.mocked(dbTx.insert).mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([insertedRecord]),
+      }),
+    } as unknown as ReturnType<typeof dbTx.insert>);
+
+    const result = await createApplication("profile-123", "jane@example.com", validAppInput);
+
+    expect(result).toEqual(insertedRecord);
+    expect(addToWaitlist).toHaveBeenCalledWith(
+      "profile-123",
+      validAppInput.batchId,
+      dbTx
+    );
+    expect(createBatchMembership).not.toHaveBeenCalled();
+    expect(createHandoffRecord).not.toHaveBeenCalled();
   });
 
   it("ALLOWS re-application when user membership is in a terminal status ('rejected')", async () => {
-    vi.mocked(dbTx.query.batches.findFirst).mockResolvedValue({
-      id: validAppInput.batchId,
-      name: "Batch 1",
-      maxMembers: 50,
-      paceGroupCount: 4,
-      registrationOpen: true,
-      createdBy: "admin-1",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    // NON_TERMINAL_STATUSES filter returns undefined when existing membership is "rejected"
+    mockBatchQueries(mockBatch, 0);
     vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(undefined);
 
     const updatedAppRecord = {
@@ -241,54 +298,20 @@ describe("Application Service - createApplication", () => {
       updatedAt: new Date(),
     };
 
-    const newMembership = {
-      id: "mem-new",
-      profileId: "profile-123",
-      batchId: validAppInput.batchId,
-      status: "applied",
-      startDate: new Date(),
-      endDate: null,
-      removalReason: null,
-      createdAt: new Date(),
-    };
-
-    let insertCallCount = 0;
-    vi.mocked(dbTx.insert).mockImplementation(() => {
-      insertCallCount++;
-      if (insertCallCount === 1) {
-        return {
-          values: vi.fn().mockReturnValue({
-            onConflictDoUpdate: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([updatedAppRecord]),
-            }),
-          }),
-        } as unknown as ReturnType<typeof dbTx.insert>;
-      }
-      return {
-        values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([newMembership]),
-        }),
-      } as unknown as ReturnType<typeof dbTx.insert>;
-    });
+    vi.mocked(dbTx.insert).mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([updatedAppRecord]),
+      }),
+    } as unknown as ReturnType<typeof dbTx.insert>);
 
     const result = await createApplication("profile-123", "jane@example.com", validAppInput);
 
     expect(result).toEqual(updatedAppRecord);
-    expect(dbTx.insert).toHaveBeenCalledTimes(2);
+    expect(createBatchMembership).toHaveBeenCalled();
   });
 
   it("ALLOWS re-application when user membership is in a terminal status ('removed')", async () => {
-    vi.mocked(dbTx.query.batches.findFirst).mockResolvedValue({
-      id: validAppInput.batchId,
-      name: "Batch 1",
-      maxMembers: 50,
-      paceGroupCount: 4,
-      registrationOpen: true,
-      createdBy: "admin-1",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
+    mockBatchQueries(mockBatch, 0);
     vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(undefined);
 
     const updatedAppRecord = {
@@ -299,35 +322,11 @@ describe("Application Service - createApplication", () => {
       updatedAt: new Date(),
     };
 
-    const newMembership = {
-      id: "mem-new-2",
-      profileId: "profile-123",
-      batchId: validAppInput.batchId,
-      status: "applied",
-      startDate: new Date(),
-      endDate: null,
-      removalReason: null,
-      createdAt: new Date(),
-    };
-
-    let insertCallCount = 0;
-    vi.mocked(dbTx.insert).mockImplementation(() => {
-      insertCallCount++;
-      if (insertCallCount === 1) {
-        return {
-          values: vi.fn().mockReturnValue({
-            onConflictDoUpdate: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([updatedAppRecord]),
-            }),
-          }),
-        } as unknown as ReturnType<typeof dbTx.insert>;
-      }
-      return {
-        values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([newMembership]),
-        }),
-      } as unknown as ReturnType<typeof dbTx.insert>;
-    });
+    vi.mocked(dbTx.insert).mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([updatedAppRecord]),
+      }),
+    } as unknown as ReturnType<typeof dbTx.insert>);
 
     const result = await createApplication("profile-123", "jane@example.com", validAppInput);
 
