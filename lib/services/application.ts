@@ -1,11 +1,13 @@
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, count } from "drizzle-orm";
 import { db } from "@/db";
-import { applications, batches, batchMemberships } from "@/db/schema";
+import { applications, batches, batchMemberships, membershipAuditLogs } from "@/db/schema";
 import type { CreateApplicationInput } from "@/lib/validations/application";
 import {
   createBatchMembership,
   NON_TERMINAL_STATUSES,
 } from "@/lib/services/membership";
+import { createHandoffRecord } from "@/lib/services/handoff";
+import { addToWaitlist } from "./waitlist";
 
 export type ApplicationErrorCode =
   | "EMAIL_MISMATCH"
@@ -21,82 +23,73 @@ export class ApplicationError extends Error {
     this.name = "ApplicationError";
   }
 }
-
-/**
- * Creates a new application record for an authenticated user.
- * Strictly verifies that the submitted email matches the authenticated user's account email.
- * Ensures non-terminal membership eligibility and atomically creates the batch membership record.
- */
+// lib/services/application.ts (revised createApplication)
 export async function createApplication(
   userId: string,
   authEmail: string,
   input: CreateApplicationInput
 ) {
-  // EMAIL SECURITY REQUIREMENT: Email must match authenticated user account email
   if (input.email.trim().toLowerCase() !== authEmail.trim().toLowerCase()) {
-    throw new ApplicationError(
-      "EMAIL_MISMATCH",
-      "Submitted email does not match authenticated user email."
-    );
+    throw new ApplicationError("EMAIL_MISMATCH", "Submitted email does not match authenticated user email.");
   }
 
   return await db.transaction(async (tx) => {
-    // Check if target batch exists
-    const existingBatch = await tx.query.batches.findFirst({
-      where: eq(batches.id, input.batchId),
-    });
+    
+    const [batch] = await tx
+      .select()
+      .from(batches)
+      .where(eq(batches.id, input.batchId))
+      .for("update");
 
-    if (!existingBatch) {
-      throw new ApplicationError(
-        "BATCH_NOT_FOUND",
-        `Batch with ID '${input.batchId}' not found.`
-      );
+    if (!batch) {
+      throw new ApplicationError("BATCH_NOT_FOUND", `Batch '${input.batchId}' not found.`);
     }
 
-    // Check if user currently has an active / non-terminal membership for this batch
-    const existingNonTerminal = await tx.query.batchMemberships.findFirst({
+    const existingMembership = await tx.query.batchMemberships.findFirst({
       where: and(
         eq(batchMemberships.profileId, userId),
         eq(batchMemberships.batchId, input.batchId),
-        inArray(batchMemberships.status, [...NON_TERMINAL_STATUSES])
+        inArray(batchMemberships.status, NON_TERMINAL_STATUSES),
       ),
     });
-
-    if (existingNonTerminal) {
-      throw new ApplicationError(
-        "ALREADY_APPLIED",
-        "User has already submitted an application for this batch."
-      );
+    if (existingMembership) {
+      throw new ApplicationError("ALREADY_APPLIED", "You already have an application for this batch.");
     }
 
-    // Upsert application row preserving historical record on conflict
-    const [inserted] = await tx
+    const [{ activeCount }] = await tx
+      .select({ activeCount: count() })
+      .from(batchMemberships)
+      .where(and(
+        eq(batchMemberships.batchId, input.batchId),
+        inArray(batchMemberships.status, ["approved", "active"]),
+      ));
+
+    const capacityRemains = Number(activeCount) < batch.maxMembers;
+
+    const [application] = await tx
       .insert(applications)
-      .values({
-        userId,
-        batchId: input.batchId,
-        registrationName: input.registrationName,
-        email: input.email,
-        telegramUsername: input.telegramUsername,
-        phoneNumber: input.phoneNumber,
-        paceGroup: input.paceGroup,
-      })
-      .onConflictDoUpdate({
-        target: [applications.userId, applications.batchId],
-        set: {
-          registrationName: input.registrationName,
-          email: input.email,
-          telegramUsername: input.telegramUsername,
-          phoneNumber: input.phoneNumber,
-          paceGroup: input.paceGroup,
-          updatedAt: new Date(),
-        },
-      })
+      .values({ userId, ...input })
       .returning();
 
-    // Create batch membership with status "applied"
-    await createBatchMembership(userId, input.batchId, "applied", tx);
+    if (batch.registrationOpen && batch.autoApprove && capacityRemains) {
+      await createBatchMembership(userId, input.batchId, "approved", tx);
+      await tx.insert(membershipAuditLogs).values({
+        memberId: userId,
+        fromState: "applied",
+        toState: "approved",
+        fromBatchId: input.batchId,
+        toBatchId: input.batchId,
+        actorId: "system",
+        reason: "Auto-approved: capacity available at submission time",
+        timestamp: new Date(),
+      });
+      await createHandoffRecord({ applicationId: application.id }, tx);
+    } else if (batch.registrationOpen && capacityRemains) {
+      await createBatchMembership(userId, input.batchId, "applied", tx);
+    } else {
+      await addToWaitlist(userId, input.batchId, tx);
+    }
 
-    return inserted;
+    return application;
   });
 }

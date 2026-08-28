@@ -4,6 +4,7 @@ import { waitlist, batches, batchMemberships } from "@/db/schema";
 import {
   createBatchMembership,
   transitionBatchMembership,
+  type DbOrTx,
 } from "@/lib/services/membership";
 
 export type WaitlistErrorCode =
@@ -27,9 +28,12 @@ export class WaitlistError extends Error {
  * Locks the batch row FOR UPDATE to prevent race conditions during concurrent insertions.
  * Also creates a corresponding batch membership record with status "waitlisted".
  */
-export async function addToWaitlist(userId: string, batchId: string) {
-  return await db.transaction(async (tx) => {
-    // Acquire exclusive row lock on batch to serialize concurrent insertions per batch
+export async function addToWaitlist(
+  userId: string,
+  batchId: string,
+  executor: DbOrTx = db
+) {
+  const runAdd = async (tx: DbOrTx) => {
     const [existingBatch] = await tx
       .select({ id: batches.id })
       .from(batches)
@@ -73,11 +77,16 @@ export async function addToWaitlist(userId: string, batchId: string) {
       })
       .returning();
 
-    // Create corresponding batch membership with status "waitlisted"
     await createBatchMembership(userId, batchId, "waitlisted", tx);
 
     return inserted;
-  });
+  };
+
+  if (executor === db) {
+    return await db.transaction(async (tx) => runAdd(tx));
+  }
+
+  return await runAdd(executor);
 }
 
 /**
