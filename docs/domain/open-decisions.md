@@ -13,7 +13,7 @@ Status: `Open` | `Stubbable` | `Answered` | `Dropped`
 | **OD-002** | Answered | Member | Profile = personal; Groups = pace feeds. **Anyone visiting the website** may view/react to posted reflections but not submit (`OD-020`). | — | [`reflections.md`](./reflections.md) |
 | **OD-003** | Answered | Admin | Registration **per batch** + **waiting list** (next batch / seat opens). | — | [`batch-and-intake.md`](./batch-and-intake.md) |
 | **OD-004** | Answered | Admin / Member | Use **batch**; hard isolation of ops data. | — | [`batch-and-intake.md`](./batch-and-intake.md) |
-| **OD-005** | Answered | Admin | Contact + code handoff (not auto Telegram link). Alternatives welcome if they solve inactive-joiner identity. | — | [`admin-ops.md`](./admin-ops.md) |
+| **OD-005** | Answered | Admin | **Bot-mediated handoff:** handoff code in app → member links via Telegram bot → bot records identity and activates membership. No manual admin DM in MVP. Group messages may also be delivered via bot to linked chat IDs. | — | [`admin-ops.md`](./admin-ops.md) |
 | **OD-006** | Answered | Admin | Multi pace admins; reuse; duty split. Prepared posts come from a **post library / source place** (not necessarily another live group) and are forwarded into pace groups (`OD-022`). Batch may have only one pace group. | — | [`admin-ops.md`](./admin-ops.md) |
 | **OD-007** | Answered | Admin | Dashboard: members, streaks, attendance, review, book(s). No voice/AI in MVP. | — | [`admin-ops.md`](./admin-ops.md) |
 | **OD-008** | Answered | Member / Admin | **Resolved.** Completion is schedule-based: **member** portfolio completion and **group** schedule completion. See [`admin-ops.md`](./admin-ops.md). | — | [`admin-ops.md`](./admin-ops.md) |

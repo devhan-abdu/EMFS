@@ -18,12 +18,12 @@ Until a formal permission-key enum exists in code, treat the tables below as the
 
 ## Roles (MVP — confirmed)
 
-| Role | Who | Scope |
-| --- | --- | --- |
-| `member` | Reading-group participant | Own profile/progress; post attendance to own pace group; batch-scoped Groups read |
-| `pace_admin` | Group admin — **≥1 per pace group**; may admin **multiple** groups; may post without being a reading member | Daily target approve (+/- pages); Reflection / Inspiration / Attendance / Post duties; group dashboard (streaks, attendance, book) |
-| `batch_admin` | **1–3 per batch** | Registration; pace groups (**≥1**); batch pacing setup + pace admins; approvals; Telegram handoff |
-| `super_admin` | System boss | Book catalog + curriculum; assign batch admins; create batches (capacity, pace-group count, start/pacing); **all** batch + pace capabilities |
+| Role          | Who                                                                                                         | Scope                                                                                                                                        |
+| ------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `member`      | Reading-group participant                                                                                   | Own profile/progress; post attendance to own pace group; batch-scoped Groups read                                                            |
+| `pace_admin`  | Group admin — **≥1 per pace group**; may admin **multiple** groups; may post without being a reading member | Daily target approve (+/- pages); Reflection / Inspiration / Attendance / Post duties; group dashboard (streaks, attendance, book)           |
+| `batch_admin` | **1–3 per batch**                                                                                           | Registration; pace groups (**≥1**); batch pacing setup + pace admins; optional manual review when `auto_approve = false`; intake monitoring  |
+| `super_admin` | System boss                                                                                                 | Book catalog + curriculum; assign batch admins; create batches (capacity, pace-group count, start/pacing); **all** batch + pace capabilities |
 
 ### Hierarchy
 
@@ -44,35 +44,35 @@ super_admin
 
 ## Permission matrix (intended)
 
-| Capability | Member | Pace admin | Batch admin | Super admin | Notes |
-| --- | --- | --- | --- | --- | --- |
-| Register / sign in | ✓ | ✓ | ✓ | ✓ | Fields: name, email, Telegram, phone, pace preference |
-| Select / manage book catalog | — | — | — | ✓ | Super admin only |
-| Create / reorder catalog books & curriculum tasks | — | — | — | ✓ | |
-| Create batch (capacity, # pace groups, start/pacing) | — | — | — | ✓ | Always starts catalog seq 1 |
-| Assign batch admins | — | — | — | ✓ | 1–3 per batch; before intake |
-| Open/close batch registration | — | — | ✓ | ✓ | |
-| Create pace groups | — | — | ✓ | ✓ | Count planned at batch create |
-| Assign pace admins (+ duty / book split) | — | — | ✓ | ✓ | Reuse across groups OK |
-| Configure batch pacing / offsets | — | — | ✓ | ✓ | Not master curriculum content |
-| Approve/reject applicants | — | — | ✓ | ✓ | |
-| Manage post-approval handoff (contact + code) | — | — | ✓ | ✓ | Not direct Telegram link — [`admin-ops.md`](./admin-ops.md) |
-| Manage Telegram group access link | — | — | ✓ | ✓ | |
-| Waiting list / seat fill | — | — | ✓ | ✓ | |
-| Auto daily target draft; admin +/- pages; advance **this group's** cursor | — | ✓ | ✓ | ✓ | `OD-014`; scoped — see [`curriculum-and-pacing.md`](./curriculum-and-pacing.md) |
-| Reflection / inspiration / attendance / post duties | — | ✓ | ✓ | ✓ | ≥4 duties; more later |
-| View group dashboard (streaks, attendance, book) | — | ✓ | ✓ (batch) | ✓ | No voice/AI in MVP |
-| Review attendance; grant second chance | — | ✓ | ✓ | ✓ | Window: `OD-009` |
-| Mark own daily progress | ✓ | ✓ | — | — | Done = today's pages in **member's** edition (`OD-015`) |
-| Personal reflections (Profile) | ✓ | ✓ | — | — | Author-only |
-| Post attendance text (window) | ✓ | ✓ | — | — | Text only MVP |
-| Forward from post library into pace group | — | ✓ | ✓ | ✓ | `OD-022` |
-| Read posted reflections | ✓ (public site) | ✓ | ✓ | ✓ | Anyone visiting website |
-| View/react without submit | ✓ (visitor) | ✓ | ✓ | ✓ | Submit only if pace member (`OD-020`) |
-| Grant grace with admin-set duration | — | ✓ | ✓ | ✓ | After 3 misses (`OD-021`) |
-| Leaderboard (likes/reactions) | ✓ | ✓ | ✓ | ✓ | Engagement |
-| Individual / broadcast inbox message | — | ✓ / confirm | ✓ | ✓ | In-app first; Telegram optional |
-| Cross-batch ops | — | — | — | ✓ | |
+| Capability                                                                | Member          | Pace admin  | Batch admin | Super admin | Notes                                                                           |
+| ------------------------------------------------------------------------- | --------------- | ----------- | ----------- | ----------- | ------------------------------------------------------------------------------- |
+| Register / sign in                                                        | ✓               | ✓           | ✓           | ✓           | Fields: name, email, Telegram, phone, pace preference                           |
+| Select / manage book catalog                                              | —               | —           | —           | ✓           | Super admin only                                                                |
+| Create / reorder catalog books & curriculum tasks                         | —               | —           | —           | ✓           |                                                                                 |
+| Create batch (capacity, # pace groups, `auto_approve`, start/pacing)      | —               | —           | —           | ✓           | Always starts catalog seq 1                                                     |
+| Assign batch admins                                                       | —               | —           | —           | ✓           | 1–3 per batch; before intake                                                    |
+| Open/close batch registration                                             | —               | —           | ✓           | ✓           |                                                                                 |
+| Create pace groups                                                        | —               | —           | ✓           | ✓           | Count planned at batch create                                                   |
+| Assign pace admins (+ duty / book split)                                  | —               | —           | ✓           | ✓           | Reuse across groups OK                                                          |
+| Configure batch pacing / offsets                                          | —               | —           | ✓           | ✓           | Not master curriculum content                                                   |
+| Approve/reject applicants                                                 | —               | —           | ✓           | ✓           | Only when `auto_approve = false`; auto path is system-driven                    |
+| Complete intake via Telegram bot (handoff code → link → activate)         | ✓               | —           | —           | —           | Member action; no admin DM required in MVP                                      |
+| Manage optional Telegram group access link                                | —               | —           | ✓           | ✓           | Supplementary; not the primary activation path                                  |
+| Waiting list / seat fill                                                  | —               | —           | ✓           | ✓           |                                                                                 |
+| Auto daily target draft; admin +/- pages; advance **this group's** cursor | —               | ✓           | ✓           | ✓           | `OD-014`; scoped — see [`curriculum-and-pacing.md`](./curriculum-and-pacing.md) |
+| Reflection / inspiration / attendance / post duties                       | —               | ✓           | ✓           | ✓           | ≥4 duties; more later                                                           |
+| View group dashboard (streaks, attendance, book)                          | —               | ✓           | ✓ (batch)   | ✓           | No voice/AI in MVP                                                              |
+| Review attendance; grant second chance                                    | —               | ✓           | ✓           | ✓           | Window: `OD-009`                                                                |
+| Mark own daily progress                                                   | ✓               | ✓           | —           | —           | Done = today's pages in **member's** edition (`OD-015`)                         |
+| Personal reflections (Profile)                                            | ✓               | ✓           | —           | —           | Author-only                                                                     |
+| Post attendance text (window)                                             | ✓               | ✓           | —           | —           | Text only MVP                                                                   |
+| Forward from post library into pace group                                 | —               | ✓           | ✓           | ✓           | `OD-022`                                                                        |
+| Read posted reflections                                                   | ✓ (public site) | ✓           | ✓           | ✓           | Anyone visiting website                                                         |
+| View/react without submit                                                 | ✓ (visitor)     | ✓           | ✓           | ✓           | Submit only if pace member (`OD-020`)                                           |
+| Grant grace with admin-set duration                                       | —               | ✓           | ✓           | ✓           | After 3 misses (`OD-021`)                                                       |
+| Leaderboard (likes/reactions)                                             | ✓               | ✓           | ✓           | ✓           | Engagement                                                                      |
+| Individual / broadcast inbox message                                      | —               | ✓ / confirm | ✓           | ✓           | In-app first; Telegram optional                                                 |
+| Cross-batch ops                                                           | —               | —           | —           | ✓           |                                                                                 |
 
 ## Object-level rules (NON-NEGOTIABLE)
 
