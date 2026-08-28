@@ -11,7 +11,7 @@ is not listed here. Link open policy to [`open-decisions.md`](./open-decisions.m
 | --- | --- |
 | `waitlisted` | Interested; next batch and/or batch full |
 | `applied` | Applied while registration open; awaiting decision |
-| `approved` | Approved; contact+code handoff; awaiting Telegram join / activation |
+| `approved` | Approved; handoff code issued; awaiting Telegram bot link / activation |
 | `rejected` | Rejected; not in cohort |
 | `active` | In a pace group; may track/read/attend |
 | `grace` | After 3 misses + valid reason; extension **duration set by admin** (`OD-021`) |
@@ -22,10 +22,11 @@ is not listed here. Link open policy to [`open-decisions.md`](./open-decisions.m
 ```txt
 (none) -> waitlisted                 # closed reg or full batch
 waitlisted -> applied                # when registration opens / invited
-(none) -> applied                    # open registration + under capacity
+(none) -> applied                    # open registration + under capacity + auto_approve = false
+(none) -> approved                   # open registration + under capacity + auto_approve = true (instant)
 applied -> approved
 applied -> rejected
-approved -> active                   # after handoff + join
+approved -> active                   # after Telegram bot handoff (code verified; membership activated)
 active -> grace                      # after 3 misses + admin grants grace
 active -> removed                    # admin remove or auto-remove path
 grace -> active                      # resumes compliance
@@ -36,8 +37,8 @@ removed -> applied                   # cross-batch re-registration when criteria
 removed -> active                    # cross-batch direct admin invite when criteria met (later batch)
 ```
 
-- `registration_open` and `max_members` are batch properties.
-- Post-approval: **contact + code**, not direct link blast.
+- `registration_open`, `max_members`, and `auto_approve` are batch properties.
+- Post-approval: **handoff code → Telegram bot link**, not direct group-link blast.
 - **Batch removal default:** `active`/`grace` → `removed` is full removal. No
   automatic transition to a later batch.
 - **Cross-batch reassignment** (`removed` → `applied` or `removed` → `active`):
