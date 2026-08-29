@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createBatchAction } from "@/actions/batch";
+import { createBatchAction, assignBatchAdminAction } from "@/actions/batch";
 import * as authorizeModule from "@/lib/auth/authorize";
 import * as batchService from "@/lib/services/batch";
 
@@ -17,6 +17,7 @@ vi.mock("@/lib/auth/authorize", () => ({
 
 vi.mock("@/lib/services/batch", () => ({
   createBatch: vi.fn(),
+  assignBatchAdmin: vi.fn(),
   BatchError: class BatchError extends Error {
     code: string;
     constructor(code: string, message: string) {
@@ -26,6 +27,7 @@ vi.mock("@/lib/services/batch", () => ({
     }
   },
 }));
+
 
 describe("Batch Server Actions - Authorization & Execution", () => {
   const superAdminProfileId = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
@@ -198,4 +200,198 @@ describe("Batch Server Actions - Authorization & Execution", () => {
       );
     }
   });
+
+  describe("assignBatchAdminAction - Authorization & Execution", () => {
+    const batchId = "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22";
+    const targetAdminProfileId = "c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33";
+
+    it("permits Super Admin to assign an admin to a batch", async () => {
+      vi.mocked(authorizeModule.requireRole).mockResolvedValue({
+        authUserId: "auth-super-1",
+        email: "super@example.com",
+        profile: {
+          id: superAdminProfileId,
+          authUserId: "auth-super-1",
+          role: "super_admin",
+          firstName: "Super",
+          fatherName: "Admin",
+          grandfatherName: null,
+          telegramUsername: null,
+          phone: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      vi.mocked(batchService.assignBatchAdmin).mockResolvedValue({
+        batchId,
+        profileId: targetAdminProfileId,
+        assignedAdminIds: [superAdminProfileId, targetAdminProfileId],
+      });
+
+      const res = await assignBatchAdminAction({
+        batchId,
+        profileId: targetAdminProfileId,
+      });
+
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(res.data.batchId).toBe(batchId);
+        expect(res.data.profileId).toBe(targetAdminProfileId);
+        expect(res.data.assignedAdminIds).toEqual([
+          superAdminProfileId,
+          targetAdminProfileId,
+        ]);
+      }
+      expect(authorizeModule.requireRole).toHaveBeenCalledWith(["super_admin"]);
+      expect(batchService.assignBatchAdmin).toHaveBeenCalledWith(
+        batchId,
+        targetAdminProfileId
+      );
+    });
+
+    it("denies batch_admin attempting to assign an admin", async () => {
+      vi.mocked(authorizeModule.requireRole).mockRejectedValue(
+        new authorizeModule.AuthzError(
+          "FORBIDDEN",
+          "Role 'batch_admin' is not permitted. Required at least: super_admin."
+        )
+      );
+
+      await expect(
+        assignBatchAdminAction({
+          batchId,
+          profileId: targetAdminProfileId,
+        })
+      ).rejects.toThrow("Role 'batch_admin' is not permitted");
+
+      expect(batchService.assignBatchAdmin).not.toHaveBeenCalled();
+    });
+
+    it("denies pace_admin attempting to assign an admin", async () => {
+      vi.mocked(authorizeModule.requireRole).mockRejectedValue(
+        new authorizeModule.AuthzError(
+          "FORBIDDEN",
+          "Role 'pace_admin' is not permitted. Required at least: super_admin."
+        )
+      );
+
+      await expect(
+        assignBatchAdminAction({
+          batchId,
+          profileId: targetAdminProfileId,
+        })
+      ).rejects.toThrow("Role 'pace_admin' is not permitted");
+
+      expect(batchService.assignBatchAdmin).not.toHaveBeenCalled();
+    });
+
+    it("returns validation error on invalid input payload", async () => {
+      vi.mocked(authorizeModule.requireRole).mockResolvedValue({
+        authUserId: "auth-super-1",
+        email: "super@example.com",
+        profile: {
+          id: superAdminProfileId,
+          authUserId: "auth-super-1",
+          role: "super_admin",
+          firstName: "Super",
+          fatherName: "Admin",
+          grandfatherName: null,
+          telegramUsername: null,
+          phone: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      const res = await assignBatchAdminAction({
+        batchId: "not-a-valid-uuid",
+        profileId: "also-not-a-uuid",
+      });
+
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.errors.fieldErrors).toHaveProperty("batchId");
+        expect(res.errors.fieldErrors).toHaveProperty("profileId");
+      }
+      expect(batchService.assignBatchAdmin).not.toHaveBeenCalled();
+    });
+
+    it("handles BatchError for duplicate admin assignment", async () => {
+      vi.mocked(authorizeModule.requireRole).mockResolvedValue({
+        authUserId: "auth-super-1",
+        email: "super@example.com",
+        profile: {
+          id: superAdminProfileId,
+          authUserId: "auth-super-1",
+          role: "super_admin",
+          firstName: "Super",
+          fatherName: "Admin",
+          grandfatherName: null,
+          telegramUsername: null,
+          phone: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      vi.mocked(batchService.assignBatchAdmin).mockRejectedValue(
+        new batchService.BatchError(
+          "DUPLICATE_ADMIN",
+          "The same user cannot be assigned to the same batch more than once."
+        )
+      );
+
+      const res = await assignBatchAdminAction({
+        batchId,
+        profileId: targetAdminProfileId,
+      });
+
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.errors.formErrors).toContain(
+          "The same user cannot be assigned to the same batch more than once."
+        );
+      }
+    });
+
+    it("handles BatchError for 4th admin assignment limit exceeded", async () => {
+      vi.mocked(authorizeModule.requireRole).mockResolvedValue({
+        authUserId: "auth-super-1",
+        email: "super@example.com",
+        profile: {
+          id: superAdminProfileId,
+          authUserId: "auth-super-1",
+          role: "super_admin",
+          firstName: "Super",
+          fatherName: "Admin",
+          grandfatherName: null,
+          telegramUsername: null,
+          phone: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      vi.mocked(batchService.assignBatchAdmin).mockRejectedValue(
+        new batchService.BatchError(
+          "ADMIN_LIMIT_EXCEEDED",
+          "A batch cannot have more than 3 assigned batch admins. 4th admin assignment is rejected."
+        )
+      );
+
+      const res = await assignBatchAdminAction({
+        batchId,
+        profileId: targetAdminProfileId,
+      });
+
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.errors.formErrors).toContain(
+          "A batch cannot have more than 3 assigned batch admins. 4th admin assignment is rejected."
+        );
+      }
+    });
+  });
 });
+

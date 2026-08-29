@@ -1,10 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createBatchSchema } from "@/lib/validations/batch";
+import {
+  createBatchSchema,
+  assignBatchAdminSchema,
+  assignBatchAdminsSchema,
+} from "@/lib/validations/batch";
 import {
   createBatch,
+  assignBatchAdmin,
+  getBatchAdmins,
   resolveReadingDaysPerWeek,
   BatchError,
 } from "@/lib/services/batch";
+
 
 // Mock DB for service tests
 const {
@@ -428,4 +435,282 @@ describe("Batch Service - createBatch & Transactional Admin Assignment", () => {
     expect(batchInsertArgs).not.toHaveProperty("current_book");
     expect(mockInsertValues).toHaveBeenCalledTimes(2); // exactly 1 batch insert + 1 admin insert, NO pace_groups table insert
   });
+
+  it("rejects batch creation when duplicate admin IDs are provided", async () => {
+    const admin1 = "11111111-1111-4111-8111-111111111111";
+
+    await expect(
+      createBatch(creatorId, {
+        name: "Duplicate Admin Batch",
+        maxMembers: 50,
+        paceGroupCount: 1,
+        startDate: new Date("2026-09-01"),
+        pacingType: "daily",
+        adminIds: [admin1, admin1],
+      })
+    ).rejects.toThrow(BatchError);
+  });
+
+  it("rejects batch creation when maxMembers <= 0", async () => {
+    await expect(
+      createBatch(creatorId, {
+        name: "Invalid Max Members Batch",
+        maxMembers: 0,
+        paceGroupCount: 1,
+        startDate: new Date("2026-09-01"),
+        pacingType: "daily",
+      })
+    ).rejects.toThrow(BatchError);
+  });
+
+  it("rejects batch creation when paceGroupCount < 1", async () => {
+    await expect(
+      createBatch(creatorId, {
+        name: "Invalid Pace Group Count Batch",
+        maxMembers: 50,
+        paceGroupCount: 0,
+        startDate: new Date("2026-09-01"),
+        pacingType: "daily",
+      })
+    ).rejects.toThrow(BatchError);
+  });
 });
+
+describe("Batch Admin Validation - assignBatchAdminSchema & assignBatchAdminsSchema", () => {
+  const batchId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const profileId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const adminId2 = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+
+  it("parses valid batchId and profileId", () => {
+    const result = assignBatchAdminSchema.safeParse({
+      batchId,
+      profileId,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.batchId).toBe(batchId);
+      expect(result.data.profileId).toBe(profileId);
+    }
+  });
+
+  it("parses valid batchId and adminId (aliasing to profileId)", () => {
+    const result = assignBatchAdminSchema.safeParse({
+      batchId,
+      adminId: profileId,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.batchId).toBe(batchId);
+      expect(result.data.profileId).toBe(profileId);
+    }
+  });
+
+  it("rejects invalid batch UUID", () => {
+    const result = assignBatchAdminSchema.safeParse({
+      batchId: "invalid-batch-uuid",
+      profileId,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects invalid profile UUID", () => {
+    const result = assignBatchAdminSchema.safeParse({
+      batchId,
+      profileId: "invalid-profile-uuid",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects when both profileId and adminId are missing", () => {
+    const result = assignBatchAdminSchema.safeParse({
+      batchId,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("createBatchSchema rejects duplicate adminIds", () => {
+    const result = createBatchSchema.safeParse({
+      name: "Cohort 2026",
+      maxMembers: 50,
+      paceGroupCount: 1,
+      startDate: "2026-09-01",
+      pacingType: "daily",
+      adminIds: [profileId, profileId],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("assignBatchAdminsSchema parses valid admin IDs and rejects duplicates", () => {
+    const valid = assignBatchAdminsSchema.safeParse({
+      batchId,
+      adminIds: [profileId, adminId2],
+    });
+    expect(valid.success).toBe(true);
+
+    const duplicate = assignBatchAdminsSchema.safeParse({
+      batchId,
+      adminIds: [profileId, profileId],
+    });
+    expect(duplicate.success).toBe(false);
+  });
+});
+
+describe("Batch Service - assignBatchAdmin", () => {
+  const batchId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const existingAdmin1 = "11111111-1111-4111-8111-111111111111";
+  const existingAdmin2 = "22222222-2222-4222-8222-222222222222";
+  const existingAdmin3 = "33333333-3333-4333-8333-333333333333";
+  const newAdmin = "44444444-4444-4444-8444-444444444444";
+
+  const validBatchRecord = {
+    id: batchId,
+    name: "Active Cohort",
+    maxMembers: 100,
+    paceGroupCount: 2,
+    registrationOpen: false,
+    autoApprove: true,
+    startDate: "2026-09-01",
+    readingDaysPerWeek: 7,
+    createdBy: existingAdmin1,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("successfully assigns a new admin to a batch with existing admins (< 3)", async () => {
+    // 1. Batch lookup
+    mockSelectWhere.mockResolvedValueOnce([validBatchRecord]);
+    // 2. Profile lookup
+    mockSelectWhere.mockResolvedValueOnce([{ id: newAdmin }]);
+    // 3. Existing admins lookup (currently 1 admin)
+    mockSelectWhere.mockResolvedValueOnce([{ profileId: existingAdmin1 }]);
+
+    const result = await assignBatchAdmin(batchId, newAdmin);
+
+    expect(mockTransaction).toHaveBeenCalledTimes(1);
+    expect(result.batchId).toBe(batchId);
+    expect(result.profileId).toBe(newAdmin);
+    expect(result.assignedAdminIds).toEqual([existingAdmin1, newAdmin]);
+
+    expect(mockInsertValues).toHaveBeenCalledWith({
+      batchId,
+      profileId: newAdmin,
+    });
+  });
+
+  it("rejects duplicate admin assignment when user is already assigned to the batch", async () => {
+    // 1. Batch lookup
+    mockSelectWhere.mockResolvedValueOnce([validBatchRecord]);
+    // 2. Profile lookup
+    mockSelectWhere.mockResolvedValueOnce([{ id: existingAdmin1 }]);
+    // 3. Existing admins lookup (existingAdmin1 is already assigned)
+    mockSelectWhere.mockResolvedValueOnce([{ profileId: existingAdmin1 }]);
+
+    await expect(assignBatchAdmin(batchId, existingAdmin1)).rejects.toThrow(
+      new BatchError(
+        "DUPLICATE_ADMIN",
+        "The same user cannot be assigned to the same batch more than once."
+      )
+    );
+
+    // Ensure insert was not called
+    expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+
+  it("rejects 4th admin assignment with a clear error when batch already has 3 admins", async () => {
+    // 1. Batch lookup
+    mockSelectWhere.mockResolvedValueOnce([validBatchRecord]);
+    // 2. Profile lookup
+    mockSelectWhere.mockResolvedValueOnce([{ id: newAdmin }]);
+    // 3. Existing admins lookup (already 3 admins)
+    mockSelectWhere.mockResolvedValueOnce([
+      { profileId: existingAdmin1 },
+      { profileId: existingAdmin2 },
+      { profileId: existingAdmin3 },
+    ]);
+
+    await expect(assignBatchAdmin(batchId, newAdmin)).rejects.toThrow(
+      new BatchError(
+        "ADMIN_LIMIT_EXCEEDED",
+        "A batch cannot have more than 3 assigned batch admins. 4th admin assignment is rejected."
+      )
+    );
+
+    // Must not be silently ignored and must not insert
+    expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+
+  it("rejects admin assignment when batch does not exist", async () => {
+    // Batch lookup returns empty
+    mockSelectWhere.mockResolvedValueOnce([]);
+
+    await expect(assignBatchAdmin(batchId, newAdmin)).rejects.toThrow(
+      new BatchError("BATCH_NOT_FOUND", "Batch not found.")
+    );
+
+    expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+
+  it("rejects admin assignment when target profile does not exist", async () => {
+    // 1. Batch lookup returns batch
+    mockSelectWhere.mockResolvedValueOnce([validBatchRecord]);
+    // 2. Profile lookup returns empty
+    mockSelectWhere.mockResolvedValueOnce([]);
+
+    await expect(assignBatchAdmin(batchId, newAdmin)).rejects.toThrow(
+      new BatchError("ADMIN_NOT_FOUND", `Admin profile not found: ${newAdmin}`)
+    );
+
+    expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+
+  it("rejects admin assignment when batch maxMembers <= 0", async () => {
+    mockSelectWhere.mockResolvedValueOnce([
+      {
+        ...validBatchRecord,
+        maxMembers: 0,
+      },
+    ]);
+
+    await expect(assignBatchAdmin(batchId, newAdmin)).rejects.toThrow(
+      new BatchError(
+        "INVALID_INPUT",
+        "Batch max_members must be greater than 0."
+      )
+    );
+
+    expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+
+  it("rejects admin assignment when batch paceGroupCount < 1", async () => {
+    mockSelectWhere.mockResolvedValueOnce([
+      {
+        ...validBatchRecord,
+        paceGroupCount: 0,
+      },
+    ]);
+
+    await expect(assignBatchAdmin(batchId, newAdmin)).rejects.toThrow(
+      new BatchError(
+        "INVALID_INPUT",
+        "Batch pace_group_count must be at least 1."
+      )
+    );
+
+    expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+
+  it("getBatchAdmins returns list of assigned profile IDs", async () => {
+    mockSelectWhere.mockResolvedValueOnce([
+      { profileId: existingAdmin1 },
+      { profileId: existingAdmin2 },
+    ]);
+
+    const admins = await getBatchAdmins(batchId);
+    expect(admins).toEqual([existingAdmin1, existingAdmin2]);
+  });
+});
+
