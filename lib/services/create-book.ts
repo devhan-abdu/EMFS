@@ -63,8 +63,6 @@ export async function createBookWithCover(
     coverUrl = uploaded.data.key;
   }
 
-  const nextSequenceOrder = await getNextSequenceOrder();
-
   try {
     const [book] = await db
       .insert(books)
@@ -73,7 +71,8 @@ export async function createBookWithCover(
         language: data.language,
         author: data.author,
         coverUrl,
-        sequenceOrder: nextSequenceOrder,
+        // Calculate max + 1 atomically during the insert to prevent race conditions
+        sequenceOrder: sql`COALESCE((SELECT max(${books.sequenceOrder}) FROM ${books}), 0) + 1`,
       })
       .returning({
         id: books.id,
@@ -122,13 +121,7 @@ export type AddPairedEditionResult = ActionResult<{
   pairedBookId?: string | null;
 }>;
 
-/**
- * Adds a paired edition to an existing catalog slot.
- * - Does NOT create a new sequence slot (inherits targetBook.sequenceOrder).
- * - Enforces language difference from target book and uniqueness in the slot.
- * - Links both books bidirectionally in an atomic transaction.
- * - Cleans up orphaned cover upload on failure.
- */
+
 export async function addPairedEditionWithCover(
   input: AddPairedEditionWithCoverInput,
   storageService: StorageService,
@@ -270,16 +263,6 @@ export async function addPairedEditionWithCover(
   }
 }
 
-async function getNextSequenceOrder(): Promise<number> {
-  const [row] = await db
-    .select({
-      maxSequenceOrder: sql<number>`max(${books.sequenceOrder})`.as("max_sequence_order"),
-    })
-    .from(books);
-
-  return row?.maxSequenceOrder == null ? 1 : Number(row.maxSequenceOrder) + 1;
-}
-
 export async function cleanupOrphanedUpload(
   key: string,
   storageService: StorageService,
@@ -297,13 +280,19 @@ export async function cleanupOrphanedUpload(
   try {
     await storageService.delete(key);
   } catch (cleanupError) {
-    console.error("Failed to remove orphaned object after Book creation failure", {
-      key,
-      cleanupError:
-        cleanupError instanceof Error
-          ? { name: cleanupError.name, message: cleanupError.message, stack: cleanupError.stack }
+    console.error(
+      "Failed to remove orphaned object after Book creation failure",
+      {
+        key,
+        cleanupError:
+          cleanupError instanceof Error ?
+            {
+              name: cleanupError.name,
+              message: cleanupError.message,
+              stack: cleanupError.stack,
+            }
           : cleanupError,
-    });
+      },
+    );
   }
 }
-
