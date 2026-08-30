@@ -12,7 +12,11 @@
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:volume:rm": "docker volume rm myapp_pgdata",
+    "db:wait": "until docker compose exec db pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done",
+    "db:reset": "npm run db:down && npm run db:volume:rm && npm run db:up && npm run db:wait && npm run db:migrate",
+    "db:nuke": "rm -rf drizzle && npm run db:generate && npm run db:reset"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1116.0",
@@ -31,6 +35,7 @@
     "shadcn": "^4.18.0",
     "sharp": "^0.35.3",
     "tailwind-merge": "^3.6.0",
+    "telegraf": "^4.16.3",
     "tw-animate-css": "^1.4.0",
     "zod": "^4.4.3"
   },

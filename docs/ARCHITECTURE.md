@@ -87,7 +87,7 @@ authorize on the server.
 - Pace groups: 5 / 10 / 20 / 40; schedule drives admin daily-task drafts.
 - **In-app** groups: pace, announcement, discussion; Telegram optional only
   (`OD-018`).
-- MVP spine: register → approve → contact+code handoff → daily progress →
+- MVP spine: register → approve (auto or manual) → bot handoff → daily progress →
   attendance window → review / removal.
 - **Membership & moves** (see [`requirements/module-map.md`](./requirements/module-map.md)
   — `US-REG-10` … `US-REG-11`, `US-GRP-08`, `US-ADM-05` … `US-ADM-06`):

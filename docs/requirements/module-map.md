@@ -9,7 +9,7 @@ Admin/intake policy → [`../domain/admin-ops.md`](../domain/admin-ops.md),
 ## The spine
 
 **catalog setup → assign batch admins → create batch → pace groups → open registration →
-register → approve → contact+code handoff → join pace group → daily progress →
+register → approve (auto or manual) → bot handoff code → Telegram bot link → join pace group → daily progress →
 attendance window → admin review** (removal / waitlist as needed; reassignment
 to a later batch is **not** automatic — see §02 and §06).
 
@@ -51,8 +51,8 @@ to a later batch is **not** automatic — see §02 and §06).
 |----|-----------|----------|--------|
 | US-REG-01 | As a member, I can apply to a batch with name, email, Telegram username, phone, and pace group preference. | Must | Meeting |
 | US-REG-02 | As a member, I see whether registration is open or closed for a batch. | Must | Meeting |
-| US-REG-03 | As a batch admin, I can approve or reject applicants. | Must | Meeting |
-| US-REG-04 | As a batch admin, after approval I send admin contact + code (not the Telegram link); member DMs me for the access link. | Must | Meeting · `OD-005` |
+| US-REG-03 | As a batch admin, I can approve or reject applicants. **Only applies when `auto_approve = false` for the batch. When `auto_approve = true`, approval happens automatically at submission time using the same capacity-lock pattern as waitlist advancement.** | Must | Meeting |
+| US-REG-04 | As a member, after approval I receive a handoff code and link via the **Telegram bot**; the bot verifies my code, records my Telegram identity, and activates my membership — no manual admin DM step in MVP. | Must | Meeting · `OD-005` |
 | US-REG-05 | As a member in batch A, I cannot see batch B ops/roster data. | Must | Meeting |
 | US-REG-06 | As a batch admin, I can open or close registration for my batch. | Must | Meeting |
 | US-REG-07 | As a super admin, I create a batch with max members, pace-group count, start date, and pacing (reads from catalog sequence 1). | Must | Meeting |
@@ -160,10 +160,10 @@ Any cross-batch reassignment follows `US-REG-10` / `US-REG-11` in §02.
 | ID | User story | Priority | Source |
 |----|-----------|----------|--------|
 | US-MSG-01 | As an admin, I can reach any member individually in the app (identity via registration fields). | Must | Meeting |
-| US-MSG-02 | As an admin, I can send a group-wide message to each member's personal inbox (in-app). | Must | Meeting |
+| US-MSG-02 | As an admin, I can send a group-wide message to each member's personal inbox (in-app; **Telegram bot** may deliver to linked members as an optional bridge). | Must | Meeting |
 | US-MSG-03 | As a batch member, I can access in-app **announcement** and **discussion** groups for my batch. | Must | Meeting · `OD-017` |
 | US-MSG-04 | As a member, I can use my pace group's in-app feed for tasks and attendance (not dependent on Telegram). | Must | Meeting · `OD-018` |
-| US-MSG-05 | As the system, Telegram may still support selected supplementary features without owning core groups. | Should | Meeting · `OD-018` |
+| US-MSG-05 | As the system, Telegram may still support selected supplementary features without owning core groups — including **bot-mediated intake handoff** and **optional group-message delivery** to linked chat IDs. | Should | Meeting · `OD-018` |
 
 ---
 
