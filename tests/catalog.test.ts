@@ -1,9 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { createBookSchema, createTaskSchema } from "../lib/validations/catalog";
 
-const validBook = {
+const validBook: {
+  title: string;
+  language: string;
+  coverUrl?: string;
+  author?: string;
+  pairedBookId?: string;
+} = {
   title: "Atomic Habits",
   language: "en",
+  coverUrl: undefined,
 };
 
 const validTask = {
