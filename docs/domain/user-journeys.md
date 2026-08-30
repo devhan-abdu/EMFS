@@ -15,16 +15,17 @@ Policies: [`batch-and-intake.md`](./batch-and-intake.md), [`admin-ops.md`](./adm
 
 ---
 
-## Journey 1: Register → approve → handoff → active
+## Journey 1: Register → approve → bot handoff → active
 
 1. Apply to open batch (name, email, Telegram, phone, pace preference) or
    **waiting list**.
-2. Batch admin approves → **contact + code** (not Telegram link).
-3. Member DMs admin → access link → **active** in pace group (batch may have
-   only one pace group).
+2. **Approved** — automatically when `auto_approve = true` and capacity remains
+   (first-come-first-served), or by batch admin when `auto_approve = false`.
+3. Member receives **handoff code** in app → opens **Telegram bot** with code →
+   bot links identity and activates membership → **active** in pace group.
 
-**Open:** none for channel ownership (`OD-018` answered). Handoff may still use
-Telegram identity temporarily.
+**Open:** none for channel ownership (`OD-018` answered). Telegram bot handles
+intake linking; in-app groups remain the primary home for reading ops.
 
 ---
 

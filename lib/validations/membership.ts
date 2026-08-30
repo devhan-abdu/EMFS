@@ -18,3 +18,21 @@ export const transitionMembershipSchema = z.object({
 });
 
 export type TransitionMembershipInput = z.infer<typeof transitionMembershipSchema>;
+
+export const moveMembershipSchema = z.object({
+  membershipId: z.string().uuid(),
+  newBatchId: z.string().uuid(),
+  reason: z.string().min(1, "Reason is required"),
+});
+
+export type MoveMembershipInput = z.infer<typeof moveMembershipSchema>;
+
+export const reenterMembershipSchema = z.object({
+  profileId: z.string().uuid(),
+  fromBatchId: z.string().uuid(),
+  toBatchId: z.string().uuid(),
+  targetStatus: batchMembershipStatusSchema,
+  reason: z.string().min(1, "Reason is required"),
+});
+
+export type ReenterMembershipInput = z.infer<typeof reenterMembershipSchema>;
