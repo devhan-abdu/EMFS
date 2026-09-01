@@ -1,10 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createBatchSchema } from "@/lib/validations/batch";
-import {
-  createBatch,
-  resolveReadingDaysPerWeek,
-  BatchError,
-} from "@/lib/services/batch";
+import { createBatch, BatchError } from "@/lib/services/batch";
 
 // Mock DB for service tests
 const {
@@ -69,38 +65,42 @@ describe("Batch Validation - createBatchSchema", () => {
     maxMembers: 100,
     paceGroupCount: 2,
     startDate: "2026-09-01",
-    pacingType: "daily" as const,
+    readingDaysPerWeek: 6,
   };
 
-  it("parses valid daily pacing batch input", () => {
+  it("parses valid batch input with explicit readingDaysPerWeek", () => {
     const result = createBatchSchema.safeParse(validBatch);
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.name).toBe("Cohort 2026-Alpha");
       expect(result.data.maxMembers).toBe(100);
       expect(result.data.paceGroupCount).toBe(2);
-      expect(result.data.pacingType).toBe("daily");
+      expect(result.data.readingDaysPerWeek).toBe(6);
       expect(result.data.startDate).toBeInstanceOf(Date);
+      expect(result.data).not.toHaveProperty("pacingType");
     }
   });
 
-  it("parses valid three_times_week pacing batch input", () => {
-    const result = createBatchSchema.safeParse({
-      ...validBatch,
-      pacingType: "three_times_week",
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("parses valid custom pacing batch input with readingDaysPerWeek", () => {
-    const result = createBatchSchema.safeParse({
-      ...validBatch,
-      pacingType: "custom",
-      readingDaysPerWeek: 4,
-    });
+  it("defaults readingDaysPerWeek to 6 when omitted", () => {
+    const withoutReadingDays: Record<string, unknown> = { ...validBatch };
+    delete withoutReadingDays.readingDaysPerWeek;
+    const result = createBatchSchema.safeParse(withoutReadingDays);
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.readingDaysPerWeek).toBe(4);
+      expect(result.data.readingDaysPerWeek).toBe(6);
+    }
+  });
+
+  it("parses valid batch with custom readingDaysPerWeek (1-7)", () => {
+    for (const days of [1, 2, 3, 4, 5, 6, 7]) {
+      const result = createBatchSchema.safeParse({
+        ...validBatch,
+        readingDaysPerWeek: days,
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.readingDaysPerWeek).toBe(days);
+      }
     }
   });
 
@@ -173,19 +173,10 @@ describe("Batch Validation - createBatchSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects invalid pacingType", () => {
-    const result = createBatchSchema.safeParse({
-      ...validBatch,
-      pacingType: "monthly",
-    });
-    expect(result.success).toBe(false);
-  });
-
   it("rejects readingDaysPerWeek < 1 or > 7", () => {
     expect(
       createBatchSchema.safeParse({
         ...validBatch,
-        pacingType: "custom",
         readingDaysPerWeek: 0,
       }).success
     ).toBe(false);
@@ -193,10 +184,17 @@ describe("Batch Validation - createBatchSchema", () => {
     expect(
       createBatchSchema.safeParse({
         ...validBatch,
-        pacingType: "custom",
         readingDaysPerWeek: 8,
       }).success
     ).toBe(false);
+  });
+
+  it("rejects non-integer readingDaysPerWeek", () => {
+    const result = createBatchSchema.safeParse({
+      ...validBatch,
+      readingDaysPerWeek: 3.5,
+    });
+    expect(result.success).toBe(false);
   });
 
   it("rejects empty adminIds array", () => {
@@ -229,21 +227,6 @@ describe("Batch Validation - createBatchSchema", () => {
   });
 });
 
-describe("resolveReadingDaysPerWeek", () => {
-  it("maps daily to 7", () => {
-    expect(resolveReadingDaysPerWeek("daily")).toBe(7);
-  });
-
-  it("maps three_times_week to 3", () => {
-    expect(resolveReadingDaysPerWeek("three_times_week")).toBe(3);
-  });
-
-  it("maps custom to provided custom reading days or default 6", () => {
-    expect(resolveReadingDaysPerWeek("custom", 5)).toBe(5);
-    expect(resolveReadingDaysPerWeek("custom")).toBe(6);
-  });
-});
-
 describe("Batch Service - createBatch & Transactional Admin Assignment", () => {
   const creatorId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   const createdBatchId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -252,8 +235,8 @@ describe("Batch Service - createBatch & Transactional Admin Assignment", () => {
     vi.clearAllMocks();
   });
 
-  it("creates a batch in not-yet-open status and assigns the creator admin inside a transaction", async () => {
-    mockSelectWhere.mockResolvedValueOnce([{ id: creatorId }]);
+  it("creates a batch in not-yet-open status and assigns creator admin inside a transaction", async () => {
+    mockSelectWhere.mockResolvedValueOnce([{ id: creatorId, role: "super_admin" }]);
 
     mockInsertReturning.mockResolvedValueOnce([
       {
@@ -264,7 +247,7 @@ describe("Batch Service - createBatch & Transactional Admin Assignment", () => {
         registrationOpen: false,
         autoApprove: true,
         startDate: "2026-09-01",
-        readingDaysPerWeek: 7,
+        readingDaysPerWeek: 6,
         createdBy: creatorId,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -276,7 +259,7 @@ describe("Batch Service - createBatch & Transactional Admin Assignment", () => {
       maxMembers: 50,
       paceGroupCount: 1,
       startDate: new Date("2026-09-01"),
-      pacingType: "daily",
+      readingDaysPerWeek: 6,
     });
 
     expect(mockTransaction).toHaveBeenCalledTimes(1);
@@ -293,7 +276,7 @@ describe("Batch Service - createBatch & Transactional Admin Assignment", () => {
       registrationOpen: false,
       autoApprove: true,
       startDate: "2026-09-01",
-      readingDaysPerWeek: 7,
+      readingDaysPerWeek: 6,
       createdBy: creatorId,
     });
 
@@ -304,11 +287,46 @@ describe("Batch Service - createBatch & Transactional Admin Assignment", () => {
     });
   });
 
-  it("creates a batch and assigns multiple (1-3) specified admins", async () => {
+  it("allows assigning a normal 'member' profile as a batch admin", async () => {
+    const memberProfileId = "33333333-3333-4333-8333-333333333333";
+
+    mockSelectWhere.mockResolvedValueOnce([{ id: memberProfileId, role: "member" }]);
+
+    mockInsertReturning.mockResolvedValueOnce([
+      {
+        id: createdBatchId,
+        name: "Member Admin Batch",
+        maxMembers: 60,
+        paceGroupCount: 1,
+        registrationOpen: false,
+        autoApprove: true,
+        startDate: "2026-09-01",
+        readingDaysPerWeek: 6,
+        createdBy: creatorId,
+      },
+    ]);
+
+    const result = await createBatch(creatorId, {
+      name: "Member Admin Batch",
+      maxMembers: 60,
+      paceGroupCount: 1,
+      startDate: new Date("2026-09-01"),
+      readingDaysPerWeek: 6,
+      adminIds: [memberProfileId],
+    });
+
+    expect(result.assignedAdminIds).toEqual([memberProfileId]);
+    expect(mockInsertValues).toHaveBeenCalledTimes(2);
+  });
+
+  it("creates a batch and assigns multiple (1-3) specified admins with allowed roles", async () => {
     const admin1 = "11111111-1111-4111-8111-111111111111";
     const admin2 = "22222222-2222-4222-8222-222222222222";
 
-    mockSelectWhere.mockResolvedValueOnce([{ id: admin1 }, { id: admin2 }]);
+    mockSelectWhere.mockResolvedValueOnce([
+      { id: admin1, role: "batch_admin" },
+      { id: admin2, role: "member" },
+    ]);
 
     mockInsertReturning.mockResolvedValueOnce([
       {
@@ -331,12 +349,33 @@ describe("Batch Service - createBatch & Transactional Admin Assignment", () => {
       maxMembers: 120,
       paceGroupCount: 3,
       startDate: new Date("2026-10-01"),
-      pacingType: "three_times_week",
+      readingDaysPerWeek: 3,
       adminIds: [admin1, admin2],
     });
 
     expect(result.assignedAdminIds).toEqual([admin1, admin2]);
     expect(mockInsertValues).toHaveBeenCalledTimes(3); // 1 for batch + 2 for admins
+  });
+
+  it("rejects when an assigned admin profile has an invalid role and rolls back transaction", async () => {
+    const invalidAdminId = "44444444-4444-4444-8444-444444444444";
+
+    mockSelectWhere.mockResolvedValueOnce([
+      { id: invalidAdminId, role: "unauthorized_role" },
+    ]);
+
+    await expect(
+      createBatch(creatorId, {
+        name: "Invalid Role Batch",
+        maxMembers: 50,
+        paceGroupCount: 1,
+        startDate: new Date("2026-09-01"),
+        readingDaysPerWeek: 6,
+        adminIds: [invalidAdminId],
+      })
+    ).rejects.toThrow(BatchError);
+
+    expect(mockInsertReturning).not.toHaveBeenCalled();
   });
 
   it("rolls back transaction when an assigned admin profile does not exist", async () => {
@@ -351,7 +390,7 @@ describe("Batch Service - createBatch & Transactional Admin Assignment", () => {
         maxMembers: 50,
         paceGroupCount: 1,
         startDate: new Date("2026-09-01"),
-        pacingType: "daily",
+        readingDaysPerWeek: 6,
         adminIds: [fakeAdminId],
       })
     ).rejects.toThrow(BatchError);
@@ -361,7 +400,7 @@ describe("Batch Service - createBatch & Transactional Admin Assignment", () => {
   });
 
   it("rolls back transaction if batch admin insert throws", async () => {
-    mockSelectWhere.mockResolvedValueOnce([{ id: creatorId }]);
+    mockSelectWhere.mockResolvedValueOnce([{ id: creatorId, role: "super_admin" }]);
 
     mockInsertReturning.mockResolvedValueOnce([
       {
@@ -372,7 +411,7 @@ describe("Batch Service - createBatch & Transactional Admin Assignment", () => {
         registrationOpen: false,
         autoApprove: true,
         startDate: "2026-09-01",
-        readingDaysPerWeek: 7,
+        readingDaysPerWeek: 6,
         createdBy: creatorId,
       },
     ]);
@@ -390,13 +429,13 @@ describe("Batch Service - createBatch & Transactional Admin Assignment", () => {
         maxMembers: 50,
         paceGroupCount: 1,
         startDate: new Date("2026-09-01"),
-        pacingType: "daily",
+        readingDaysPerWeek: 6,
       })
     ).rejects.toThrow("Foreign key constraint violation on batch_admins");
   });
 
-  it("does not insert any pace-group rows or book tracking fields", async () => {
-    mockSelectWhere.mockResolvedValueOnce([{ id: creatorId }]);
+  it("does not insert any pace-group rows or book tracking fields and remains not-yet-open", async () => {
+    mockSelectWhere.mockResolvedValueOnce([{ id: creatorId, role: "super_admin" }]);
 
     mockInsertReturning.mockResolvedValueOnce([
       {
@@ -407,7 +446,7 @@ describe("Batch Service - createBatch & Transactional Admin Assignment", () => {
         registrationOpen: false,
         autoApprove: true,
         startDate: "2026-09-01",
-        readingDaysPerWeek: 7,
+        readingDaysPerWeek: 6,
         createdBy: creatorId,
       },
     ]);
@@ -417,10 +456,11 @@ describe("Batch Service - createBatch & Transactional Admin Assignment", () => {
       maxMembers: 50,
       paceGroupCount: 4,
       startDate: new Date("2026-09-01"),
-      pacingType: "daily",
+      readingDaysPerWeek: 6,
     });
 
     expect(result.batch.name).toBe("Clean Batch");
+    expect(result.batch.registrationOpen).toBe(false);
     const batchInsertArgs = mockInsertValues.mock.calls[0][0];
     expect(batchInsertArgs).not.toHaveProperty("bookId");
     expect(batchInsertArgs).not.toHaveProperty("book_id");
