@@ -4,6 +4,8 @@ import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import { createBatchAction } from "@/actions/batch";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { AdminPicker } from "@/components/admin/admin-picker";
 
 export function CreateBatchForm() {
   const router = useRouter();
@@ -15,20 +17,20 @@ export function CreateBatchForm() {
   return (
     <form
       action={formAction}
-      className="space-y-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+      className="space-y-6 rounded-xl border border-border bg-card p-6 shadow-xs text-card-foreground"
     >
       <div>
-        <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+        <h2 className="text-xl font-semibold text-foreground">
           Create New Batch
         </h2>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-muted-foreground">
           Create a fully configured not-yet-open batch. Reading will conceptually start from catalog sequence 1.
         </p>
       </div>
 
       {formErrors.length > 0 && (
-        <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-300">
-          <ul className="list-inside list-disc space-y-1">
+        <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
+          <ul className="list-inside list-disc space-y-2">
             {formErrors.map((err, i) => (
               <li key={i}>{err}</li>
             ))}
@@ -37,101 +39,97 @@ export function CreateBatchForm() {
       )}
 
       {/* Batch Name */}
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <label
           htmlFor="batch-name"
-          className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          className="block text-sm font-medium text-foreground"
         >
           Batch Name
         </label>
-        <input
+        <Input
           id="batch-name"
           name="name"
           type="text"
           required
           placeholder="e.g. Batch 2026 - Cohort 1"
-          className="w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:text-zinc-100"
         />
         {fieldErrors.name && (
-          <p className="text-xs text-red-600 dark:text-red-400">{fieldErrors.name[0]}</p>
+          <p className="text-xs text-destructive">{fieldErrors.name[0]}</p>
         )}
       </div>
 
       {/* Max Members & Pace Group Count */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <label
             htmlFor="max-members"
-            className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            className="block text-sm font-medium text-foreground"
           >
             Max Members (Capacity)
           </label>
-          <input
+          <Input
             id="max-members"
             name="maxMembers"
             type="number"
             min="1"
             required
             defaultValue={50}
-            className="w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:text-zinc-100"
           />
           {fieldErrors.maxMembers && (
-            <p className="text-xs text-red-600 dark:text-red-400">{fieldErrors.maxMembers[0]}</p>
+            <p className="text-xs text-destructive">{fieldErrors.maxMembers[0]}</p>
           )}
         </div>
 
         {/* Planned Pace Group Count */}
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <label
             htmlFor="pace-group-count"
-            className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            className="block text-sm font-medium text-foreground"
           >
             Planned Pace Group Count (≥ 1)
           </label>
-          <input
+          <Input
             id="pace-group-count"
             name="paceGroupCount"
             type="number"
             min="1"
             required
             defaultValue={1}
-            className="w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:text-zinc-100"
           />
           {fieldErrors.paceGroupCount && (
-            <p className="text-xs text-red-600 dark:text-red-400">{fieldErrors.paceGroupCount[0]}</p>
+            <p className="text-xs text-destructive">{fieldErrors.paceGroupCount[0]}</p>
           )}
         </div>
       </div>
 
       {/* Start Date */}
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <label
           htmlFor="start-date"
-          className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          className="block text-sm font-medium text-foreground"
         >
           Start Date
         </label>
-        <input
+        <Input
           id="start-date"
           name="startDate"
           type="date"
           required
-          className="w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:text-zinc-100"
         />
         {fieldErrors.startDate && (
-          <p className="text-xs text-red-600 dark:text-red-400">{fieldErrors.startDate[0]}</p>
+          <p className="text-xs text-destructive">{fieldErrors.startDate[0]}</p>
         )}
       </div>
 
       {/* Reading Days Per Week */}
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <label
           htmlFor="reading-days"
-          className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          className="block text-sm font-medium text-foreground"
         >
           Reading Days Per Week (1–7)
         </label>
-        <input
+        <Input
           id="reading-days"
           name="readingDaysPerWeek"
           type="number"
@@ -139,19 +137,21 @@ export function CreateBatchForm() {
           max="7"
           required
           defaultValue={6}
-          className="w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:text-zinc-100"
         />
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="text-xs text-muted-foreground">
           Defaults to 6 days per week. Controls cohort reading schedule cadence.
         </p>
         {fieldErrors.readingDaysPerWeek && (
-          <p className="text-xs text-red-600 dark:text-red-400">
+          <p className="text-xs text-destructive">
             {fieldErrors.readingDaysPerWeek[0]}
           </p>
         )}
       </div>
 
-      <div className="flex justify-end gap-3 pt-4">
+      {/* Batch Admins Picker (1–3 Admins) */}
+      <AdminPicker error={fieldErrors.adminIds?.[0]} />
+
+      <div className="flex justify-end gap-4 pt-4">
         <Button
           type="button"
           variant="outline"

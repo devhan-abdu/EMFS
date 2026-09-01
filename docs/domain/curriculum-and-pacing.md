@@ -38,6 +38,44 @@ Why this is the right V1 cut:
 Cover and title appear in member portfolio, admin dashboards, and pace-group
 context — store once per catalog row (per language edition).
 
+### Cover upload constraints (V1)
+
+The product docs previously required a cover **file upload** without numeric
+limits. These V1 constraints are the citable SSOT for server-side validation
+(contents, not filename). They are enforced before object storage.
+
+| Constraint | V1 limit | Why |
+| --- | --- | --- |
+| Detected types | JPEG, PNG, WebP only | No SVG (scriptable), GIF, BMP, or PDF. Type is sniffed from magic bytes. |
+| Max file size | **5 MiB** (`5 × 1024 × 1024` bytes) | Caps upload abuse before decoding. |
+| Min dimensions | **200 × 200** pixels | Covers must be usable in portfolio/admin UI. |
+| Max dimensions | **4096 × 4096** pixels | Limits decompression-bomb pixel counts. |
+
+Client `Content-Type` and original filename are **not** trusted. A mismatch
+between a declared MIME type and the sniffed type is rejected.
+
+Oversized **pixel** dimensions are not a hard reject on the processing path:
+inputs that pass type, byte-size, and minimum-dimension checks are **resized
+down** (never enlarged) to the max dimensions below. Inputs whose pixel count
+exceeds the Sharp decode cap are rejected as unsafe.
+
+### Cover processing (V1)
+
+Applied **after** validation and **before** object storage. Processing is
+in-memory (Sharp `Buffer`); uploaded covers are never written to the app
+filesystem as durable storage.
+
+| Constraint | V1 limit | Why |
+| --- | --- | --- |
+| Max **output** dimensions | **4096 × 4096** (`fit: inside`) | Same cap as validation; oversized inputs are scaled down. |
+| Enlargement | **Never** (`withoutEnlargement`) | Do not upscale small covers. |
+| Output format | **WebP** | Single public-delivery format; smaller than PNG/JPEG at similar quality. |
+| WebP quality | **80** | Balance of size vs. catalog-cover fidelity. |
+| Max input pixels (decode) | **8192 × 8192** (`67_108_864` px) | Caps decompression bombs; larger headers are rejected without a full decode. |
+
+Processed bytes must still satisfy min dimensions (200×200) and max file size
+(5 MiB). If resize would drop a side below 200px, reject the upload.
+
 ### Sequence — auto-increment (decided)
 
 **Assign automatically; reorder explicitly; never allow gaps.**
