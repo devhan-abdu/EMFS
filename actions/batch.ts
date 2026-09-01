@@ -62,3 +62,31 @@ export async function createBatchAction(
 
   redirect("/batches");
 }
+
+export async function getPreviouslyAssignedBatchAdminsAction() {
+  await requireRole(["super_admin"]);
+  try {
+    const { getPreviouslyAssignedBatchAdmins } = await import("@/lib/services/user-search");
+    const data = await getPreviouslyAssignedBatchAdmins();
+    return { ok: true as const, data };
+  } catch (e) {
+    return {
+      ok: false as const,
+      error: (e as Error).message,
+    };
+  }
+}
+
+export async function searchUsersAction(query: string) {
+  await requireRole(["super_admin"]);
+  try {
+    const { searchUsers } = await import("@/lib/services/user-search");
+    const data = await searchUsers(query);
+    return { ok: true as const, data };
+  } catch (e) {
+    return {
+      ok: false as const,
+      error: (e as Error).message,
+    };
+  }
+}

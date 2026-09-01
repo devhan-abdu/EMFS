@@ -46,3 +46,20 @@ export async function requireRole(allowed: Role[]): Promise<CurrentUser> {
   }
   return user;
 }
+
+/**
+ * Super admin authorization guard for catalog mutations (book creation, pairing, reordering).
+ * Only super_admin rank is permitted (rank 3).
+ */
+export async function requireSuperAdmin(): Promise<CurrentUser> {
+  return requireRole(["super_admin"]);
+}
+
+/** Formats an AuthzError into the standard FieldError structure used across actions. */
+export function authzErrorToFieldError(error: AuthzError) {
+  return {
+    field: "auth",
+    message: error.message,
+    code: error.code,
+  };
+}

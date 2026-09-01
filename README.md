@@ -66,6 +66,7 @@ Important values:
 - `DATABASE_URL`: local PostgreSQL connection string
 - `BETTER_AUTH_SECRET`: long random secret for Better Auth
 - `BETTER_AUTH_URL`: app URL, usually `http://localhost:3000`
+- `S3_*`: server-only object storage (MinIO locally). Never use `NEXT_PUBLIC_` for these.
 
 Generate a local secret:
 
@@ -73,22 +74,22 @@ Generate a local secret:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-## Docker database
+## Docker database and object storage
 
-Local PostgreSQL is defined in `docker-compose.yml`.
+Local PostgreSQL and MinIO (S3-compatible) are defined in `docker-compose.yml`.
 
-- Start DB: `pnpm db:up`
-- Stop DB: `pnpm db:down`
+- Start: `pnpm db:up` (Postgres on `5432`, MinIO API on `9000`, console on `9001`)
+- Stop: `pnpm db:down`
 
-Docker defaults:
+Docker Postgres defaults:
 
 - host: `localhost`
 - port: `5432`
 - database: `emfs_book_shelf`
 - user: `emfs`
 
-If `5432` is already in use, change the port mapping in `docker-compose.yml`
-and update `DATABASE_URL` in `.env`.
+If `5432` or `9000` is already in use, change the port mapping in `docker-compose.yml`
+and update `.env` accordingly.
 
 ## Common scripts
 
