@@ -32,12 +32,7 @@ export type CreateBatchResult = {
   assignedAdminIds: string[];
 };
 
-const ALLOWED_ADMIN_ROLES = new Set([
-  "super_admin",
-  "batch_admin",
-  "pace_admin",
-  "member",
-]);
+
 
 /**
  * Creates a fully configured not-yet-open batch and assigns 1-3 batch admins
@@ -92,16 +87,7 @@ export async function createBatch(
       );
     }
 
-    const invalidRoleProfiles = existingProfiles.filter(
-      (p) => !p.role || !ALLOWED_ADMIN_ROLES.has(p.role)
-    );
-
-    if (invalidRoleProfiles.length > 0) {
-      throw new BatchError(
-        "INVALID_ADMIN_ROLE",
-        `Profile(s) have invalid admin role: ${invalidRoleProfiles.map((p) => `${p.id} (${p.role})`).join(", ")}`
-      );
-    }
+ 
 
     // Insert batch in initial not-yet-open state
     const [newBatch] = await tx
