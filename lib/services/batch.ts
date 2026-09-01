@@ -15,6 +15,7 @@ export type BatchErrorCode =
   | "INVALID_INPUT"
   | "ADMIN_NOT_FOUND"
   | "ADMIN_LIMIT_EXCEEDED"
+  | "INVALID_ADMIN_ROLE"
   | "TRANSACTION_FAILED";
 
 export class BatchError extends Error {
@@ -26,29 +27,17 @@ export class BatchError extends Error {
   }
 }
 
-/**
- * Resolves reading_days_per_week integer from Epic 12 cadence pacing type.
- */
-export function resolveReadingDaysPerWeek(
-  pacingType: CreateBatchInput["pacingType"],
-  customDays?: number
-): number {
-  switch (pacingType) {
-    case "daily":
-      return 7;
-    case "three_times_week":
-      return 3;
-    case "custom":
-      return customDays && customDays >= 1 && customDays <= 7 ? customDays : 6;
-    default:
-      return 6;
-  }
-}
-
 export type CreateBatchResult = {
   batch: Batch;
   assignedAdminIds: string[];
 };
+
+const ALLOWED_ADMIN_ROLES = new Set([
+  "super_admin",
+  "batch_admin",
+  "pace_admin",
+  "member",
+]);
 
 /**
  * Creates a fully configured not-yet-open batch and assigns 1-3 batch admins
@@ -81,11 +70,6 @@ export async function createBatch(
     );
   }
 
-  const readingDays = resolveReadingDaysPerWeek(
-    input.pacingType,
-    input.readingDaysPerWeek
-  );
-
   const formattedStartDate =
     input.startDate instanceof Date
       ? input.startDate.toISOString().split("T")[0]
@@ -93,9 +77,9 @@ export async function createBatch(
 
   // Execute in single transaction
   return await executor.transaction(async (tx) => {
-    // Verify all candidate admin profiles exist
+    // Verify all candidate admin profiles exist and have allowed roles
     const existingProfiles = await tx
-      .select({ id: profiles.id })
+      .select({ id: profiles.id, role: profiles.role })
       .from(profiles)
       .where(inArray(profiles.id, candidateAdminIds));
 
@@ -105,6 +89,17 @@ export async function createBatch(
       throw new BatchError(
         "ADMIN_NOT_FOUND",
         `Admin profile(s) not found: ${missingIds.join(", ")}`
+      );
+    }
+
+    const invalidRoleProfiles = existingProfiles.filter(
+      (p) => !p.role || !ALLOWED_ADMIN_ROLES.has(p.role)
+    );
+
+    if (invalidRoleProfiles.length > 0) {
+      throw new BatchError(
+        "INVALID_ADMIN_ROLE",
+        `Profile(s) have invalid admin role: ${invalidRoleProfiles.map((p) => `${p.id} (${p.role})`).join(", ")}`
       );
     }
 
@@ -118,7 +113,7 @@ export async function createBatch(
         registrationOpen: false, // Initial/not-yet-open status
         autoApprove: true,
         startDate: formattedStartDate,
-        readingDaysPerWeek: readingDays,
+        readingDaysPerWeek: input.readingDaysPerWeek,
         createdBy: creatorProfileId,
       })
       .returning();

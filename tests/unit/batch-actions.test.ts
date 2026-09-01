@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { redirect } from "next/navigation";
 import { createBatchAction } from "@/actions/batch";
 import * as authorizeModule from "@/lib/auth/authorize";
 import * as batchService from "@/lib/services/batch";
+
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+}));
 
 vi.mock("@/lib/auth/authorize", () => ({
   requireRole: vi.fn(),
@@ -34,7 +39,7 @@ describe("Batch Server Actions - Authorization & Execution", () => {
     vi.clearAllMocks();
   });
 
-  it("permits Super Admin to create a batch", async () => {
+  it("permits Super Admin to create a batch from FormData and redirects to /batches", async () => {
     vi.mocked(authorizeModule.requireRole).mockResolvedValue({
       authUserId: "auth-super-1",
       email: "super@example.com",
@@ -60,7 +65,66 @@ describe("Batch Server Actions - Authorization & Execution", () => {
       registrationOpen: false,
       autoApprove: true,
       startDate: "2026-09-01",
-      readingDaysPerWeek: 7,
+      readingDaysPerWeek: 6,
+      createdBy: superAdminProfileId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    vi.mocked(batchService.createBatch).mockResolvedValue({
+      batch: mockBatchRecord,
+      assignedAdminIds: [superAdminProfileId],
+    });
+
+    const formData = new FormData();
+    formData.append("name", "New Batch 2026");
+    formData.append("maxMembers", "50");
+    formData.append("paceGroupCount", "1");
+    formData.append("startDate", "2026-09-01");
+    formData.append("readingDaysPerWeek", "6");
+
+    await createBatchAction(null, formData);
+
+    expect(authorizeModule.requireRole).toHaveBeenCalledWith(["super_admin"]);
+    expect(batchService.createBatch).toHaveBeenCalledWith(
+      superAdminProfileId,
+      expect.objectContaining({
+        name: "New Batch 2026",
+        maxMembers: 50,
+        paceGroupCount: 1,
+        readingDaysPerWeek: 6,
+      })
+    );
+    expect(redirect).toHaveBeenCalledWith("/batches");
+  });
+
+  it("accepts plain object payload and redirects upon successful creation", async () => {
+    vi.mocked(authorizeModule.requireRole).mockResolvedValue({
+      authUserId: "auth-super-1",
+      email: "super@example.com",
+      profile: {
+        id: superAdminProfileId,
+        authUserId: "auth-super-1",
+        role: "super_admin",
+        firstName: "Super",
+        fatherName: "Admin",
+        grandfatherName: null,
+        telegramUsername: null,
+        phone: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    const mockBatchRecord = {
+      id: "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22",
+      name: "Object Batch 2026",
+      maxMembers: 80,
+      paceGroupCount: 2,
+      registrationOpen: false,
+      autoApprove: true,
+      startDate: "2026-09-01",
+      readingDaysPerWeek: 6,
       createdBy: superAdminProfileId,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -72,29 +136,25 @@ describe("Batch Server Actions - Authorization & Execution", () => {
     });
 
     const payload = {
-      name: "New Batch 2026",
-      maxMembers: 50,
-      paceGroupCount: 1,
+      name: "Object Batch 2026",
+      maxMembers: 80,
+      paceGroupCount: 2,
       startDate: "2026-09-01",
-      pacingType: "daily",
+      readingDaysPerWeek: 6,
     };
 
-    const res = await createBatchAction(payload);
-    expect(res.ok).toBe(true);
-    if (res.ok) {
-      expect(res.data.batch.name).toBe("New Batch 2026");
-      expect(res.data.batch.registrationOpen).toBe(false);
-    }
-    expect(authorizeModule.requireRole).toHaveBeenCalledWith(["super_admin"]);
+    await createBatchAction(payload);
+
     expect(batchService.createBatch).toHaveBeenCalledWith(
       superAdminProfileId,
       expect.objectContaining({
-        name: "New Batch 2026",
-        maxMembers: 50,
-        paceGroupCount: 1,
-        pacingType: "daily",
+        name: "Object Batch 2026",
+        maxMembers: 80,
+        paceGroupCount: 2,
+        readingDaysPerWeek: 6,
       })
     );
+    expect(redirect).toHaveBeenCalledWith("/batches");
   });
 
   it("rejects unauthorized access when user is not a super_admin", async () => {
@@ -111,14 +171,15 @@ describe("Batch Server Actions - Authorization & Execution", () => {
         maxMembers: 50,
         paceGroupCount: 1,
         startDate: "2026-09-01",
-        pacingType: "daily",
+        readingDaysPerWeek: 6,
       })
     ).rejects.toThrow("Role 'batch_admin' is not permitted");
 
     expect(batchService.createBatch).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 
-  it("returns validation error object on invalid input", async () => {
+  it("returns validation error object on invalid input without redirecting", async () => {
     vi.mocked(authorizeModule.requireRole).mockResolvedValue({
       authUserId: "auth-super-1",
       email: "super@example.com",
@@ -141,19 +202,20 @@ describe("Batch Server Actions - Authorization & Execution", () => {
       maxMembers: -5, // Negative max members
       paceGroupCount: 0, // < 1
       startDate: "invalid",
-      pacingType: "not-a-pacing-type",
+      readingDaysPerWeek: 10, // > 7
     };
 
     const res = await createBatchAction(invalidPayload);
-    expect(res.ok).toBe(false);
-    if (!res.ok) {
+    expect(res?.ok).toBe(false);
+    if (res && !res.ok && res.errors) {
       expect(res.errors.fieldErrors).toHaveProperty("name");
       expect(res.errors.fieldErrors).toHaveProperty("maxMembers");
       expect(res.errors.fieldErrors).toHaveProperty("paceGroupCount");
       expect(res.errors.fieldErrors).toHaveProperty("startDate");
-      expect(res.errors.fieldErrors).toHaveProperty("pacingType");
+      expect(res.errors.fieldErrors).toHaveProperty("readingDaysPerWeek");
     }
     expect(batchService.createBatch).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it("handles BatchError gracefully and returns formatted form error", async () => {
@@ -186,16 +248,17 @@ describe("Batch Server Actions - Authorization & Execution", () => {
       maxMembers: 50,
       paceGroupCount: 1,
       startDate: "2026-09-01",
-      pacingType: "daily",
+      readingDaysPerWeek: 6,
       adminIds: ["11111111-1111-4111-8111-111111111111"],
     };
 
     const res = await createBatchAction(payload);
-    expect(res.ok).toBe(false);
-    if (!res.ok) {
+    expect(res?.ok).toBe(false);
+    if (res && !res.ok && res.errors) {
       expect(res.errors.formErrors).toContain(
         "Admin profile(s) not found: 11111111-1111-4111-8111-111111111111"
       );
     }
+    expect(redirect).not.toHaveBeenCalled();
   });
 });
