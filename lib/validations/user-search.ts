@@ -18,8 +18,5 @@ export const searchProfilesSchema = z.object({
     .default([]),
 });
 
-export type SearchProfilesInput = {
-  query: string;
-  limit?: number;
-  excludeProfileIds?: string[];
-};
+export type SearchProfilesInput = z.infer<typeof searchProfilesSchema>;
+export type SearchProfilesRawInput = z.input<typeof searchProfilesSchema>;
