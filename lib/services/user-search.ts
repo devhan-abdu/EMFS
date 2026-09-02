@@ -1,6 +1,9 @@
-import { eq, or, ilike } from "drizzle-orm";
+import { eq, or, and, ilike, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { profiles, batchAdmins, user } from "@/db/schema";
+import type { SearchProfilesInput } from "@/lib/validations/user-search";
+
+export type { SearchProfilesInput };
 
 export type AdminPickerUser = {
   id: string; // profiles.id (UUID used for admin assignment)
@@ -9,9 +12,95 @@ export type AdminPickerUser = {
   role: string;
 };
 
+export type ProfileSearchResult = {
+  profileId: string;
+  displayName: string;
+  email: string;
+};
+
 export type DbClient = typeof db;
 export type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type DbOrTx = DbClient | DbTransaction;
+
+export type UserSearchErrorCode =
+  | "INVALID_QUERY"
+  | "INVALID_INPUT"
+  | "UNAUTHORIZED";
+
+export class UserSearchError extends Error {
+  code: UserSearchErrorCode;
+  constructor(code: UserSearchErrorCode, message: string) {
+    super(message);
+    this.code = code;
+    this.name = "UserSearchError";
+  }
+}
+
+/**
+ * EMF-58: Searches all profiles across the system joining profiles + user.
+ * Supports:
+ * - query: must be at least 2 characters, matches displayName (firstName, fatherName, full name, user.name) and user.email case-insensitively
+ * - limit: max 25 results, defaults to 25
+ * - excludeProfileIds: excludes specified profile UUIDs
+ * - No filter on profiles.role or previous admin status
+ * - Returns only profileId, displayName, and email
+ */
+export async function searchProfiles(
+  input: SearchProfilesInput | string,
+  executor: DbOrTx = db
+): Promise<ProfileSearchResult[]> {
+  const normalizedInput: SearchProfilesInput =
+    typeof input === "string" ? { query: input, limit: 25, excludeProfileIds: [] } : input;
+
+  const trimmedQuery = normalizedInput.query ? normalizedInput.query.trim() : "";
+  if (trimmedQuery.length < 2) {
+    throw new UserSearchError(
+      "INVALID_QUERY",
+      "Search query must be at least 2 characters."
+    );
+  }
+
+  const requestedLimit = normalizedInput.limit ?? 25;
+  const effectiveLimit = Math.min(Math.max(1, requestedLimit), 25);
+
+  const pattern = `%${trimmedQuery}%`;
+
+  const nameOrEmailCondition = or(
+    ilike(user.name, pattern),
+    ilike(user.email, pattern),
+    ilike(profiles.firstName, pattern),
+    ilike(profiles.fatherName, pattern),
+    sql`concat(${profiles.firstName}, ' ', ${profiles.fatherName}) ILIKE ${pattern}`
+  );
+
+  const conditions = [nameOrEmailCondition];
+
+  if (
+    normalizedInput.excludeProfileIds &&
+    normalizedInput.excludeProfileIds.length > 0
+  ) {
+    conditions.push(notInArray(profiles.id, normalizedInput.excludeProfileIds));
+  }
+
+  const rows = await executor
+    .select({
+      id: profiles.id,
+      firstName: profiles.firstName,
+      fatherName: profiles.fatherName,
+      userName: user.name,
+      email: user.email,
+    })
+    .from(profiles)
+    .innerJoin(user, eq(profiles.authUserId, user.id))
+    .where(and(...conditions))
+    .limit(effectiveLimit);
+
+  return rows.map((r) => ({
+    profileId: r.id,
+    displayName: (r.userName || `${r.firstName} ${r.fatherName}`).trim(),
+    email: r.email,
+  }));
+}
 
 /**
  * Sub-issue 1: Retrieves distinct profiles that have previously been assigned
