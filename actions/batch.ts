@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/authorize";
 import { createBatchSchema } from "@/lib/validations/batch";
 import { createBatch, BatchError } from "@/lib/services/batch";
@@ -16,7 +17,7 @@ export type CreateBatchActionState = {
 
 export async function createBatchAction(
   prevStateOrInput: unknown,
-  formData?: FormData
+  formData?: FormData,
 ): Promise<CreateBatchActionState> {
   const currentUser = await requireRole(["super_admin"]);
 
@@ -59,38 +60,6 @@ export async function createBatchAction(
       errors: { formErrors: [(e as Error).message], fieldErrors: {} },
     };
   }
-
+  revalidatePath("/batches");
   redirect("/batches");
 }
-
-export async function getPreviouslyAssignedBatchAdminsAction() {
-  await requireRole(["super_admin"]);
-  try {
-    const { getPreviouslyAssignedBatchAdmins } = await import("@/lib/services/user-search");
-    const data = await getPreviouslyAssignedBatchAdmins();
-    return { ok: true as const, data };
-  } catch (e) {
-    return {
-      ok: false as const,
-      error: (e as Error).message,
-    };
-  }
-}
-
-export async function searchUsersAction(query: string) {
-  await requireRole(["super_admin"]);
-  try {
-    const { searchUsers } = await import("@/lib/services/user-search");
-    const data = await searchUsers(query);
-    return { ok: true as const, data };
-  } catch (e) {
-    return {
-      ok: false as const,
-      error: (e as Error).message,
-    };
-  }
-}
-
-export { searchProfilesAction, listKnownBatchAdminsAction } from "@/actions/user-search";
-
-
