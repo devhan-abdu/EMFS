@@ -2,10 +2,25 @@
 
 :root {
   --background: 40 25% 97%;
+  --surface: 40 25% 97%;
   --surface-1: 40 18% 94%;
   --surface-2: 0 0% 100%;
   --foreground: 200 20% 10%;
+  --on-surface: 200 20% 10%;
+  --on-surface-variant: 200 8% 40%;
   --muted-foreground: 200 8% 40%;
+  --outline: 40 12% 62%;
+  --outline-variant: 40 12% 87%;
+  --surface-variant: 40 12% 87%;
+  --surface-container: 40 18% 94%;
+  --surface-container-lowest: 0 0% 100%;
+  --surface-container-high: 40 14% 91%;
+  --surface-container-highest: 40 12% 87%;
+  --surface-bright: 0 0% 100%;
+  --error: 5 65% 45%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 200 20% 10%;
+  --muted: 40 18% 94%;
 
   --primary: 200 60% 15%;
   --primary-foreground: 0 0% 100%;
@@ -24,10 +39,25 @@
 .dark {
   /* warm dark, NOT blue-black — stays in the same family as light mode */
   --background: 30 15% 8%;
+  --surface: 30 15% 8%;
   --surface-1: 28 14% 12%;
   --surface-2: 26 13% 15%;
   --foreground: 40 20% 94%;
+  --on-surface: 40 20% 94%;
+  --on-surface-variant: 35 10% 65%;
   --muted-foreground: 35 10% 65%;
+  --outline: 30 12% 48%;
+  --outline-variant: 30 12% 22%;
+  --surface-variant: 30 12% 22%;
+  --surface-container: 28 14% 12%;
+  --surface-container-lowest: 26 13% 15%;
+  --surface-container-high: 28 14% 16%;
+  --surface-container-highest: 30 12% 22%;
+  --surface-bright: 26 13% 15%;
+  --error: 5 70% 62%;
+  --popover: 26 13% 15%;
+  --popover-foreground: 40 20% 94%;
+  --muted: 28 14% 12%;
 
   /* primary flips lighter — dark navy is invisible on dark bg */
   --primary: 195 70% 78%;
@@ -45,9 +75,12 @@
 
 @theme inline {
   --color-background: hsl(var(--background));
+  --color-surface: hsl(var(--surface));
   --color-surface-1: hsl(var(--surface-1));
   --color-surface-2: hsl(var(--surface-2));
   --color-foreground: hsl(var(--foreground));
+  --color-on-surface: hsl(var(--on-surface));
+  --color-on-surface-variant: hsl(var(--on-surface-variant));
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
   --color-secondary: hsl(var(--secondary));
@@ -58,6 +91,18 @@
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
   --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-outline: hsl(var(--outline));
+  --color-outline-variant: hsl(var(--outline-variant));
+  --color-surface-variant: hsl(var(--surface-variant));
+  --color-surface-container: hsl(var(--surface-container));
+  --color-surface-container-lowest: hsl(var(--surface-container-lowest));
+  --color-surface-container-high: hsl(var(--surface-container-high));
+  --color-surface-container-highest: hsl(var(--surface-container-highest));
+  --color-surface-bright: hsl(var(--surface-bright));
+  --color-error: hsl(var(--error));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
   --color-destructive: hsl(var(--destructive));
   --font-sans: var(--font-sans);
   --font-heading: var(--font-heading);

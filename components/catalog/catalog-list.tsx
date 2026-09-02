@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -14,7 +14,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, Link as LinkIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { reorderCatalogSlotsAction } from "@/actions/catalog";
 import CatalogPagination from "./catalog-pagination";
+import { SlotReorderControls } from "./slot-reorder-controls";
 import type { ActionResult } from "@/lib/validations/catalog";
 import type {
   CatalogBookItem,
@@ -27,6 +31,8 @@ interface CatalogListProps {
 }
 
 export default function CatalogList({ initialData, page }: CatalogListProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [expandedSlots, setExpandedSlots] = useState<Set<number>>(new Set());
 
   if (!initialData.ok) {
@@ -52,6 +58,27 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
   }
 
   const data = initialData.data;
+  const totalSlots = data.pagination.totalSlots;
+
+  const handleMoveSlot = (slot: number, targetSlot: number) => {
+    if (isPending || slot === targetSlot) return;
+
+    startTransition(async () => {
+      const result = await reorderCatalogSlotsAction({
+        fromSlot: slot,
+        toSlot: targetSlot,
+      });
+
+      if (result.ok) {
+        toast.success(`Slot ${slot} moved to slot ${targetSlot}.`);
+      } else {
+        toast.error(
+          result.errors[0]?.message ?? "Failed to reorder catalog slots.",
+        );
+      }
+      router.refresh();
+    });
+  };
 
   if (!data || data.slots.length === 0) {
     return (
@@ -101,6 +128,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
               <TableHead>Book Details</TableHead>
               <TableHead className="w-[120px]">Language</TableHead>
               <TableHead className="w-[160px]">Editions</TableHead>
+              <TableHead className="w-[100px] text-center">Reorder</TableHead>
               <TableHead className="w-[60px] text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -214,6 +242,22 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                     </TableCell>
                     <TableCell
                       className="text-center align-middle"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <SlotReorderControls
+                        slot={slot}
+                        totalSlots={totalSlots}
+                        onMoveUp={(currentSlot) =>
+                          handleMoveSlot(currentSlot, currentSlot - 1)
+                        }
+                        onMoveDown={(currentSlot) =>
+                          handleMoveSlot(currentSlot, currentSlot + 1)
+                        }
+                        isPending={isPending}
+                      />
+                    </TableCell>
+                    <TableCell
+                      className="text-center align-middle"
                       aria-label="No supported actions"
                     />
                   </TableRow>
@@ -271,6 +315,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                           </span>
                         </TableCell>
 
+                        <TableCell className="align-middle" />
                         <TableCell className="align-middle" />
                         <TableCell
                           className="text-center align-middle"
@@ -355,6 +400,22 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                         {books.length} Editions
                       </Badge>
                     )}
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Reorder slot
+                    </span>
+                    <SlotReorderControls
+                      slot={slot}
+                      totalSlots={totalSlots}
+                      onMoveUp={(currentSlot) =>
+                        handleMoveSlot(currentSlot, currentSlot - 1)
+                      }
+                      onMoveDown={(currentSlot) =>
+                        handleMoveSlot(currentSlot, currentSlot + 1)
+                      }
+                      isPending={isPending}
+                    />
                   </div>
                 </div>
               </div>
