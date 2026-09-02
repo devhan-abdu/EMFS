@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/authorize";
 import { createBatchSchema } from "@/lib/validations/batch";
 import { createBatch, BatchError } from "@/lib/services/batch";
@@ -16,7 +17,7 @@ export type CreateBatchActionState = {
 
 export async function createBatchAction(
   prevStateOrInput: unknown,
-  formData?: FormData
+  formData?: FormData,
 ): Promise<CreateBatchActionState> {
   const currentUser = await requireRole(["super_admin"]);
 
@@ -59,6 +60,6 @@ export async function createBatchAction(
       errors: { formErrors: [(e as Error).message], fieldErrors: {} },
     };
   }
-
+  revalidatePath("/batches");
   redirect("/batches");
 }

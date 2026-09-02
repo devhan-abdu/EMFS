@@ -87,7 +87,21 @@ export async function createBatch(
       );
     }
 
- 
+    const ALLOWED_ADMIN_ROLES = new Set([
+      "super_admin",
+      "batch_admin",
+      "pace_admin",
+      "member",
+    ]);
+    const invalidRoleProfile = existingProfiles.find(
+      (p) => !ALLOWED_ADMIN_ROLES.has(p.role)
+    );
+    if (invalidRoleProfile) {
+      throw new BatchError(
+        "INVALID_ADMIN_ROLE",
+        `Profile '${invalidRoleProfile.id}' has invalid role '${invalidRoleProfile.role}' for batch admin assignment.`
+      );
+    }
 
     // Insert batch in initial not-yet-open state
     const [newBatch] = await tx
