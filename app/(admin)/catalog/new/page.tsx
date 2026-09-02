@@ -9,12 +9,11 @@ export const metadata = {
 
 export default function NewBookPage() {
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      {/* Header with back button */}
+    <div className="mx-auto max-w-2xl space-y-8">
       <div className="flex items-center gap-4">
         <Link
           href="/catalog"
-          className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors text-primary"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface-2 text-foreground transition-colors hover:bg-surface-container"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
@@ -28,8 +27,7 @@ export default function NewBookPage() {
         </div>
       </div>
 
-      {/* Info Callout */}
-      <div className="flex items-start gap-3 rounded-xl border border-primary/10 bg-primary/5 p-4">
+      <div className="flex items-start gap-3 rounded-2xl border border-primary/15 bg-primary/5 p-4">
         <span className="material-symbols-outlined text-primary shrink-0 mt-0.5 text-xl">
           info
         </span>

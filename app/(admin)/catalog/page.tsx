@@ -18,11 +18,10 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   const totalBooks = result.ok ? result.data.pagination.totalBooks : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Header with stats and buttons */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div className="space-y-8">
+      <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary md:text-4xl">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">
             Catalog Management
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -32,7 +31,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
         <div className="flex flex-wrap items-center gap-4">
           <Link
             href="/catalog/add-edition"
-            className="flex h-11 items-center gap-2 rounded-lg bg-secondary px-6 text-secondary-foreground transition-colors hover:bg-secondary/80"
+            className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface-2 px-5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-surface-container"
           >
             <span className="material-symbols-outlined text-[18px]">
               translate
@@ -41,7 +40,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
           </Link>
           <Link
             href="/catalog/new"
-            className="flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-primary-foreground shadow-sm transition-colors hover:bg-primary/80"
+            className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
           >
             <span className="material-symbols-outlined text-[18px]">
               add_circle
@@ -51,9 +50,8 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="group relative overflow-hidden rounded-xl border border-border bg-surface-2 p-6 shadow-sm transition-colors hover:border-secondary">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="group relative overflow-hidden rounded-2xl border border-border bg-surface-2 p-6 shadow-sm transition-colors hover:border-secondary/40">
           <div className="absolute right-0 top-0 -z-10 h-32 w-32 rounded-bl-full bg-primary/10 transition-transform duration-500 group-hover:scale-110" />
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Total Slots
@@ -66,7 +64,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
             Catalog sequence
           </p>
         </div>
-        <div className="group relative overflow-hidden rounded-xl border border-border bg-surface-2 p-6 shadow-sm transition-colors hover:border-secondary">
+        <div className="group relative overflow-hidden rounded-2xl border border-border bg-surface-2 p-6 shadow-sm transition-colors hover:border-secondary/40">
           <div className="absolute right-0 top-0 -z-10 h-32 w-32 rounded-bl-full bg-secondary/10 transition-transform duration-500 group-hover:scale-110" />
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Active Editions
@@ -76,13 +74,13 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
             From seeded catalog data
           </p>
         </div>
-        <div className="group relative overflow-hidden rounded-xl border border-border bg-surface-2 p-6 shadow-sm transition-colors hover:border-secondary">
+        <div className="group relative overflow-hidden rounded-2xl border border-border bg-surface-2 p-6 shadow-sm transition-colors hover:border-secondary/40">
           <div className="absolute right-0 top-0 -z-10 h-32 w-32 rounded-bl-full bg-accent/10 transition-transform duration-500 group-hover:scale-110" />
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Completion Rate
           </p>
           <p className="text-3xl font-bold text-primary">N/A</p>
-          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-1">
+          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-container">
             <div className="h-full w-1/3 rounded-full bg-secondary" />
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -91,7 +89,6 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
         </div>
       </div>
 
-      {/* Catalog List with Suspense */}
       <Suspense fallback={<CatalogSkeleton />}>
         <CatalogList initialData={result} page={currentPage} />
       </Suspense>
