@@ -1,13 +1,24 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { db } from "@/db";
+import { profiles } from "@/db/schema";
 import { auth } from "@/lib/auth/auth";
 import { registerMember } from "@/lib/services/registration";
 import { signUpSchema, signInSchema } from "@/lib/validations/auth";
 
-export async function signUpAction(input: unknown) {
+export async function signUpAction(_: unknown, formData?: FormData) {
+  if (!formData) {
+    return { ok: false as const, errors: { formErrors: [], fieldErrors: {} } };
+  }
+
+  const input = Object.fromEntries(formData.entries()) as Record<
+    string,
+    unknown
+  >;
   const parsed = signUpSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false as const, errors: parsed.error.flatten() };
@@ -25,7 +36,15 @@ export async function signUpAction(input: unknown) {
   redirect("/");
 }
 
-export async function signInAction(input: unknown) {
+export async function signInAction(_: unknown, formData?: FormData) {
+  if (!formData) {
+    return { ok: false as const, errors: { formErrors: [], fieldErrors: {} } };
+  }
+
+  const input = Object.fromEntries(formData.entries()) as Record<
+    string,
+    unknown
+  >;
   const parsed = signInSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false as const, errors: parsed.error.flatten() };
@@ -43,7 +62,24 @@ export async function signInAction(input: unknown) {
     };
   }
 
-  redirect("/");
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    redirect("/");
+  }
+
+  const profile = await db.query.profiles.findFirst({
+    where: eq(profiles.authUserId, session.user.id),
+  });
+
+  redirect(
+    (
+      profile?.role === "super_admin" ||
+        profile?.role === "batch_admin" ||
+        profile?.role === "pace_admin"
+    ) ?
+      "/batches"
+    : "/",
+  );
 }
 
 export async function signOutAction() {
