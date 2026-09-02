@@ -33,6 +33,8 @@
   --input: 40 12% 87%;
   --ring: 200 60% 15%;
   --destructive: 5 65% 45%;
+  --card: 0 0% 100%;
+  --card-foreground: 200 20% 10%;
   --radius: 0.5rem;
 }
 
@@ -71,6 +73,8 @@
   --input: 30 12% 22%;
   --ring: 195 70% 78%;
   --destructive: 5 70% 62%;
+  --card: 26 13% 15%;
+  --card-foreground: 40 20% 94%;
 }
 
 @theme inline {
@@ -104,6 +108,8 @@
   --color-popover: hsl(var(--popover));
   --color-popover-foreground: hsl(var(--popover-foreground));
   --color-destructive: hsl(var(--destructive));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
   --font-sans: var(--font-sans);
   --font-heading: var(--font-heading);
   --radius: var(--radius);

@@ -44,6 +44,8 @@ export default function CatalogPagination({
         <PaginationItem>
           <PaginationPrevious
             href={currentPage > 1 ? createPageUrl(currentPage - 1) : undefined}
+            aria-disabled={currentPage <= 1}
+            tabIndex={currentPage <= 1 ? -1 : undefined}
             className={currentPage <= 1 ? "pointer-events-none opacity-50" : ""}
           />
         </PaginationItem>
@@ -84,6 +86,8 @@ export default function CatalogPagination({
                 ? createPageUrl(currentPage + 1)
                 : undefined
             }
+            aria-disabled={currentPage >= totalPages}
+            tabIndex={currentPage >= totalPages ? -1 : undefined}
             className={
               currentPage >= totalPages ? "pointer-events-none opacity-50" : ""
             }

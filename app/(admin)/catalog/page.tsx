@@ -57,7 +57,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
             Total Slots
           </p>
           <p className="text-3xl font-bold text-primary">{totalSlots}</p>
-          <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
+          <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             <span className="material-symbols-outlined text-[16px] text-secondary">
               trending_up
             </span>
@@ -70,7 +70,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
             Active Editions
           </p>
           <p className="text-3xl font-bold text-primary">{totalBooks}</p>
-          <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
+          <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             From seeded catalog data
           </p>
         </div>

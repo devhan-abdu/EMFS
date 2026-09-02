@@ -27,7 +27,7 @@ export default function NewBookPage() {
         </div>
       </div>
 
-      <div className="flex items-start gap-3 rounded-2xl border border-primary/15 bg-primary/5 p-4">
+      <div className="flex items-start gap-4 rounded-2xl border border-primary/15 bg-primary/5 p-4">
         <span className="material-symbols-outlined text-primary shrink-0 mt-0.5 text-xl">
           info
         </span>

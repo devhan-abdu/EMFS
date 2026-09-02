@@ -20,7 +20,7 @@ export default async function AdminLayout({
   return (
     <div className="min-h-screen bg-background">
       <header className="flex h-16 items-center justify-between border-b border-border bg-surface-2 px-4 md:px-8">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <Link
             href="/today"
             className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-1 hover:text-foreground"
@@ -45,25 +45,25 @@ export default async function AdminLayout({
           <nav className="space-y-2" aria-label="Admin navigation">
             <Link
               href="/today"
-              className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm text-muted-foreground transition-colors hover:bg-surface-1 hover:text-foreground"
+              className="flex items-center gap-4 rounded-lg px-4 py-4 text-sm text-muted-foreground transition-colors hover:bg-surface-1 hover:text-foreground"
             >
               <Gauge className="h-4 w-4" /> Dashboard
             </Link>
             <Link
               href="/catalog"
-              className="flex items-center gap-3 rounded-lg bg-primary px-3 py-3 text-sm font-medium text-primary-foreground"
+              className="flex items-center gap-4 rounded-lg bg-primary px-4 py-4 text-sm font-medium text-primary-foreground"
             >
               <BookOpen className="h-4 w-4" /> Catalog Management
             </Link>
             <Link
               href="/groups"
-              className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm text-muted-foreground transition-colors hover:bg-surface-1 hover:text-foreground"
+              className="flex items-center gap-4 rounded-lg px-4 py-4 text-sm text-muted-foreground transition-colors hover:bg-surface-1 hover:text-foreground"
             >
               <Group className="h-4 w-4" /> Users
             </Link>
             <Link
               href="/profile"
-              className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm text-muted-foreground transition-colors hover:bg-surface-1 hover:text-foreground"
+              className="flex items-center gap-4 rounded-lg px-4 py-4 text-sm text-muted-foreground transition-colors hover:bg-surface-1 hover:text-foreground"
             >
               <Settings className="h-4 w-4" /> Settings
             </Link>

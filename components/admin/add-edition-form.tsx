@@ -91,7 +91,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
   return (
     <form action={formAction} className="flex flex-col gap-8 pb-28 md:pb-0">
       {state.errors && state.errors.length > 0 && !state.ok && (
-        <div className="flex items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-4">
+        <div className="flex items-start gap-4 rounded-2xl border border-destructive/20 bg-destructive/10 p-4">
           <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
           <div>
             <h4 className="font-semibold text-destructive text-sm">
@@ -133,16 +133,16 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
           </div>
         </div>
         {fieldErrorsMap.pairedBookId && (
-          <p className="text-xs text-destructive mt-1">
+          <p className="text-xs text-destructive mt-2">
             {fieldErrorsMap.pairedBookId[0]}
           </p>
         )}
         {books.length === 0 && (
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-2">
             No books available. Please create a program book first.
           </p>
         )}
-        <div className="bg-primary/5 rounded-lg p-3 flex gap-3 mt-1 items-start">
+        <div className="bg-primary/5 rounded-lg p-4 flex gap-4 mt-2 items-start">
           <span className="material-symbols-outlined text-primary text-[20px] mt-0.5">
             info
           </span>
@@ -176,7 +176,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
             aria-describedby={fieldErrorsMap.title ? "title-error" : undefined}
           />
           {fieldErrorsMap.title && (
-            <p id="title-error" className="text-xs text-destructive mt-1">
+            <p id="title-error" className="text-xs text-destructive mt-2">
               {fieldErrorsMap.title[0]}
             </p>
           )}
@@ -210,7 +210,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
             </div>
           </div>
           {fieldErrorsMap.language && (
-            <p className="text-xs text-destructive mt-1">
+            <p className="text-xs text-destructive mt-2">
               {fieldErrorsMap.language[0]}
             </p>
           )}
@@ -236,7 +236,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
             }
           />
           {fieldErrorsMap.author && (
-            <p id="author-error" className="text-xs text-destructive mt-1">
+            <p id="author-error" className="text-xs text-destructive mt-2">
               {fieldErrorsMap.author[0]}
             </p>
           )}
@@ -269,7 +269,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
                 <button
                   type="button"
                   onClick={clearCover}
-                  className="absolute top-2 right-2 p-1 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+                  className="absolute top-2 right-2 p-2 rounded-full bg-foreground/70 hover:bg-foreground/85 text-background transition-colors"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -302,7 +302,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
           {fieldErrorsMap.cover && (
             <p
               id="cover-error"
-              className="text-xs text-destructive mt-1 text-center"
+              className="text-xs text-destructive mt-2 text-center"
             >
               {fieldErrorsMap.cover[0]}
             </p>
