@@ -33,3 +33,18 @@ export async function searchProfilesAction(input: unknown) {
     };
   }
 }
+
+export async function listKnownBatchAdminsAction() {
+  await requireRole(["super_admin"]);
+  try {
+    const { listKnownBatchAdmins } = await import("@/lib/services/user-search");
+    const data = await listKnownBatchAdmins();
+    return { ok: true as const, data };
+  } catch (e) {
+    return {
+      ok: false as const,
+      error: (e as Error).message,
+    };
+  }
+}
+

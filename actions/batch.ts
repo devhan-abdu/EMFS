@@ -91,5 +91,6 @@ export async function searchUsersAction(query: string) {
   }
 }
 
-export { searchProfilesAction } from "@/actions/user-search";
+export { searchProfilesAction, listKnownBatchAdminsAction } from "@/actions/user-search";
+
 
