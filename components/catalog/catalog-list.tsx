@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { Fragment, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { toast } from "sonner";
 import {
   Table,
   TableBody,
@@ -17,8 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, Link as LinkIcon } from "lucide-react";
 import CatalogPagination from "./catalog-pagination";
-import { SlotReorderControls } from "./slot-reorder-controls";
-import { reorderCatalogSlotsAction } from "@/actions/catalog";
 import type { ActionResult } from "@/lib/validations/catalog";
 import type {
   CatalogBookItem,
@@ -31,35 +27,11 @@ interface CatalogListProps {
 }
 
 export default function CatalogList({ initialData, page }: CatalogListProps) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [expandedSlots, setExpandedSlots] = useState<Set<number>>(new Set());
-
-  const handleMoveSlot = (fromSlot: number, toSlot: number) => {
-    if (isPending || fromSlot === toSlot) return;
-
-    startTransition(async () => {
-      try {
-        const res = await reorderCatalogSlotsAction({ fromSlot, toSlot });
-        if (res.ok) {
-          toast.success(`Slot ${fromSlot} moved to Slot ${toSlot}`);
-          router.refresh();
-        } else {
-          const errorMsg =
-            res.errors?.[0]?.message || "Failed to reorder catalog slot.";
-          toast.error(errorMsg);
-          router.refresh();
-        }
-      } catch (error) {
-        toast.error("An unexpected error occurred while reordering.");
-        router.refresh();
-      }
-    });
-  };
 
   if (!initialData.ok) {
     return (
-      <div className="rounded-lg bg-destructive/10 p-6 border border-destructive/20 text-center">
+      <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-6 text-center">
         <h4 className="font-semibold text-destructive mb-2">
           Failed to load catalog
         </h4>
@@ -80,26 +52,24 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
   }
 
   const data = initialData.data;
-  const totalSlotsCount = data?.pagination?.totalSlots || data?.slots?.length || 0;
-
 
   if (!data || data.slots.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-surface-container-lowest rounded-2xl border border-outline-variant/30">
-        <div className="w-24 h-24 mb-4 rounded-full bg-surface-container flex items-center justify-center border border-outline-subtle relative">
-          <span className="material-symbols-outlined text-4xl text-outline-subtle">
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-surface-2 px-4 py-12 text-center">
+        <div className="relative mb-4 flex h-24 w-24 items-center justify-center rounded-full border border-border bg-surface-1">
+          <span className="material-symbols-outlined text-4xl text-muted-foreground">
             menu_book
           </span>
         </div>
-        <h3 className="font-headline-md text-headline-md text-text-primary mb-2">
+        <h3 className="mb-2 text-2xl font-bold text-foreground">
           The library is empty
         </h3>
-        <p className="font-body-md text-body-md text-text-secondary mb-6 max-w-[280px]">
+        <p className="mb-6 max-w-[280px] text-sm text-muted-foreground">
           Add your first program book or language edition to start building the
           catalog.
         </p>
-        <Link href="/admin/catalog/new">
-          <Button className="h-11 px-6 bg-primary text-on-primary">
+        <Link href="/catalog/new">
+          <Button className="h-11 px-6">
             <span className="material-symbols-outlined text-[20px] mr-2">
               add
             </span>
@@ -122,17 +92,15 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
   return (
     <div className="space-y-6">
       {/* Table view for md and up */}
-      <div className="hidden md:block bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant/30 overflow-hidden">
+      <div className="hidden overflow-hidden rounded-2xl border border-border bg-surface-2 shadow-sm md:block">
         <Table>
-          <TableHeader className="bg-surface-container">
+          <TableHeader className="bg-surface-1">
             <TableRow>
               <TableHead className="w-[80px] text-center">Slot</TableHead>
               <TableHead className="w-[60px]">Cover</TableHead>
               <TableHead>Book Details</TableHead>
-              <TableHead className="w-[120px]">Type</TableHead>
               <TableHead className="w-[120px]">Language</TableHead>
               <TableHead className="w-[160px]">Editions</TableHead>
-              <TableHead className="w-[100px] text-center">Reorder</TableHead>
               <TableHead className="w-[60px] text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -145,9 +113,8 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
               const isExpanded = expandedSlots.has(slot);
 
               return (
-                <>
+                <Fragment key={slot}>
                   <TableRow
-                    key={slot}
                     className={`cursor-pointer hover:bg-surface-container-lowest/50 transition-colors ${hasMultiple ? "bg-surface-container/30" : ""}`}
                     onClick={() => hasMultiple && toggleSlot(slot)}
                   >
@@ -159,9 +126,10 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                               e.stopPropagation();
                               toggleSlot(slot);
                             }}
-                            className="p-2 rounded hover:bg-surface-variant"
+                            className="rounded p-2 hover:bg-surface-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label={`${isExpanded ? "Collapse" : "Expand"} slot ${slot} editions`}
+                            aria-expanded={isExpanded}
                           >
-
                             {isExpanded ? (
                               <ChevronDown className="h-4 w-4" />
                             ) : (
@@ -214,7 +182,6 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="align-middle">Type</TableCell>
                     <TableCell className="align-middle">
                       <span className="font-label-md text-label-md text-on-surface">
                         {primaryBook.language}
@@ -245,22 +212,10 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-center align-middle">
-                      <SlotReorderControls
-                        slot={slot}
-                        totalSlots={totalSlotsCount}
-                        onMoveUp={(s) => handleMoveSlot(s, s - 1)}
-                        onMoveDown={(s) => handleMoveSlot(s, s + 1)}
-                        isPending={isPending}
-                      />
-                    </TableCell>
-                    <TableCell className="text-center align-middle">
-                      <button className="w-8 h-8 rounded-full hover:bg-surface-variant text-on-surface-variant transition-colors flex items-center justify-center">
-                        <span className="material-symbols-outlined text-[20px]">
-                          more_vert
-                        </span>
-                      </button>
-                    </TableCell>
+                    <TableCell
+                      className="text-center align-middle"
+                      aria-label="No supported actions"
+                    />
                   </TableRow>
 
                   {hasMultiple &&
@@ -304,7 +259,6 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                             </p>
                           </div>
                         </TableCell>
-                        <TableCell className="align-middle">Type</TableCell>
                         <TableCell className="align-middle">
                           <span className="font-label-md text-label-md text-on-surface-variant">
                             {book.language}
@@ -318,16 +272,13 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                         </TableCell>
 
                         <TableCell className="align-middle" />
-                        <TableCell className="text-center align-middle">
-                          <button className="w-8 h-8 rounded-full hover:bg-surface-variant text-outline transition-colors flex items-center justify-center">
-                            <span className="material-symbols-outlined text-[18px]">
-                              edit
-                            </span>
-                          </button>
-                        </TableCell>
+                        <TableCell
+                          className="text-center align-middle"
+                          aria-label="No supported actions"
+                        />
                       </TableRow>
                     ))}
-                </>
+                </Fragment>
               );
             })}
           </TableBody>
@@ -337,7 +288,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
           <CatalogPagination
             currentPage={page}
             totalPages={data.pagination?.totalPages || 1}
-            baseUrl="/admin/catalog"
+            baseUrl="/catalog"
           />
         </div>
       </div>
@@ -353,11 +304,10 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
           return (
             <div
               key={slot}
-              className="bg-surface-container rounded-xl border border-outline-subtle overflow-hidden hover:border-outline transition-colors group"
+              className="group overflow-hidden rounded-xl border border-border bg-surface-2 transition-colors hover:border-secondary"
             >
-              <div className="p-4 flex gap-4 relative overflow-hidden">
-                <div className="absolute inset-0 pointer-events-none opacity-5 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary via-transparent to-transparent" />
-                <div className="w-20 h-28 bg-surface-container-high rounded-md overflow-hidden relative shrink-0">
+              <div className="relative flex gap-4 overflow-hidden p-4">
+                <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-md bg-surface-1">
                   {primaryBook.coverUrl ? (
                     <Image
                       src={primaryBook.coverUrl}
@@ -367,7 +317,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                       sizes="80px"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-outline">
+                    <div className="flex h-full w-full items-center justify-center text-muted-foreground">
                       <span className="material-symbols-outlined text-3xl">
                         image_not_supported
                       </span>
@@ -377,29 +327,18 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                 <div className="flex flex-col flex-1 min-w-0 z-10">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex flex-col">
-                      <h3 className="font-headline-md text-headline-md text-text-primary truncate">
+                      <h3 className="truncate text-lg font-bold text-primary">
                         {primaryBook.title}
                       </h3>
-                      <span className="font-body-md text-body-md text-text-secondary truncate mt-2">
+                      <span className="mt-2 truncate text-sm text-muted-foreground">
                         Slot: {slot}
                       </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <SlotReorderControls
-                        slot={slot}
-                        totalSlots={totalSlotsCount}
-                        onMoveUp={(s) => handleMoveSlot(s, s - 1)}
-                        onMoveDown={(s) => handleMoveSlot(s, s + 1)}
-                        isPending={isPending}
-                      />
-                      <button className="w-8 h-8 rounded-full flex items-center justify-center text-outline hover:bg-surface-container-high hover:text-primary transition-colors">
-                        <span className="material-symbols-outlined text-[20px]">
-                          more_vert
-                        </span>
-                      </button>
+                      <span className="mt-1 truncate text-sm text-muted-foreground">
+                        {primaryBook.author || "Unknown author"} ·{" "}
+                        {primaryBook.language}
+                      </span>
                     </div>
                   </div>
-
 
                   <div className="mt-auto flex flex-wrap gap-2 pt-4">
                     <Badge
@@ -419,8 +358,8 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                   </div>
                 </div>
               </div>
-              <div className="bg-surface-container-highest/50 p-4 border-t border-outline-subtle flex flex-col gap-2">
-                <span className="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-2">
+              <div className="flex flex-col gap-2 border-t border-border bg-surface-1/50 p-4">
+                <span className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                   <span className="material-symbols-outlined text-[14px]">
                     translate
                   </span>
@@ -430,9 +369,9 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                   {books.map((book: CatalogBookItem) => (
                     <div
                       key={book.id}
-                      className="h-6 px-2 bg-surface-container border border-outline-subtle rounded flex items-center gap-2"
+                      className="flex h-6 items-center gap-2 rounded border border-border bg-surface-2 px-2"
                     >
-                      <span className="font-label-sm text-label-sm text-text-secondary">
+                      <span className="text-xs text-muted-foreground">
                         {book.language}
                       </span>
                       {book.pairedBookId && (
@@ -442,7 +381,6 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                   ))}
                 </div>
               </div>
-
             </div>
           );
         })}
@@ -451,7 +389,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
           <CatalogPagination
             currentPage={page}
             totalPages={data.pagination?.totalPages || 1}
-            baseUrl="/admin/catalog"
+            baseUrl="/catalog"
           />
         </div>
       </div>

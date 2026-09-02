@@ -1,7 +1,6 @@
 import { getCatalogAction } from "@/actions/catalog";
 import CatalogList from "@/components/catalog/catalog-list";
 import { Suspense } from "react";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import CatalogSkeleton from "./loading";
 
@@ -23,19 +22,17 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
       {/* Header with stats and buttons */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <p className="font-label-md text-label-md text-tertiary-fixed-dim uppercase tracking-[0.1em] mb-2">
-            Administration
+          <h1 className="text-3xl font-bold tracking-tight text-primary md:text-4xl">
+            Catalog Management
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Manage the shared reading order and curriculum pipeline.
           </p>
-          <h2 className="font-display-lg text-display-lg text-primary tracking-tight">
-            Catalog
-            <br />
-            <span className="text-on-surface-variant">Management</span>
-          </h2>
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <Link
-            href="/admin/catalog/add-edition"
-            className="h-11 px-6 flex items-center gap-2 rounded-lg bg-secondary-container text-on-secondary-container hover:bg-secondary-fixed-dim transition-colors"
+            href="/catalog/add-edition"
+            className="flex h-11 items-center gap-2 rounded-lg bg-secondary px-6 text-secondary-foreground transition-colors hover:bg-secondary/80"
           >
             <span className="material-symbols-outlined text-[18px]">
               translate
@@ -43,8 +40,8 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
             Add Language Edition
           </Link>
           <Link
-            href="/admin/catalog/new"
-            className="h-11 px-6 flex items-center gap-2 rounded-lg bg-primary text-on-primary hover:bg-primary/90 shadow-sm transition-colors"
+            href="/catalog/new"
+            className="flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-primary-foreground shadow-sm transition-colors hover:bg-primary/80"
           >
             <span className="material-symbols-outlined text-[18px]">
               add_circle
@@ -56,42 +53,41 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/30 shadow-sm relative overflow-hidden group hover:border-secondary-fixed-dim transition-colors">
-          <div className="absolute right-0 top-0 w-32 h-32 bg-primary-fixed/20 rounded-bl-full -z-10 transition-transform group-hover:scale-110 duration-500" />
-          <p className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-2">
+        <div className="group relative overflow-hidden rounded-xl border border-border bg-surface-2 p-6 shadow-sm transition-colors hover:border-secondary">
+          <div className="absolute right-0 top-0 -z-10 h-32 w-32 rounded-bl-full bg-primary/10 transition-transform duration-500 group-hover:scale-110" />
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Total Slots
           </p>
-          <p className="font-headline-lg text-headline-lg text-primary">
-            {totalSlots}
-          </p>
-          <p className="font-body-md text-body-md text-on-surface-variant mt-2 text-sm flex items-center gap-1">
+          <p className="text-3xl font-bold text-primary">{totalSlots}</p>
+          <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
             <span className="material-symbols-outlined text-[16px] text-secondary">
               trending_up
             </span>
-            +12 this month
+            Catalog sequence
           </p>
         </div>
-        <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/30 shadow-sm relative overflow-hidden group hover:border-tertiary-fixed-dim transition-colors">
-          <div className="absolute right-0 top-0 w-32 h-32 bg-tertiary-fixed/20 rounded-bl-full -z-10 transition-transform group-hover:scale-110 duration-500" />
-          <p className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-2">
+        <div className="group relative overflow-hidden rounded-xl border border-border bg-surface-2 p-6 shadow-sm transition-colors hover:border-secondary">
+          <div className="absolute right-0 top-0 -z-10 h-32 w-32 rounded-bl-full bg-secondary/10 transition-transform duration-500 group-hover:scale-110" />
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Active Editions
           </p>
-          <p className="font-headline-lg text-headline-lg text-primary">
-            {totalBooks}
-          </p>
-          <p className="font-body-md text-body-md text-on-surface-variant mt-2 text-sm flex items-center gap-1">
-            Across 6 languages
+          <p className="text-3xl font-bold text-primary">{totalBooks}</p>
+          <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
+            From seeded catalog data
           </p>
         </div>
-        <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/30 shadow-sm relative overflow-hidden group hover:border-primary-fixed-dim transition-colors">
-          <div className="absolute right-0 top-0 w-32 h-32 bg-secondary-fixed/20 rounded-bl-full -z-10 transition-transform group-hover:scale-110 duration-500" />
-          <p className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-2">
+        <div className="group relative overflow-hidden rounded-xl border border-border bg-surface-2 p-6 shadow-sm transition-colors hover:border-secondary">
+          <div className="absolute right-0 top-0 -z-10 h-32 w-32 rounded-bl-full bg-accent/10 transition-transform duration-500 group-hover:scale-110" />
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Completion Rate
           </p>
-          <p className="font-headline-lg text-headline-lg text-primary">87%</p>
-          <div className="w-full bg-surface-variant h-1.5 mt-3 rounded-full overflow-hidden">
-            <div className="bg-secondary-fixed h-full w-[87%] rounded-full" />
+          <p className="text-3xl font-bold text-primary">N/A</p>
+          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-1">
+            <div className="h-full w-1/3 rounded-full bg-secondary" />
           </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Not provided by catalog data
+          </p>
         </div>
       </div>
 
