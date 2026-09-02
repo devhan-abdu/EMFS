@@ -17,9 +17,14 @@ export const searchProfilesSchema = z.object({
     .optional()
     .default([]),
 });
+export type SearchProfilesInput = z.infer<typeof searchProfilesSchema>;
+export type SearchProfilesRawInput = z.input<typeof searchProfilesSchema>;
 
-export type SearchProfilesInput = {
-  query: string;
-  limit?: number;
-  excludeProfileIds?: string[];
+// Shared across service + client — one shape for both search results
+
+export type PersonSearchResult = {
+  profileId: string;
+  displayName: string;
+  email: string;
+  adminOfBatches?: string[];
 };
