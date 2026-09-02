@@ -22,9 +22,10 @@ export type SearchProfilesRawInput = z.input<typeof searchProfilesSchema>;
 
 // Shared across service + client — one shape for both search results
 
-export type PersonSearchResult = {
+export type KnownBatchAdminBatch = { id: string; name: string };
+export type ProfileSearchResult = {
   profileId: string;
   displayName: string;
   email: string;
-  adminOfBatches?: string[];
+  adminOfBatches?: KnownBatchAdminBatch[];
 };
