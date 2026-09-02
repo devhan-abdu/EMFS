@@ -1,6 +1,6 @@
-import { eq, or, and, ilike, notInArray, sql } from "drizzle-orm";
+import { eq, or, and, ilike, notInArray, sql, desc } from "drizzle-orm";
 import { db } from "@/db";
-import { profiles, batchAdmins, user } from "@/db/schema";
+import { profiles, batchAdmins, user, batches } from "@/db/schema";
 import type { SearchProfilesInput } from "@/lib/validations/user-search";
 
 export type { SearchProfilesInput };
@@ -16,6 +16,18 @@ export type ProfileSearchResult = {
   profileId: string;
   displayName: string;
   email: string;
+};
+
+export type KnownBatchAdminBatch = {
+  id: string;
+  name: string;
+};
+
+export type KnownBatchAdmin = {
+  profileId: string;
+  displayName: string;
+  email: string;
+  adminOfBatches: KnownBatchAdminBatch[];
 };
 
 export type DbClient = typeof db;
@@ -173,3 +185,58 @@ export async function searchUsers(
     role: r.role,
   }));
 }
+
+/**
+ * Lists distinct profiles from batch_admins, ordered by the most recent
+ * batch admin assignment (createdAt desc), capped at 20 distinct profiles.
+ * Includes adminOfBatches[] with batch id and name for context.
+ */
+export async function listKnownBatchAdmins(
+  executor: DbOrTx = db
+): Promise<KnownBatchAdmin[]> {
+  const rows = await executor
+    .select({
+      profileId: profiles.id,
+      firstName: profiles.firstName,
+      fatherName: profiles.fatherName,
+      userName: user.name,
+      email: user.email,
+      batchId: batches.id,
+      batchName: batches.name,
+      assignedAt: batchAdmins.createdAt,
+    })
+    .from(batchAdmins)
+    .innerJoin(profiles, eq(batchAdmins.profileId, profiles.id))
+    .innerJoin(user, eq(profiles.authUserId, user.id))
+    .innerJoin(batches, eq(batchAdmins.batchId, batches.id))
+    .orderBy(desc(batchAdmins.createdAt));
+
+  const profileMap = new Map<string, KnownBatchAdmin>();
+
+  for (const row of rows) {
+    let profile = profileMap.get(row.profileId);
+    if (!profile) {
+      if (profileMap.size >= 20) {
+        continue;
+      }
+      const displayName = (row.userName || `${row.firstName} ${row.fatherName}`).trim();
+      profile = {
+        profileId: row.profileId,
+        displayName,
+        email: row.email,
+        adminOfBatches: [],
+      };
+      profileMap.set(row.profileId, profile);
+    }
+
+    if (!profile.adminOfBatches.some((b) => b.id === row.batchId)) {
+      profile.adminOfBatches.push({
+        id: row.batchId,
+        name: row.batchName,
+      });
+    }
+  }
+
+  return Array.from(profileMap.values());
+}
+
