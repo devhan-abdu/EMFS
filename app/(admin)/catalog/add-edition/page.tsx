@@ -16,7 +16,7 @@ export default async function AddEditionPage() {
     <div className="space-y-6 max-w-2xl mx-auto">
       <div className="flex items-center gap-4">
         <Link
-          href="/admin/catalog"
+          href="/catalog"
           className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors text-primary"
         >
           <ArrowLeft className="h-5 w-5" />

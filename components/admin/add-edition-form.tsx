@@ -6,7 +6,6 @@ import {
   addPairedEditionAction,
   type AddPairedEditionActionResult,
 } from "@/actions/catalog";
-import type { ActionResult } from "@/lib/validations/catalog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,7 +51,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (state.ok) {
-    router.push("/admin/catalog");
+    router.push("/catalog");
     return null;
   }
 
@@ -347,7 +346,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
       <div className="fixed bottom-0 left-0 w-full bg-surface-container-lowest border-t border-surface-variant pb-safe z-40 md:relative md:bg-transparent md:border-t-0 md:pb-0 md:mt-4">
         <div className="flex gap-4 p-4 md:p-0">
           <Link
-            href="/admin/catalog"
+            href="/catalog"
             className="flex-1 h-[52px] bg-surface-container rounded-xl font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-highest transition-colors shadow-sm inline-flex items-center justify-center"
           >
             Cancel

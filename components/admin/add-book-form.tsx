@@ -6,7 +6,6 @@ import {
   createBookAction,
   type CreateBookActionResult,
 } from "@/actions/catalog";
-import type { ActionResult } from "@/lib/validations/catalog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,7 +42,7 @@ export default function AddBookForm() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (state.ok) {
-    router.push("/admin/catalog");
+    router.push("/catalog");
     return null;
   }
 
@@ -264,7 +263,7 @@ export default function AddBookForm() {
 
       <div className="fixed bottom-0 left-0 w-full p-4 bg-surface/90 backdrop-blur-md border-t border-outline-variant pb-safe z-40 flex gap-3 md:relative md:bg-transparent md:border-t-0 md:p-0 md:mt-4">
         <Link
-          href="/admin/catalog"
+          href="/catalog"
           className="flex-1 h-[52px] bg-surface-container text-on-surface font-label-md text-label-md rounded-lg hover:bg-surface-container-high transition-colors md:flex-initial inline-flex items-center justify-center"
         >
           Cancel

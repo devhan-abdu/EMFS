@@ -1,6 +1,6 @@
-import AddBookForm from '@/components/admin/add-book-form';
-import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
+import AddBookForm from "@/components/admin/add-book-form";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 export default function NewBookPage() {
   return (
@@ -8,7 +8,7 @@ export default function NewBookPage() {
       {/* Header with back button */}
       <div className="flex items-center gap-4">
         <Link
-          href="/admin/catalog"
+          href="/catalog"
           className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors text-primary"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -29,7 +29,8 @@ export default function NewBookPage() {
           info
         </span>
         <p className="font-body-md text-body-md text-on-surface-variant">
-          This book will be automatically assigned to the next available slot in the reading sequence.
+          This book will be automatically assigned to the next available slot in
+          the reading sequence.
         </p>
       </div>
 
