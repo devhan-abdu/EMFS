@@ -32,7 +32,7 @@ export function SlotReorderControls({
         size="icon"
         disabled={isFirst || isPending}
         onClick={() => onMoveUp?.(slot)}
-        className="h-8 w-8 rounded-lg text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+        className="h-11 w-11 rounded-lg text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
         aria-label={`Move Slot ${slot} up to Slot ${slot - 1}`}
         title={isFirst ? "Top slot" : `Move Slot ${slot} up`}
       >
@@ -44,7 +44,7 @@ export function SlotReorderControls({
         size="icon"
         disabled={isLast || isPending}
         onClick={() => onMoveDown?.(slot)}
-        className="h-8 w-8 rounded-lg text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+        className="h-11 w-11 rounded-lg text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
         aria-label={`Move Slot ${slot} down to Slot ${slot + 1}`}
         title={isLast ? "Bottom slot" : `Move Slot ${slot} down`}
       >

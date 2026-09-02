@@ -82,8 +82,12 @@ export default function AddBookForm() {
   return (
     <form action={formAction} className="flex flex-col gap-8 pb-28 md:pb-0">
       {state.errors && state.errors.length > 0 && !state.ok && (
-        <div className="flex items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-4">
-          <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="flex items-start gap-4 rounded-2xl border border-destructive/20 bg-destructive/10 p-4"
+        >
+          <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" aria-hidden="true" />
           <div>
             <h4 className="font-semibold text-destructive text-sm">
               Failed to create book
@@ -113,7 +117,7 @@ export default function AddBookForm() {
           aria-describedby={fieldErrorsMap.title ? "title-error" : undefined}
         />
         {fieldErrorsMap.title && (
-          <p id="title-error" className="mt-1 text-xs text-destructive">
+          <p id="title-error" className="mt-2 text-xs text-destructive">
             {fieldErrorsMap.title[0]}
           </p>
         )}
@@ -139,7 +143,7 @@ export default function AddBookForm() {
           </SelectContent>
         </Select>
         {fieldErrorsMap.language && (
-          <p className="text-xs text-destructive mt-1">
+          <p className="text-xs text-destructive mt-2">
             {fieldErrorsMap.language[0]}
           </p>
         )}
@@ -164,7 +168,7 @@ export default function AddBookForm() {
           aria-describedby={fieldErrorsMap.author ? "author-error" : undefined}
         />
         {fieldErrorsMap.author && (
-          <p id="author-error" className="text-xs text-destructive mt-1">
+          <p id="author-error" className="text-xs text-destructive mt-2">
             {fieldErrorsMap.author[0]}
           </p>
         )}
@@ -197,7 +201,7 @@ export default function AddBookForm() {
               <button
                 type="button"
                 onClick={clearCover}
-                className="absolute top-2 right-2 p-1 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+                className="absolute top-2 right-2 p-2 rounded-full bg-foreground/70 hover:bg-foreground/85 text-background transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -210,7 +214,7 @@ export default function AddBookForm() {
           <button
             type="button"
             onClick={triggerFileInput}
-            className="mx-auto flex aspect-[2/3] w-full max-w-[200px] flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-lowest text-on-surface-variant transition-colors hover:border-secondary hover:bg-surface-container hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="mx-auto flex aspect-[2/3] w-full max-w-[200px] flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-lowest text-on-surface-variant transition-colors hover:border-secondary hover:bg-surface-container hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-highest">
               <span className="material-symbols-outlined text-2xl">
@@ -221,7 +225,7 @@ export default function AddBookForm() {
               <p className="text-sm font-medium text-inherit">
                 Upload Image
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-2 text-xs text-muted-foreground">
                 JPEG, PNG up to 5MB
               </p>
             </div>
@@ -230,14 +234,14 @@ export default function AddBookForm() {
         {fieldErrorsMap.cover && (
           <p
             id="cover-error"
-            className="text-xs text-destructive mt-1 text-center"
+            className="text-xs text-destructive mt-2 text-center"
           >
             {fieldErrorsMap.cover[0]}
           </p>
         )}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 flex gap-3 border-t border-border bg-background/95 p-4 backdrop-blur md:relative md:mt-4 md:border-t-0 md:bg-transparent md:p-0">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex gap-4 border-t border-border bg-background/95 p-4 backdrop-blur md:relative md:mt-4 md:border-t-0 md:bg-transparent md:p-0">
         <Link
           href="/catalog"
           className="inline-flex h-[52px] flex-1 items-center justify-center rounded-lg border border-border bg-surface-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-container md:flex-initial"

@@ -165,7 +165,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                             )}
                           </button>
                         )}
-                        <span className="w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center font-headline-md text-headline-md text-primary">
+                        <span className="w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center font-heading text-base text-primary">
                           {slot}
                         </span>
                       </div>
@@ -183,7 +183,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                           />
                         </div>
                       ) : (
-                        <div className="w-12 h-18 bg-surface-variant rounded flex items-center justify-center text-outline">
+                        <div className="w-12 h-18 bg-surface-variant rounded flex items-center justify-center text-muted-foreground">
                           <span className="material-symbols-outlined text-2xl">
                             image_not_supported
                           </span>
@@ -192,10 +192,10 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col min-w-0 pr-4">
-                        <h4 className="font-headline-md text-[18px] leading-tight text-primary truncate">
+                        <h4 className="font-heading text-lg leading-tight text-primary truncate">
                           {primaryBook.title}
                         </h4>
-                        <p className="font-body-md text-body-md text-on-surface-variant truncate">
+                        <p className="text-sm text-on-surface-variant truncate">
                           {primaryBook.author || "Unknown author"}
                         </p>
                         <div className="mt-2 flex gap-2">
@@ -211,7 +211,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                       </div>
                     </TableCell>
                     <TableCell className="align-middle">
-                      <span className="font-label-md text-label-md text-on-surface">
+                      <span className="text-sm font-medium text-on-surface">
                         {primaryBook.language}
                       </span>
                     </TableCell>
@@ -234,7 +234,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                           )}
                         </div>
                         {hasMultiple && (
-                          <span className="font-label-sm text-label-sm text-secondary">
+                          <span className="text-xs text-secondary">
                             {books.length} editions
                           </span>
                         )}
@@ -284,7 +284,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                               />
                             </div>
                           ) : (
-                            <div className="w-10 h-15 bg-surface-variant rounded flex items-center justify-center text-outline opacity-80">
+                            <div className="w-10 h-15 bg-surface-variant rounded flex items-center justify-center text-muted-foreground opacity-80">
                               <span className="material-symbols-outlined text-xl">
                                 image_not_supported
                               </span>
@@ -293,10 +293,10 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col min-w-0 pr-4 opacity-80">
-                            <h4 className="font-body-md text-body-md text-on-surface truncate">
+                            <h4 className="text-sm text-on-surface truncate">
                               {book.title}
                             </h4>
-                            <p className="font-label-sm text-label-sm text-outline truncate">
+                            <p className="text-xs text-muted-foreground truncate">
                               {book.pairedBookId
                                 ? "Paired Edition"
                                 : "Standalone"}
@@ -304,12 +304,12 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                           </div>
                         </TableCell>
                         <TableCell className="align-middle">
-                          <span className="font-label-md text-label-md text-on-surface-variant">
+                          <span className="text-sm text-on-surface-variant">
                             {book.language}
                           </span>
                         </TableCell>
                         <TableCell className="align-middle">
-                          <span className="inline-flex items-center gap-2 font-label-sm text-label-sm text-outline">
+                          <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                             <LinkIcon className="h-3 w-3" />
                             {book.pairedBookId ? "Linked" : "Unlinked"}
                           </span>
@@ -395,13 +395,13 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                     {hasMultiple && (
                       <Badge
                         variant="outline"
-                        className="text-[11px] uppercase tracking-wider border-secondary-container"
+                        className="text-[11px] uppercase tracking-wider border-secondary/30"
                       >
                         {books.length} Editions
                       </Badge>
                     )}
                   </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+                  <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Reorder slot
                     </span>
@@ -436,7 +436,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                         {book.language}
                       </span>
                       {book.pairedBookId && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-secondary-fixed-dim" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-secondary/60" />
                       )}
                     </div>
                   ))}
