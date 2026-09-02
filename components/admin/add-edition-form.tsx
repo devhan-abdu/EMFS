@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useRef } from "react";
+import { useActionState, useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   addPairedEditionAction,
@@ -50,10 +50,13 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (state.ok) {
-    router.push("/catalog");
-    return null;
-  }
+  useEffect(() => {
+    if (state.ok) {
+      router.push("/catalog");
+    }
+  }, [router, state.ok]);
+
+  if (state.ok) return null;
 
   // Map errors array to fieldErrors object for display
   const fieldErrorsMap: Record<string, string[]> = {};
@@ -86,7 +89,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
   const triggerFileInput = () => fileInputRef.current?.click();
 
   return (
-    <form action={formAction} className="flex flex-col gap-6">
+    <form action={formAction} className="flex flex-col gap-6 pb-28 md:pb-0">
       {state.errors && state.errors.length > 0 && !state.ok && (
         <div className="rounded-lg bg-destructive/10 p-4 border border-destructive/20 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
@@ -105,13 +108,13 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
 
       <div className="flex flex-col gap-2">
         <Label
-          htmlFor="bookId"
+          htmlFor="pairedBookId"
           className="font-label-md text-label-md text-on-surface flex items-center gap-1"
         >
           Select Curriculum Slot <span className="text-error">*</span>
         </Label>
         <div className="relative group">
-          <Select name="bookId">
+          <Select name="pairedBookId">
             <SelectTrigger className="w-full h-[52px] bg-surface-container-lowest font-body-md text-body-md text-on-surface rounded-xl px-4 appearance-none outline-none focus:bg-surface-bright transition-colors shadow-sm cursor-pointer border border-outline-variant focus:border-secondary focus:ring-2 focus:ring-secondary/20">
               <SelectValue placeholder="Choose a book slot..." />
             </SelectTrigger>
@@ -129,9 +132,9 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
             </span>
           </div>
         </div>
-        {fieldErrorsMap.bookId && (
+        {fieldErrorsMap.pairedBookId && (
           <p className="text-xs text-destructive mt-1">
-            {fieldErrorsMap.bookId[0]}
+            {fieldErrorsMap.pairedBookId[0]}
           </p>
         )}
         {books.length === 0 && (
@@ -192,12 +195,12 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
                 <SelectValue placeholder="Select language..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="arabic">Arabic</SelectItem>
-                <SelectItem value="urdu">Urdu</SelectItem>
-                <SelectItem value="turkish">Turkish</SelectItem>
-                <SelectItem value="french">French</SelectItem>
-                <SelectItem value="spanish">Spanish</SelectItem>
-                <SelectItem value="bosnian">Bosnian</SelectItem>
+                <SelectItem value="ar">Arabic</SelectItem>
+                <SelectItem value="ur">Urdu</SelectItem>
+                <SelectItem value="tr">Turkish</SelectItem>
+                <SelectItem value="fr">French</SelectItem>
+                <SelectItem value="es">Spanish</SelectItem>
+                <SelectItem value="bs">Bosnian</SelectItem>
               </SelectContent>
             </Select>
             <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-primary">
@@ -212,42 +215,6 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
             </p>
           )}
         </div>
-
-        <div className="flex flex-col gap-2">
-          <Label
-            htmlFor="type"
-            className="font-label-md text-label-md text-on-surface flex items-center gap-1"
-          >
-            Book Type{" "}
-            <span className="text-outline-variant font-normal text-xs ml-1">
-              (Optional)
-            </span>
-          </Label>
-          <div className="relative">
-            <Select name="type">
-              <SelectTrigger className="w-full h-[52px] bg-surface-container-lowest font-body-md text-body-md text-on-surface rounded-xl px-4 appearance-none outline-none focus:bg-surface-bright transition-colors shadow-sm cursor-pointer border border-outline-variant focus:border-secondary focus:ring-2 focus:ring-secondary/20">
-                <SelectValue placeholder="Select type..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="textbook">Textbook</SelectItem>
-                <SelectItem value="workbook">Workbook</SelectItem>
-                <SelectItem value="reference">Reference</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-primary">
-              <span className="material-symbols-outlined text-[20px]">
-                category
-              </span>
-            </div>
-          </div>
-          {fieldErrorsMap.type && (
-            <p className="text-xs text-destructive mt-1">
-              {fieldErrorsMap.type[0]}
-            </p>
-          )}
-        </div>
-
         <div className="flex flex-col gap-2">
           <Label
             htmlFor="author"

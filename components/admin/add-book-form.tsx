@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useRef } from "react";
+import { useActionState, useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   createBookAction,
@@ -41,10 +41,13 @@ export default function AddBookForm() {
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (state.ok) {
-    router.push("/catalog");
-    return null;
-  }
+  useEffect(() => {
+    if (state.ok) {
+      router.push("/catalog");
+    }
+  }, [router, state.ok]);
+
+  if (state.ok) return null;
 
   // Map errors array to fieldErrors object for display
   const fieldErrorsMap: Record<string, string[]> = {};
@@ -77,7 +80,7 @@ export default function AddBookForm() {
   const triggerFileInput = () => fileInputRef.current?.click();
 
   return (
-    <form action={formAction} className="flex flex-col gap-6">
+    <form action={formAction} className="flex flex-col gap-6 pb-28 md:pb-0">
       {state.errors && state.errors.length > 0 && !state.ok && (
         <div className="rounded-lg bg-destructive/10 p-4 border border-destructive/20 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
@@ -97,20 +100,20 @@ export default function AddBookForm() {
       <div className="flex flex-col gap-2">
         <Label
           htmlFor="title"
-          className="font-label-md text-label-md text-on-surface"
+          className="text-sm font-semibold text-foreground"
         >
-          Title <span className="text-error">*</span>
+          Title <span className="text-destructive">*</span>
         </Label>
         <Input
           id="title"
           name="title"
           placeholder="Enter book title"
-          className="h-[52px] bg-surface-container-lowest border-outline-variant rounded-xl px-4 font-body-lg text-body-lg text-on-surface placeholder:text-outline focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+          className="h-13 rounded-xl border-border bg-surface-2 px-4 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
           aria-invalid={!!fieldErrorsMap.title}
           aria-describedby={fieldErrorsMap.title ? "title-error" : undefined}
         />
         {fieldErrorsMap.title && (
-          <p id="title-error" className="text-xs text-destructive mt-1">
+          <p id="title-error" className="mt-1 text-xs text-destructive">
             {fieldErrorsMap.title[0]}
           </p>
         )}
@@ -119,52 +122,25 @@ export default function AddBookForm() {
       <div className="flex flex-col gap-2">
         <Label
           htmlFor="language"
-          className="font-label-md text-label-md text-on-surface"
+          className="text-sm font-semibold text-foreground"
         >
-          Language <span className="text-error">*</span>
+          Language <span className="text-destructive">*</span>
         </Label>
         <Select name="language">
-          <SelectTrigger className="h-[52px] bg-surface-container-lowest border-outline-variant rounded-xl px-4 font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all">
+          <SelectTrigger className="h-13 rounded-xl border-border bg-surface-2 px-4 text-base text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20">
             <SelectValue placeholder="Select language" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="english">English</SelectItem>
-            <SelectItem value="arabic">Arabic</SelectItem>
-            <SelectItem value="amharic">Amharic</SelectItem>
-            <SelectItem value="somali">Somali</SelectItem>
-            <SelectItem value="swahili">Swahili</SelectItem>
+            <SelectItem value="en">English</SelectItem>
+            <SelectItem value="ar">Arabic</SelectItem>
+            <SelectItem value="am">Amharic</SelectItem>
+            <SelectItem value="so">Somali</SelectItem>
+            <SelectItem value="sw">Swahili</SelectItem>
           </SelectContent>
         </Select>
         {fieldErrorsMap.language && (
           <p className="text-xs text-destructive mt-1">
             {fieldErrorsMap.language[0]}
-          </p>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label
-          htmlFor="type"
-          className="font-label-md text-label-md text-on-surface"
-        >
-          Book Type <span className="text-error">*</span>
-        </Label>
-        <Select name="type">
-          <SelectTrigger className="h-[52px] bg-surface-container-lowest border-outline-variant rounded-xl px-4 font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all">
-            <SelectValue placeholder="Select book type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="foundational">Foundational</SelectItem>
-            <SelectItem value="jurisprudence">Jurisprudence</SelectItem>
-            <SelectItem value="theology">Theology</SelectItem>
-            <SelectItem value="history">History</SelectItem>
-            <SelectItem value="spirituality">Spirituality</SelectItem>
-            <SelectItem value="hadith">Hadith</SelectItem>
-          </SelectContent>
-        </Select>
-        {fieldErrorsMap.type && (
-          <p className="text-xs text-destructive mt-1">
-            {fieldErrorsMap.type[0]}
           </p>
         )}
       </div>

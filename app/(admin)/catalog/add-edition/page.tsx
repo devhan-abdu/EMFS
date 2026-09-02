@@ -4,10 +4,13 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default async function AddEditionPage() {
-  const result = await getCatalogAction({ page: 1, limit: 1000 });
+  const result = await getCatalogAction({ page: 1, limit: 100 });
   const books = result.ok ? result.data?.books || [] : [];
 
-  const bookOptions = books.map((book) => ({
+  const slotBooks = Array.from(
+    new Map(books.map((book) => [book.sequenceOrder, book])).values(),
+  );
+  const bookOptions = slotBooks.map((book) => ({
     id: book.id,
     label: `Slot ${book.sequenceOrder || "?"}: ${book.title}${book.author ? ` (${book.author})` : ""}`,
   }));
