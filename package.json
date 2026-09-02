@@ -13,7 +13,8 @@
     "db:down": "docker compose down",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:volume:rm": "docker volume rm myapp_pgdata",
+    "db:seed": "npm run db:up && npm run db:migrate && tsx scripts/seed.ts",
+    "db:volume:rm": "docker volume rm emfs_pgdata",
     "db:wait": "until docker compose exec db pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done",
     "db:reset": "npm run db:down && npm run db:volume:rm && npm run db:up && npm run db:wait && npm run db:migrate",
     "db:nuke": "rm -rf drizzle && npm run db:generate && npm run db:reset"
