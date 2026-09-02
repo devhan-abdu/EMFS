@@ -89,9 +89,9 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
   const triggerFileInput = () => fileInputRef.current?.click();
 
   return (
-    <form action={formAction} className="flex flex-col gap-6 pb-28 md:pb-0">
+    <form action={formAction} className="flex flex-col gap-8 pb-28 md:pb-0">
       {state.errors && state.errors.length > 0 && !state.ok && (
-        <div className="rounded-lg bg-destructive/10 p-4 border border-destructive/20 flex items-start gap-3">
+        <div className="flex items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-4">
           <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
           <div>
             <h4 className="font-semibold text-destructive text-sm">
@@ -109,13 +109,13 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
       <div className="flex flex-col gap-2">
         <Label
           htmlFor="pairedBookId"
-          className="font-label-md text-label-md text-on-surface flex items-center gap-1"
+          className="text-sm font-semibold text-foreground"
         >
-          Select Curriculum Slot <span className="text-error">*</span>
+          Select Curriculum Slot <span className="text-destructive">*</span>
         </Label>
         <div className="relative group">
           <Select name="pairedBookId">
-            <SelectTrigger className="w-full h-[52px] bg-surface-container-lowest font-body-md text-body-md text-on-surface rounded-xl px-4 appearance-none outline-none focus:bg-surface-bright transition-colors shadow-sm cursor-pointer border border-outline-variant focus:border-secondary focus:ring-2 focus:ring-secondary/20">
+            <SelectTrigger className="h-[52px] w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-4 text-sm text-foreground shadow-sm transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
               <SelectValue placeholder="Choose a book slot..." />
             </SelectTrigger>
             <SelectContent>
@@ -146,32 +146,32 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
           <span className="material-symbols-outlined text-primary text-[20px] mt-0.5">
             info
           </span>
-          <p className="font-label-sm text-label-sm text-primary">
+          <p className="text-sm text-primary">
             This edition will be paired with the selected slot and share its
             reading position for all enrolled students.
           </p>
         </div>
       </div>
 
-      <div className="h-px bg-surface-variant w-full my-2" />
+      <div className="my-2 h-px w-full bg-border" />
 
       <div className="flex flex-col gap-6">
-        <h3 className="font-headline-md text-headline-md text-primary">
+        <h3 className="text-lg font-semibold text-foreground">
           Edition Details
         </h3>
 
         <div className="flex flex-col gap-2">
           <Label
             htmlFor="title"
-            className="font-label-md text-label-md text-on-surface flex items-center gap-1"
+            className="text-sm font-semibold text-foreground"
           >
-            Title <span className="text-error">*</span>
+            Title <span className="text-destructive">*</span>
           </Label>
           <Input
             id="title"
             name="title"
             placeholder="e.g. Kitab al-'Ilm (Arabic Edition)"
-            className="w-full h-[52px] bg-surface-container-lowest font-body-md text-body-md text-on-surface rounded-xl px-4 outline-none focus:bg-surface-bright transition-colors shadow-sm border border-outline-variant focus:border-secondary focus:ring-2 focus:ring-secondary/20 placeholder:text-outline"
+            className="h-[52px] w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-4 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             aria-invalid={!!fieldErrorsMap.title}
             aria-describedby={fieldErrorsMap.title ? "title-error" : undefined}
           />
@@ -185,13 +185,13 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
         <div className="flex flex-col gap-2">
           <Label
             htmlFor="language"
-            className="font-label-md text-label-md text-on-surface flex items-center gap-1"
+            className="text-sm font-semibold text-foreground"
           >
-            Language <span className="text-error">*</span>
+            Language <span className="text-destructive">*</span>
           </Label>
           <div className="relative">
             <Select name="language">
-              <SelectTrigger className="w-full h-[52px] bg-surface-container-lowest font-body-md text-body-md text-on-surface rounded-xl px-4 appearance-none outline-none focus:bg-surface-bright transition-colors shadow-sm cursor-pointer border border-outline-variant focus:border-secondary focus:ring-2 focus:ring-secondary/20">
+              <SelectTrigger className="h-[52px] w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-4 text-sm text-foreground shadow-sm transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
                 <SelectValue placeholder="Select language..." />
               </SelectTrigger>
               <SelectContent>
@@ -218,10 +218,10 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
         <div className="flex flex-col gap-2">
           <Label
             htmlFor="author"
-            className="font-label-md text-label-md text-on-surface"
+            className="text-sm font-semibold text-foreground"
           >
             Author / Translator{" "}
-            <span className="text-outline-variant font-normal text-xs ml-1">
+            <span className="ml-1 text-xs font-normal text-muted-foreground">
               (Optional)
             </span>
           </Label>
@@ -229,7 +229,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
             id="author"
             name="author"
             placeholder="Leave blank to inherit from slot"
-            className="w-full h-[52px] bg-surface-container-lowest font-body-md text-body-md text-on-surface rounded-xl px-4 outline-none focus:bg-surface-bright transition-colors shadow-sm border border-outline-variant focus:border-secondary focus:ring-2 focus:ring-secondary/20 placeholder:text-outline"
+            className="h-[52px] w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-4 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             aria-invalid={!!fieldErrorsMap.author}
             aria-describedby={
               fieldErrorsMap.author ? "author-error" : undefined
@@ -243,7 +243,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
         </div>
 
         <div className="flex flex-col gap-2 mt-2">
-          <span className="font-label-md text-label-md text-on-surface">
+          <span className="text-sm font-semibold text-foreground">
             Cover Image
           </span>
           <input
@@ -259,7 +259,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
           />
           {coverPreview ? (
             <div className="relative w-full max-w-[200px] mx-auto">
-              <div className="relative aspect-[2/3] rounded-xl overflow-hidden border border-outline-variant/30 bg-surface-container">
+              <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-outline-variant/50 bg-surface-container">
                 <Image
                   src={coverPreview}
                   alt="Cover preview"
@@ -282,7 +282,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
             <button
               type="button"
               onClick={triggerFileInput}
-              className="flex flex-col items-center justify-center w-full h-40 bg-surface-container-lowest rounded-xl border-2 border-dashed border-outline-variant hover:bg-surface-container-low hover:border-secondary transition-colors cursor-pointer group relative overflow-hidden"
+              className="group relative flex h-40 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-lowest transition-colors hover:border-secondary hover:bg-surface-container"
             >
               <div className="flex flex-col items-center justify-center pt-5 pb-6 px-4 text-center z-10">
                 <div className="w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center mb-3 group-hover:bg-secondary/20 transition-colors">
@@ -290,10 +290,10 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
                     add_photo_alternate
                   </span>
                 </div>
-                <p className="font-label-md text-label-md text-on-surface mb-1 group-hover:text-secondary transition-colors">
+                <p className="mb-1 text-sm font-medium text-foreground transition-colors group-hover:text-secondary">
                   Tap to upload cover image
                 </p>
-                <p className="font-label-sm text-label-sm text-outline">
+                <p className="text-xs text-muted-foreground">
                   JPG, PNG or WEBP (Ratio 2:3)
                 </p>
               </div>
@@ -310,18 +310,18 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 w-full bg-surface-container-lowest border-t border-surface-variant pb-safe z-40 md:relative md:bg-transparent md:border-t-0 md:pb-0 md:mt-4">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:relative md:mt-4 md:border-t-0 md:bg-transparent">
         <div className="flex gap-4 p-4 md:p-0">
           <Link
             href="/catalog"
-            className="flex-1 h-[52px] bg-surface-container rounded-xl font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-highest transition-colors shadow-sm inline-flex items-center justify-center"
+            className="inline-flex h-[52px] flex-1 items-center justify-center rounded-xl border border-border bg-surface-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-container"
           >
             Cancel
           </Link>
           <Button
             type="submit"
             disabled={isPending || books.length === 0}
-            className="flex-1 h-[52px] bg-primary rounded-xl font-label-md text-label-md text-on-primary hover:bg-primary/90 transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+            className="flex h-[52px] flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-md transition-colors hover:bg-primary/90 hover:shadow-lg"
           >
             {isPending ? (
               <>

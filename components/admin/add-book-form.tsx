@@ -80,9 +80,9 @@ export default function AddBookForm() {
   const triggerFileInput = () => fileInputRef.current?.click();
 
   return (
-    <form action={formAction} className="flex flex-col gap-6 pb-28 md:pb-0">
+    <form action={formAction} className="flex flex-col gap-8 pb-28 md:pb-0">
       {state.errors && state.errors.length > 0 && !state.ok && (
-        <div className="rounded-lg bg-destructive/10 p-4 border border-destructive/20 flex items-start gap-3">
+        <div className="flex items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-4">
           <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
           <div>
             <h4 className="font-semibold text-destructive text-sm">
@@ -108,7 +108,7 @@ export default function AddBookForm() {
           id="title"
           name="title"
           placeholder="Enter book title"
-          className="h-13 rounded-xl border-border bg-surface-2 px-4 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+          className="h-12 rounded-xl border-border bg-surface-2 px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           aria-invalid={!!fieldErrorsMap.title}
           aria-describedby={fieldErrorsMap.title ? "title-error" : undefined}
         />
@@ -127,7 +127,7 @@ export default function AddBookForm() {
           Language <span className="text-destructive">*</span>
         </Label>
         <Select name="language">
-          <SelectTrigger className="h-13 rounded-xl border-border bg-surface-2 px-4 text-base text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20">
+          <SelectTrigger className="h-12 w-full rounded-xl border-border bg-surface-2 px-4 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
             <SelectValue placeholder="Select language" />
           </SelectTrigger>
           <SelectContent>
@@ -148,10 +148,10 @@ export default function AddBookForm() {
       <div className="flex flex-col gap-2">
         <Label
           htmlFor="author"
-          className="font-label-md text-label-md text-on-surface"
+          className="text-sm font-semibold text-foreground"
         >
           Author{" "}
-          <span className="text-outline text-label-sm font-normal">
+          <span className="text-xs font-normal text-muted-foreground">
             (Optional)
           </span>
         </Label>
@@ -159,7 +159,7 @@ export default function AddBookForm() {
           id="author"
           name="author"
           placeholder="Enter author name"
-          className="h-[52px] bg-surface-container-lowest border-outline-variant rounded-xl px-4 font-body-lg text-body-lg text-on-surface placeholder:text-outline focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+          className="h-12 rounded-xl border-outline-variant bg-surface-container-lowest px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           aria-invalid={!!fieldErrorsMap.author}
           aria-describedby={fieldErrorsMap.author ? "author-error" : undefined}
         />
@@ -171,7 +171,7 @@ export default function AddBookForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label className="font-label-md text-label-md text-on-surface">
+        <Label className="text-sm font-semibold text-foreground">
           Cover Image
         </Label>
         <input
@@ -187,7 +187,7 @@ export default function AddBookForm() {
         />
         {coverPreview ? (
           <div className="relative w-full max-w-[200px] mx-auto">
-            <div className="relative aspect-[2/3] rounded-xl overflow-hidden border border-outline-variant/30 bg-surface-container">
+            <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-outline-variant/50 bg-surface-container">
               <Image
                 src={coverPreview}
                 alt="Cover preview"
@@ -210,18 +210,18 @@ export default function AddBookForm() {
           <button
             type="button"
             onClick={triggerFileInput}
-            className="w-full aspect-[2/3] max-w-[200px] mx-auto bg-surface-container border-2 border-dashed border-outline-variant rounded-xl flex flex-col items-center justify-center gap-3 text-on-surface-variant hover:border-primary hover:text-primary hover:bg-primary/5 transition-all focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="mx-auto flex aspect-[2/3] w-full max-w-[200px] flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-lowest text-on-surface-variant transition-colors hover:border-secondary hover:bg-surface-container hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            <div className="w-12 h-12 rounded-full bg-surface-container-highest flex items-center justify-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-highest">
               <span className="material-symbols-outlined text-2xl">
                 add_photo_alternate
               </span>
             </div>
             <div className="text-center">
-              <p className="font-label-md text-label-md text-inherit">
+              <p className="text-sm font-medium text-inherit">
                 Upload Image
               </p>
-              <p className="font-label-sm text-label-sm text-outline mt-1">
+              <p className="mt-1 text-xs text-muted-foreground">
                 JPEG, PNG up to 5MB
               </p>
             </div>
@@ -237,17 +237,17 @@ export default function AddBookForm() {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 w-full p-4 bg-surface/90 backdrop-blur-md border-t border-outline-variant pb-safe z-40 flex gap-3 md:relative md:bg-transparent md:border-t-0 md:p-0 md:mt-4">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex gap-3 border-t border-border bg-background/95 p-4 backdrop-blur md:relative md:mt-4 md:border-t-0 md:bg-transparent md:p-0">
         <Link
           href="/catalog"
-          className="flex-1 h-[52px] bg-surface-container text-on-surface font-label-md text-label-md rounded-lg hover:bg-surface-container-high transition-colors md:flex-initial inline-flex items-center justify-center"
+          className="inline-flex h-[52px] flex-1 items-center justify-center rounded-lg border border-border bg-surface-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-container md:flex-initial"
         >
           Cancel
         </Link>
         <Button
           type="submit"
           disabled={isPending}
-          className="flex-[2] h-[52px] bg-primary text-on-primary font-label-md text-label-md rounded-lg hover:bg-primary/90 transition-colors relative overflow-hidden md:flex-1"
+          className="relative h-[52px] flex-[2] overflow-hidden rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 md:flex-1"
         >
           {isPending ? (
             <>

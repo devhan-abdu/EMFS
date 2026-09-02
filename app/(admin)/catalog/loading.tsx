@@ -14,7 +14,7 @@ export default function CatalogSkeleton() {
       <Table>
         <TableHeader className="bg-surface-1">
           <TableRow>
-            <TableHead className="w-[80px] text-center">Slot</TableHead>
+            <TableHead className="w-[80px] text-center text-muted-foreground">Slot</TableHead>
             <TableHead className="w-[60px]">Cover</TableHead>
             <TableHead>Book Details</TableHead>
             <TableHead className="w-[120px]">Type</TableHead>
@@ -30,7 +30,7 @@ export default function CatalogSkeleton() {
                 <Skeleton className="h-6 w-8 mx-auto" />
               </TableCell>
               <TableCell>
-                <Skeleton className="h-18 w-12" />
+                <Skeleton className="h-[72px] w-12" />
               </TableCell>
               <TableCell>
                 <Skeleton className="h-4 w-32 mb-1" />
