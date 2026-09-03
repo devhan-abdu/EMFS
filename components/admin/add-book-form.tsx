@@ -241,32 +241,35 @@ export default function AddBookForm() {
         )}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 flex gap-4 border-t border-border bg-background/95 p-4 backdrop-blur md:relative md:mt-4 md:border-t-0 md:bg-transparent md:p-0">
-        <Link
-          href="/catalog"
-          className="inline-flex h-[52px] flex-1 items-center justify-center rounded-lg border border-border bg-surface-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-container md:flex-initial"
-        >
-          Cancel
-        </Link>
-        <Button
-          type="submit"
-          disabled={isPending}
-          className="relative h-[52px] flex-[2] overflow-hidden rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 md:flex-1"
-        >
-          {isPending ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span className="ml-2">Creating...</span>
-            </>
-          ) : (
-            <>
-              <span className="material-symbols-outlined text-[20px] mr-2">
-                add
-              </span>
-              Create Book
-            </>
-          )}
-        </Button>
+      {/* Bottom action buttons */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 p-4 backdrop-blur md:relative md:mt-6 md:border-t-0 md:bg-transparent md:p-0">
+        <div className="flex gap-4">
+          <Link
+            href="/catalog"
+            className="flex-1 inline-flex h-[52px] items-center justify-center rounded-xl border border-border bg-surface-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-surface-container"
+          >
+            Cancel
+          </Link>
+          <Button
+            type="submit"
+            disabled={isPending}
+            className="flex-1 inline-flex h-[52px] items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-md transition-colors hover:bg-primary/90"
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Creating...</span>
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-xl">
+                  add_circle
+                </span>
+                Create Book
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </form>
   );

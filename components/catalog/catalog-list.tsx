@@ -97,7 +97,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
         </p>
         <Link href="/catalog/new">
           <Button className="h-11 px-6">
-            <span className="material-symbols-outlined text-[20px] mr-2">
+            <span className="material-symbols-outlined text-xl mr-2">
               add
             </span>
             Create Item
@@ -129,7 +129,6 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
               <TableHead className="w-[120px]">Language</TableHead>
               <TableHead className="w-[160px]">Editions</TableHead>
               <TableHead className="w-[100px] text-center">Reorder</TableHead>
-              <TableHead className="w-[60px] text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -192,7 +191,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col min-w-0 pr-4">
-                        <h4 className="font-heading text-lg leading-tight text-primary truncate">
+                        <h4 className="text-lg leading-tight text-primary truncate">
                           {primaryBook.title}
                         </h4>
                         <p className="text-sm text-on-surface-variant truncate">
@@ -201,7 +200,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                         <div className="mt-2 flex gap-2">
                           <Badge
                             variant="secondary"
-                            className="text-[10px] uppercase tracking-wider"
+                            className="text-xs uppercase tracking-wider"
                           >
                             {primaryBook.pairedBookId
                               ? "Paired Edition"
@@ -221,14 +220,14 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                           {books.slice(0, 3).map((book: CatalogBookItem) => (
                             <div
                               key={book.id}
-                              className="w-6 h-6 rounded-full bg-surface-variant border-2 border-surface-container-lowest flex items-center justify-center text-[10px] font-bold text-on-surface-variant"
+                              className="w-6 h-6 rounded-full bg-surface-variant border-2 border-surface-container-lowest flex items-center justify-center text-xs font-bold text-on-surface-variant"
                               title={book.language}
                             >
                               {book.language.slice(0, 2).toUpperCase()}
                             </div>
                           ))}
                           {books.length > 3 && (
-                            <span className="text-[10px] text-secondary ml-2">
+                            <span className="text-xs text-secondary ml-2">
                               +{books.length - 3}
                             </span>
                           )}
@@ -256,10 +255,6 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                         isPending={isPending}
                       />
                     </TableCell>
-                    <TableCell
-                      className="text-center align-middle"
-                      aria-label="No supported actions"
-                    />
                   </TableRow>
 
                   {hasMultiple &&
@@ -314,13 +309,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                             {book.pairedBookId ? "Linked" : "Unlinked"}
                           </span>
                         </TableCell>
-
                         <TableCell className="align-middle" />
-                        <TableCell className="align-middle" />
-                        <TableCell
-                          className="text-center align-middle"
-                          aria-label="No supported actions"
-                        />
                       </TableRow>
                     ))}
                 </Fragment>
@@ -378,7 +367,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                       <span className="mt-2 truncate text-sm text-muted-foreground">
                         Slot: {slot}
                       </span>
-                      <span className="mt-1 truncate text-sm text-muted-foreground">
+                      <span className="mt-2 truncate text-sm text-muted-foreground">
                         {primaryBook.author || "Unknown author"} ·{" "}
                         {primaryBook.language}
                       </span>
@@ -388,14 +377,14 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
                   <div className="mt-auto flex flex-wrap gap-2 pt-4">
                     <Badge
                       variant="secondary"
-                      className="text-[11px] uppercase tracking-wider"
+                      className="text-xs uppercase tracking-wider"
                     >
                       Program Book
                     </Badge>
                     {hasMultiple && (
                       <Badge
                         variant="outline"
-                        className="text-[11px] uppercase tracking-wider border-secondary/30"
+                        className="text-xs uppercase tracking-wider border-secondary/30"
                       >
                         {books.length} Editions
                       </Badge>
@@ -421,7 +410,7 @@ export default function CatalogList({ initialData, page }: CatalogListProps) {
               </div>
               <div className="flex flex-col gap-2 border-t border-border bg-surface-1/50 p-4">
                 <span className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                  <span className="material-symbols-outlined text-[14px]">
+                  <span className="material-symbols-outlined text-sm">
                     translate
                   </span>
                   Language Editions ({books.length})

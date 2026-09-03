@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertCircle, Loader2, X } from "lucide-react";
+import { AlertCircle, Loader2, PlusCircle, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -127,7 +127,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
             </SelectContent>
           </Select>
           <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-primary">
-            <span className="material-symbols-outlined text-[20px]">
+            <span className="material-symbols-outlined text-xl">
               expand_more
             </span>
           </div>
@@ -143,7 +143,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
           </p>
         )}
         <div className="bg-primary/5 rounded-lg p-4 flex gap-4 mt-2 items-start">
-          <span className="material-symbols-outlined text-primary text-[20px] mt-0.5">
+          <span className="material-symbols-outlined text-primary text-xl mt-0.5">
             info
           </span>
           <p className="text-sm text-primary">
@@ -204,7 +204,7 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
               </SelectContent>
             </Select>
             <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-primary">
-              <span className="material-symbols-outlined text-[20px]">
+              <span className="material-symbols-outlined text-xl">
                 language
               </span>
             </div>
@@ -284,13 +284,13 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
               onClick={triggerFileInput}
               className="group relative flex h-40 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-lowest transition-colors hover:border-secondary hover:bg-surface-container"
             >
-              <div className="flex flex-col items-center justify-center pt-5 pb-6 px-4 text-center z-10">
-                <div className="w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center mb-3 group-hover:bg-secondary/20 transition-colors">
+              <div className="flex flex-col items-center justify-center pt-6 pb-6 px-4 text-center z-10">
+                <div className="w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-secondary/20 transition-colors">
                   <span className="material-symbols-outlined text-secondary">
                     add_photo_alternate
                   </span>
                 </div>
-                <p className="mb-1 text-sm font-medium text-foreground transition-colors group-hover:text-secondary">
+                <p className="mb-2 text-sm font-medium text-foreground transition-colors group-hover:text-secondary">
                   Tap to upload cover image
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -310,27 +310,27 @@ export default function AddEditionForm({ books }: AddEditionFormProps) {
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:relative md:mt-4 md:border-t-0 md:bg-transparent">
-        <div className="flex gap-4 p-4 md:p-0">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 p-4 backdrop-blur md:relative md:mt-6 md:border-t-0 md:bg-transparent md:p-0">
+        <div className="flex gap-4">
           <Link
             href="/catalog"
-            className="inline-flex h-[52px] flex-1 items-center justify-center rounded-xl border border-border bg-surface-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-container"
+            className="flex-1 inline-flex h-[52px] items-center justify-center rounded-xl border border-border bg-surface-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-surface-container"
           >
             Cancel
           </Link>
           <Button
             type="submit"
             disabled={isPending || books.length === 0}
-            className="flex h-[52px] flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-md transition-colors hover:bg-primary/90 hover:shadow-lg"
+            className="flex-1 inline-flex h-[52px] items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-md transition-colors hover:bg-primary/90"
           >
             {isPending ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin" />
-                Creating...
+                <span>Creating...</span>
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined text-[20px]">
+                <span className="material-symbols-outlined text-xl">
                   add_circle
                 </span>
                 Add Edition
