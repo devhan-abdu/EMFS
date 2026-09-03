@@ -1,85 +1,68 @@
 import { redirect } from "next/navigation";
-import { requireRole, AuthzError } from "@/lib/auth/authorize";
-import { BookOpen, ChevronLeft, Gauge, Group, Settings } from "lucide-react";
+import { Analytics } from "@vercel/analytics/next";
+import { requireRole } from "@/lib/auth/authorize";
+import Image from "next/image";
 import Link from "next/link";
+import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/theme/theme-provider";
+import { ModeToggle } from "@/components/ui/mode-toggle";
 
 export default async function AdminLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   try {
-    await requireRole(["pace_admin"]);
-  } catch (error) {
-    if (error instanceof AuthzError && error.code === "FORBIDDEN") {
-      redirect("/today");
-    }
+    await requireRole(["pace_admin", "batch_admin", "super_admin"]);
+  } catch {
     redirect("/login");
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="flex h-16 items-center justify-between border-b border-border bg-surface-2 px-4 md:px-8">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/today"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-1 hover:text-foreground"
-            aria-label="Back to dashboard"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Link>
-          <span className="font-heading text-lg font-bold text-primary">
-            Admin Dashboard
-          </span>
-        </div>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground">
-          EM
-        </div>
-      </header>
-
-      <div className="mx-auto flex max-w-[1440px]">
-        <aside className="hidden w-60 shrink-0 border-r border-border bg-surface-2 p-6 lg:block">
-          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Navigation
-          </p>
-          <nav className="space-y-2" aria-label="Admin navigation">
-            <Link
-              href="/today"
-              className="flex items-center gap-4 rounded-lg px-4 py-4 text-sm text-muted-foreground transition-colors hover:bg-surface-1 hover:text-foreground"
-            >
-              <Gauge className="h-4 w-4" /> Dashboard
-            </Link>
-            <Link
-              href="/catalog"
-              className="flex items-center gap-4 rounded-lg bg-primary px-4 py-4 text-sm font-medium text-primary-foreground"
-            >
-              <BookOpen className="h-4 w-4" /> Catalog Management
-            </Link>
-            <Link
-              href="/groups"
-              className="flex items-center gap-4 rounded-lg px-4 py-4 text-sm text-muted-foreground transition-colors hover:bg-surface-1 hover:text-foreground"
-            >
-              <Group className="h-4 w-4" /> Users
-            </Link>
-            <Link
-              href="/profile"
-              className="flex items-center gap-4 rounded-lg px-4 py-4 text-sm text-muted-foreground transition-colors hover:bg-surface-1 hover:text-foreground"
-            >
-              <Settings className="h-4 w-4" /> Settings
-            </Link>
-          </nav>
-          <div className="mt-10 border-t border-border pt-6">
-            <p className="text-xs font-semibold text-foreground">
-              System Status
-            </p>
-            <p className="mt-2 text-xs text-secondary">
-              All services operational
-            </p>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="light"
+      enableSystem={false}
+      disableTransitionOnChange
+    >
+      <div className="min-h-screen bg-background text-foreground">
+        <header className="sticky top-0 z-30 border-b border-border bg-surface-2/90 backdrop-blur">
+          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 md:px-8">
+            <div className="flex items-center gap-4">
+              <Link
+                href="/catalog"
+                aria-label="Back to Catalog"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-container hover:text-foreground"
+              >
+                <span className="material-symbols-outlined text-2xl">
+                  chevron_left
+                </span>
+              </Link>
+              <h1 className="text-xl font-semibold text-foreground">
+                Admin Dashboard
+              </h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <ModeToggle />
+              <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-surface-2">
+                <Image
+                  src="/emfsc-logo.jpg"
+                  alt="EMFSC logo"
+                  width={40}
+                  height={40}
+                  className="h-full w-full object-contain p-0.5"
+                  priority
+                />
+              </span>
+            </div>
           </div>
-        </aside>
-
-        <main className="min-w-0 flex-1 p-4 md:p-8">{children}</main>
+        </header>
+        <main className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-10">
+          {children}
+        </main>
+        <Toaster richColors position="top-right" />
       </div>
-    </div>
+      {process.env.NODE_ENV === "production" && <Analytics />}
+    </ThemeProvider>
   );
 }

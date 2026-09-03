@@ -18,7 +18,7 @@ export default function NewBookPage() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Administration
           </p>
           <h1 className="text-3xl font-bold tracking-tight text-primary">
