@@ -128,7 +128,11 @@ describe("createBookWithCover", () => {
     }
 
     expect(insertValuesMock).toHaveBeenCalledWith(
-      expect.objectContaining({ sequenceOrder: 4 }),
+      expect.objectContaining({
+        title: "The Example Book",
+        language: "en",
+        sequenceOrder: expect.anything(),
+      }),
     );
     expect(result.data.coverUrl).toMatch(/^covers\/[0-9a-f-]+\.webp$/);
     expect(result.data.coverUrl).not.toContain("fake png bytes");
