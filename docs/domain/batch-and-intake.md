@@ -28,8 +28,8 @@ Read with:
 batch (max_members, registration_open, auto_approve, start_date, pacing)
   ├── batch_admin (1–3) — assigned by super_admin before intake
   ├── waiting_list
-  ├── pace groups (count set at batch create; created by batch admin)
-  │     └── members, pace admins, page cursor, group posts
+  ├── optional pace groups (created later by batch admin when needed)
+  │     └── placed members, pace admins, page cursor, group posts
   └── Telegram bot handoff (code → link → activate)
 ```
 
@@ -40,25 +40,46 @@ batch (max_members, registration_open, auto_approve, start_date, pacing)
 | **Book catalog** — create/reorder books, metadata, curriculum tasks                                                                                                            | `super_admin` only                  |
 | Assign **batch admins** (1–3) to a batch                                                                                                                                       | `super_admin` only                  |
 | Create batch (max members, # pace groups, `auto_approve`, start date, pacing; catalog always from sequence 1)                                                                  | `super_admin`                       |
-| Create pace groups (≥1); configure batch pacing + assign pace admins; open/close registration; optional manual review when `auto_approve = false`; bot-mediated intake handoff | `batch_admin` (1–3) / `super_admin` |
+| Create/edit/archive pace groups when needed; configure batch pacing; assign pace admins; open/close registration; optional manual review when `auto_approve = false`; bot-mediated intake handoff | `batch_admin` (1–3) / `super_admin` |
 | Daily ops inside pace group (approve/edit today’s page draft)                                                                                                                  | `pace_admin`                        |
 
 ## Pre-intake setup (super admin → batch admin)
 
-Registration must **not** open until the steps below are done. Order matters.
+Registration may open after the batch and its batch-admin ownership are ready.
+Pace groups and pace admins are intentionally optional at intake opening; they
+can be added after members have joined the batch.
 
 ```text
 1. super_admin — build book catalog (sequence 1, 2, 3, … + metadata + curriculum tasks)
 2. super_admin — assign 1–3 batch_admin users to the batch
 3. super_admin — create batch (capacity, pace_group_count, start_date, pacing)
                  (batch reads from catalog sequence 1; no per-batch book copies)
-4. batch_admin — create pace groups; assign pace admins (+ duty/book split)
-5. batch_admin — confirm batch pacing / offsets if needed
-6. batch_admin — open registration  ← intake begins here
-7. members apply → approved (auto or manual) → bot handoff code → Telegram bot link → active
+4. batch_admin — confirm batch pacing / offsets if needed
+5. batch_admin — open registration  ← intake may begin here
+6. members apply → approved (auto or manual) → bot handoff code → Telegram bot link → active batch member
+7. batch_admin — optionally create pace groups, appoint pace admins, and place active members
 ```
 
-Until step 6, applicants must see registration **closed** for that batch.
+Until step 5, applicants must see registration **closed** for that batch.
+
+### Pace-group placement is optional at intake
+
+An activated person may be an **active batch member awaiting pace-group
+placement**. This is not a second batch-membership lifecycle state: the batch
+membership is `active`, while no active pace-group membership exists yet.
+
+- A batch with selectable pace groups shows a **pace preference** during
+  application. Preference is not automatic placement; a batch admin makes the
+  final placement.
+- A batch with no pace groups does not ask for or require a pace preference.
+- Until placed, the member cannot see a pace-group schedule/feed, mark daily
+  reading Done, or submit pace-group attendance/reflection posts. The member
+  sees a clear “pace-group placement pending” state instead.
+- When groups are created later, a batch admin or super admin may place members
+  one at a time or use a confirmed bulk-placement action. Every placement is
+  audited.
+- A batch with one pace group may use confirmed bulk placement; it is never an
+  invisible automatic assignment.
 
 ## Registration — per batch
 
@@ -90,7 +111,8 @@ If registration is closed or the batch is full, both modes route to the **waitin
 2. Email
 3. Telegram username
 4. Phone number
-5. Pace group assignment (preference / placement)
+5. Pace preference **only when the batch has selectable pace groups**; otherwise
+   placement is pending after activation
 
 ### Post-approval handoff (`OD-005`)
 
@@ -132,9 +154,11 @@ Enforce `batch_id` on membership, progress, attendance, and admin queries.
 
 1. Batch-scoped tables carry `batch_id`.
 2. Reject new `applied` if `registration_open = false` (route to waitlist UX).
-3. Reject active join if at `max_members` (waitlist); auto-approve path must re-check capacity under row lock.
+3. Reject active batch join if at `max_members` (waitlist); auto-approve path must re-check capacity under row lock.
 4. Approval → handoff code → Telegram bot link → activation (not direct link blast).
-5. UI copy uses **batch**, not session.
+5. Do not allow pace-group-only features before the member has an active
+   pace-group membership.
+6. UI copy uses **batch**, not session.
 
 ## Related
 

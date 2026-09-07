@@ -14,16 +14,18 @@ export type CurrentUser = {
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const session = await auth.api.getSession({ headers: await headers() });
+  console.log("DEBUG session.user.id:", session?.user?.id);
+  console.log("DEBUG session.user.email:", session?.user?.email);
   if (!session) return null;
 
   const profile = await db.query.profiles.findFirst({
     where: eq(profiles.authUserId, session.user.id),
   });
-
+  console.log("DEBUG profile.role:", profile?.role);
 
   if (!profile) {
     throw new Error(
-      `No profile found for authenticated user ${session.user.id}. Check the databaseHooks.user.create hook in lib/auth/auth.ts.`,
+      `No profile found for authenticated user ${session.user.id}...`,
     );
   }
 

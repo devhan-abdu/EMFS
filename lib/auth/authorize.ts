@@ -37,12 +37,20 @@ export async function requireRole(allowed: Role[]): Promise<CurrentUser> {
   const user = await requireSession();
   const role = user.profile.role as Role;
 
-  const minRequiredRank = Math.min(...allowed.map((r) => ROLE_RANK[r]));
-  if (ROLE_RANK[role] < minRequiredRank) {
+  if (!allowed.includes(role)) {
     throw new AuthzError(
       "FORBIDDEN",
-      `Role '${role}' is not permitted. Required at least: ${allowed.join(", ")}.`
+      `Role '${role}' is not permitted. Required one of: ${allowed.join(", ")}.`,
     );
+  }
+  return user;
+}
+
+export async function requireMinRole(minimum: Role): Promise<CurrentUser> {
+  const user = await requireSession();
+  const role = user.profile.role as Role;
+  if (ROLE_RANK[role] < ROLE_RANK[minimum]) {
+    throw new AuthzError("FORBIDDEN", `Requires at least '${minimum}' role.`);
   }
   return user;
 }
@@ -62,4 +70,4 @@ export function authzErrorToFieldError(error: AuthzError) {
     message: error.message,
     code: error.code,
   };
-}
+}

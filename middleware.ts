@@ -1,20 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
-
 
 export async function middleware(request: NextRequest) {
   const sessionCookie = getSessionCookie(request);
-  const { pathname } = request.nextUrl;
 
-  const isProtected =
-    pathname.startsWith("/today") ||
-    pathname.startsWith("/profile") ||
-    pathname.startsWith("/groups") ||
-    pathname.startsWith("/admin");
-
-  if (isProtected && !sessionCookie) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirectTo", pathname);
+  if (!sessionCookie) {
+    const loginUrl = new URL("/sign-in", request.url);
+    loginUrl.searchParams.set("from", request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -22,10 +15,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/today/:path*",
-    "/profile/:path*",
-    "/groups/:path*",
-    "/admin/:path*",
-  ],
+  matcher: ["/admin/:path*", "/profile/:path*", "/apply/:path*"],
 };
