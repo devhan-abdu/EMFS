@@ -65,7 +65,7 @@ helping members grow and stay accountable.
 
 ### Batch admin (1–3 per batch)
 
-- Opens registration **after** pace groups and pace admins are ready
+- Opens registration once the batch settings and 1–3 batch-admin assignments are ready; pace groups and pace admins may be added later
 - Creates pace groups (batch may have only one); assigns pace admins; batch
   pacing setup; approvals
 - Oversees intake; members complete **Telegram bot handoff** after approval
