@@ -10,6 +10,9 @@ import {
   batchPacingOffsets,
 } from "@/db/schema";
 import type { DbOrTx } from "@/lib/services/membership";
+import { requireSession } from "@/lib/auth/authorize";
+import type { CurrentUser } from "@/lib/auth/session";
+import { toggleDailyProgressInputSchema } from "@/lib/validations/daily-progress";
 
 export type ProgressErrorCode =
   | "UNAUTHENTICATED"
@@ -299,5 +302,44 @@ export async function validateDailyProgressEligibility(
     effectiveDate,
     isPublished: true,
     localDate,
+  };
+}
+
+/**
+ * Authoritatively resolves the authenticated member and validates progress mutation eligibility.
+ *
+ * Security Invariants:
+ * 1. Actor identity is derived strictly from the server-side HTTP-only session (`requireSession()`).
+ * 2. Unauthenticated requests are rejected immediately.
+ * 3. Client-provided `memberId`, `profileId`, `userId`, `batchId`, or `paceGroupId` in raw inputs are ignored/stripped.
+ * 4. All batch and pace group relationships are derived from database truth for the authenticated user.
+ */
+export async function resolveAuthoritativeProgressContext(
+  input: unknown,
+  executor: DbOrTx = db,
+): Promise<ProgressValidationContext & { actor: CurrentUser }> {
+  // 1. Authenticated server session is the sole authority
+  const currentUser = await requireSession();
+
+  // 2. Validate client input schema (extracts only taskId, status, localDate)
+  const parsed = toggleDailyProgressInputSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new DailyProgressError(
+      "INVALID_INPUT",
+      parsed.error.issues[0]?.message || "Invalid daily progress input payload.",
+    );
+  }
+
+  // 3. Perform domain validation using strictly the session profile ID
+  const validationContext = await validateDailyProgressEligibility(
+    currentUser.profile.id,
+    parsed.data.taskId,
+    parsed.data.localDate,
+    executor,
+  );
+
+  return {
+    ...validationContext,
+    actor: currentUser,
   };
 }
