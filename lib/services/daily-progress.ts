@@ -1,0 +1,303 @@
+import { eq, and, asc } from "drizzle-orm";
+import { db } from "@/db";
+import {
+  batchMemberships,
+  batches,
+  paceGroupMemberships,
+  paceGroups,
+  tasks,
+  books,
+  batchPacingOffsets,
+} from "@/db/schema";
+import type { DbOrTx } from "@/lib/services/membership";
+
+export type ProgressErrorCode =
+  | "UNAUTHENTICATED"
+  | "FORBIDDEN"
+  | "INVALID_INPUT"
+  | "NO_ACTIVE_BATCH"
+  | "NO_ACTIVE_PACE_GROUP"
+  | "TASK_NOT_FOUND"
+  | "TASK_NOT_PUBLISHED"
+  | "BATCH_NOT_STARTED"
+  | "TASK_GROUP_MISMATCH";
+
+export class DailyProgressError extends Error {
+  code: ProgressErrorCode;
+  constructor(code: ProgressErrorCode, message: string) {
+    super(message);
+    this.code = code;
+    this.name = "DailyProgressError";
+  }
+}
+
+/** Formats Date or ISO string into canonical YYYY-MM-DD */
+export function formatDateKey(date: Date | string): string {
+  if (typeof date === "string") {
+    return date.slice(0, 10);
+  }
+  return date.toISOString().slice(0, 10);
+}
+
+/** Adds calendar days to a YYYY-MM-DD string without timezone or hour drift */
+export function addCalendarDays(dateStr: string, days: number): string {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Calculates the effective publication date for a curriculum task `dayNumber` in a batch,
+ * taking into account batch start date, weekly reading cadence, and schedule pacing offsets.
+ */
+export function calculateTaskEffectiveDate(
+  batchStartDate: string,
+  dayNumber: number,
+  readingDaysPerWeek = 6,
+  offsets: Array<{ effectiveFromDayNumber: number; offsetDays: number }> = [],
+): string {
+  if (dayNumber < 1) {
+    throw new DailyProgressError(
+      "INVALID_INPUT",
+      `Day number must be positive (received ${dayNumber}).`,
+    );
+  }
+
+  const cadence = Math.max(1, Math.min(7, readingDaysPerWeek));
+
+  // Step 1 is active on batchStartDate (day offset = 0).
+  // For step n >= 1, we account for cadence rest days:
+  const stepOffset = dayNumber - 1;
+  const fullWeeks = Math.floor(stepOffset / cadence);
+  const remainingDays = stepOffset % cadence;
+  const calendarDayOffset = fullWeeks * 7 + remainingDays;
+
+  let effectiveDate = addCalendarDays(batchStartDate, calendarDayOffset);
+
+  // Apply relevant pacing offsets (offsets effective at or before this dayNumber)
+  const totalOffsetDays = offsets
+    .filter((o) => o.effectiveFromDayNumber <= dayNumber)
+    .reduce((sum, o) => sum + o.offsetDays, 0);
+
+  if (totalOffsetDays !== 0) {
+    effectiveDate = addCalendarDays(effectiveDate, totalOffsetDays);
+  }
+
+  return effectiveDate;
+}
+
+/**
+ * Resolves a member's current active batch membership and batch record.
+ * Throws DailyProgressError("NO_ACTIVE_BATCH", ...) if no active membership is found.
+ */
+export async function getMemberActiveBatch(
+  profileId: string,
+  executor: DbOrTx = db,
+) {
+  const activeMembership = await executor.query.batchMemberships.findFirst({
+    where: and(
+      eq(batchMemberships.profileId, profileId),
+      eq(batchMemberships.status, "active"),
+    ),
+  });
+
+  if (!activeMembership) {
+    throw new DailyProgressError(
+      "NO_ACTIVE_BATCH",
+      "Member does not have an active batch membership.",
+    );
+  }
+
+  const batch = await executor.query.batches.findFirst({
+    where: eq(batches.id, activeMembership.batchId),
+  });
+
+  if (!batch) {
+    throw new DailyProgressError(
+      "NO_ACTIVE_BATCH",
+      `Batch '${activeMembership.batchId}' not found.`,
+    );
+  }
+
+  return {
+    membership: activeMembership,
+    batch,
+  };
+}
+
+/**
+ * Resolves a member's current active pace group membership and pace group record for a given batch.
+ * Throws DailyProgressError("NO_ACTIVE_PACE_GROUP", ...) if no active pace group is found.
+ */
+export async function getMemberActivePaceGroup(
+  profileId: string,
+  batchId: string,
+  executor: DbOrTx = db,
+) {
+  const activeGroupMemberships =
+    await executor.query.paceGroupMemberships.findMany({
+      where: and(
+        eq(paceGroupMemberships.profileId, profileId),
+        eq(paceGroupMemberships.status, "active"),
+      ),
+    });
+
+  if (activeGroupMemberships.length === 0) {
+    throw new DailyProgressError(
+      "NO_ACTIVE_PACE_GROUP",
+      "Member is not assigned to any active pace group.",
+    );
+  }
+
+  // Find the pace group that belongs to the active batch
+  for (const groupMembership of activeGroupMemberships) {
+    const paceGroup = await executor.query.paceGroups.findFirst({
+      where: and(
+        eq(paceGroups.id, groupMembership.paceGroupId),
+        eq(paceGroups.batchId, batchId),
+      ),
+    });
+
+    if (paceGroup) {
+      return {
+        membership: groupMembership,
+        paceGroup,
+      };
+    }
+  }
+
+  throw new DailyProgressError(
+    "NO_ACTIVE_PACE_GROUP",
+    "Member does not have an active pace group assignment in their active batch.",
+  );
+}
+
+export type ProgressValidationContext = {
+  profileId: string;
+  batchId: string;
+  batch: typeof batches.$inferSelect;
+  paceGroupId: string;
+  paceGroup: typeof paceGroups.$inferSelect;
+  taskId: string;
+  task: typeof tasks.$inferSelect;
+  book: typeof books.$inferSelect;
+  effectiveDate: string;
+  isPublished: boolean;
+  localDate: string;
+};
+
+/**
+ * Validates all domain and security preconditions before a member can check or mutate daily progress:
+ * 1. Actor identity is authoritative (profileId from authenticated session).
+ * 2. Member has an active batch membership.
+ * 3. Member has an active pace-group membership belonging to that batch.
+ * 4. Requested task exists in the master curriculum.
+ * 5. Batch has already started on or before the reference local date.
+ * 6. Task has reached its calculated effective publication date on the batch schedule.
+ */
+export async function validateDailyProgressEligibility(
+  profileId: string,
+  taskId: string,
+  referenceLocalDate?: string,
+  executor: DbOrTx = db,
+): Promise<ProgressValidationContext> {
+  if (!profileId || profileId.trim().length === 0) {
+    throw new DailyProgressError(
+      "UNAUTHENTICATED",
+      "Authoritative member profile ID is required.",
+    );
+  }
+
+  if (!taskId || taskId.trim().length === 0) {
+    throw new DailyProgressError("INVALID_INPUT", "Task ID is required.");
+  }
+
+  const localDate = referenceLocalDate
+    ? formatDateKey(referenceLocalDate)
+    : formatDateKey(new Date());
+
+  // 1. Resolve active batch membership
+  const { batch } = await getMemberActiveBatch(profileId, executor);
+
+  if (!batch.startDate) {
+    throw new DailyProgressError(
+      "BATCH_NOT_STARTED",
+      `Batch '${batch.name}' has not been configured with a start date.`,
+    );
+  }
+
+  const batchStartDate = formatDateKey(batch.startDate);
+
+  // 2. Resolve active pace group in this batch
+  const { paceGroup } = await getMemberActivePaceGroup(
+    profileId,
+    batch.id,
+    executor,
+  );
+
+  // 3. Resolve master curriculum task and book
+  const task = await executor.query.tasks.findFirst({
+    where: eq(tasks.id, taskId),
+  });
+
+  if (!task) {
+    throw new DailyProgressError(
+      "TASK_NOT_FOUND",
+      `Task with ID '${taskId}' was not found.`,
+    );
+  }
+
+  const book = await executor.query.books.findFirst({
+    where: eq(books.id, task.bookId),
+  });
+
+  if (!book) {
+    throw new DailyProgressError(
+      "TASK_NOT_FOUND",
+      `Book associated with task '${taskId}' was not found.`,
+    );
+  }
+
+  // 4. Fetch any pacing offsets configured for this batch
+  const offsets = await executor.query.batchPacingOffsets.findMany({
+    where: eq(batchPacingOffsets.batchId, batch.id),
+    orderBy: [asc(batchPacingOffsets.effectiveFromDayNumber)],
+  });
+
+  // 5. Calculate task effective date and publication status
+  const effectiveDate = calculateTaskEffectiveDate(
+    batchStartDate,
+    task.dayNumber,
+    batch.readingDaysPerWeek,
+    offsets,
+  );
+
+  if (batchStartDate > localDate) {
+    throw new DailyProgressError(
+      "BATCH_NOT_STARTED",
+      `Batch '${batch.name}' has not started yet (scheduled to start on ${batchStartDate}, today is ${localDate}).`,
+    );
+  }
+
+  if (effectiveDate > localDate) {
+    throw new DailyProgressError(
+      "TASK_NOT_PUBLISHED",
+      `Task for day ${task.dayNumber} is scheduled for ${effectiveDate}, which is unpublished for current date ${localDate}.`,
+    );
+  }
+
+  return {
+    profileId,
+    batchId: batch.id,
+    batch,
+    paceGroupId: paceGroup.id,
+    paceGroup,
+    taskId: task.id,
+    task,
+    book,
+    effectiveDate,
+    isPublished: true,
+    localDate,
+  };
+}
