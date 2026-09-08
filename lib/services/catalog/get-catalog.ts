@@ -2,7 +2,6 @@ import { asc, count, countDistinct, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { books } from "@/db/schema";
-import type { StorageService } from "@/lib/services/storage/storage-service";
 import {
   getCatalogSchema,
   zodErrorToFieldErrors,
@@ -16,6 +15,8 @@ export type CatalogBookItem = {
   language: string;
   author: string | null;
   coverUrl: string | null;
+  summary: string | null;
+  pageCount: number | null;
   sequenceOrder: number;
   pairedBookId: string | null;
   createdAt: Date;
@@ -40,6 +41,8 @@ export type PaginatedCatalogResult = {
   books: CatalogBookItem[];
   pagination: {
     page: number;
+    /** Slots per page (alias of limit). */
+    pageSize: number;
     limit: number;
     totalSlots: number;
     totalBooks: number;
@@ -52,27 +55,21 @@ export type PaginatedCatalogResult = {
 /**
  * Reads catalog entries with pagination and deterministic, stable ordering.
  *
- * Ordering strategy:
- * - Primary: `sequenceOrder ASC` (groups editions by curriculum slot)
- * - Secondary: `language ASC` (deterministic edition order within the slot)
- * - Tertiary: `id ASC` (immutable tie-breaker)
- *
- * Pagination is computed over program slots, fetching only the required slots
- * and their associated language editions.
+ * Paginates by distinct `sequenceOrder` slots (curriculum order), not raw
+ * book rows — so paired editions stay together on the same page.
+ * Cover URLs are stored as absolute HTTPS values (Cloudinary or Google Books).
  */
 export async function getCatalog(
   input?: GetCatalogInput,
-  storageService?: StorageService,
 ): Promise<ActionResult<PaginatedCatalogResult>> {
   const parsed = getCatalogSchema.safeParse(input ?? {});
   if (!parsed.success) {
     return { ok: false, errors: zodErrorToFieldErrors(parsed.error) };
   }
 
-  const { page, limit } = parsed.data;
+  const { page, limit, pageSize } = parsed.data;
   const offset = (page - 1) * limit;
 
-  // 1. Get total counts (total editions & distinct slots)
   const [stats] = await db
     .select({
       totalBooks: count(books.id),
@@ -84,26 +81,28 @@ export async function getCatalog(
   const totalSlots = stats?.totalSlots ? Number(stats.totalSlots) : 0;
   const totalPages = Math.max(1, Math.ceil(totalSlots / limit));
 
+  const emptyPagination = {
+    page,
+    pageSize,
+    limit,
+    totalSlots: 0,
+    totalBooks: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  };
+
   if (totalSlots === 0) {
     return {
       ok: true,
       data: {
         slots: [],
         books: [],
-        pagination: {
-          page,
-          limit,
-          totalSlots: 0,
-          totalBooks: 0,
-          totalPages: 1,
-          hasNextPage: false,
-          hasPrevPage: false,
-        },
+        pagination: emptyPagination,
       },
     };
   }
 
-  // 2. Fetch distinct sequence_order slots for the requested page
   const pageSlotRows = await db
     .selectDistinct({
       sequenceOrder: books.sequenceOrder,
@@ -115,6 +114,17 @@ export async function getCatalog(
 
   const slotNumbers = pageSlotRows.map((r) => r.sequenceOrder);
 
+  const paginationBase = {
+    page,
+    pageSize,
+    limit,
+    totalSlots,
+    totalBooks,
+    totalPages,
+    hasNextPage: page < totalPages,
+    hasPrevPage: page > 1,
+  };
+
   if (slotNumbers.length === 0) {
     return {
       ok: true,
@@ -122,19 +132,13 @@ export async function getCatalog(
         slots: [],
         books: [],
         pagination: {
-          page,
-          limit,
-          totalSlots,
-          totalBooks,
-          totalPages,
+          ...paginationBase,
           hasNextPage: false,
-          hasPrevPage: page > 1,
         },
       },
     };
   }
 
-  // 3. Fetch all book editions in these slots with relations
   const pageBooks = await db.query.books.findMany({
     where: inArray(books.sequenceOrder, slotNumbers),
     orderBy: [asc(books.sequenceOrder), asc(books.language), asc(books.id)],
@@ -161,7 +165,9 @@ export async function getCatalog(
     title: b.title,
     language: b.language,
     author: b.author,
-    coverUrl: toPublicCoverUrl(b.coverUrl, storageService),
+    coverUrl: b.coverUrl,
+    summary: b.summary,
+    pageCount: b.pageCount,
     sequenceOrder: b.sequenceOrder,
     pairedBookId: b.pairedBookId,
     createdAt: b.createdAt,
@@ -169,13 +175,12 @@ export async function getCatalog(
     pairedBook: b.pairedBook
       ? {
           ...b.pairedBook,
-          coverUrl: toPublicCoverUrl(b.pairedBook.coverUrl, storageService),
+          coverUrl: b.pairedBook.coverUrl,
         }
       : null,
     tasksCount: b.tasks?.length ?? 0,
   }));
 
-  // 4. Group into slots
   const slotsMap = new Map<number, CatalogBookItem[]>();
   for (const slot of slotNumbers) {
     slotsMap.set(slot, []);
@@ -198,25 +203,7 @@ export async function getCatalog(
     data: {
       slots,
       books: formattedBooks,
-      pagination: {
-        page,
-        limit,
-        totalSlots,
-        totalBooks,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
+      pagination: paginationBase,
     },
   };
-}
-
-function toPublicCoverUrl(
-  coverKey: string | null,
-  storageService?: StorageService,
-): string | null {
-  if (!coverKey || !storageService) {
-    return coverKey;
-  }
-  return storageService.getPublicUrl(coverKey);
 }
