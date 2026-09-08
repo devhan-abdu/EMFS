@@ -501,26 +501,72 @@ describe("Daily Progress Mutation Service - Idempotency, Concurrency & Security"
     });
   });
 
-  it("13. Queries daily progress using getDailyProgressForProfile helper", async () => {
-    const existing = {
+  it("14. DONE -> NOT_DONE is permitted for past/current published tasks", async () => {
+    setupValidDbMocks({ batchStartDate: "2026-01-15", taskDayNumber: 1 });
+    mockFindFirstDailyProgress.mockResolvedValue({
       id: "dp-1",
       profileId: validProfileId,
       batchId: validBatchId,
       paceGroupId: validPaceGroupId,
       taskId: validTaskId,
-      status: "done" as const,
+      status: "done",
       completedAt: new Date("2026-01-15T10:00:00.000Z"),
       createdAt: new Date("2026-01-15T10:00:00.000Z"),
       updatedAt: new Date("2026-01-15T10:00:00.000Z"),
-    };
-    mockFindFirstDailyProgress.mockResolvedValue(existing);
+    });
 
-    const result = await getDailyProgressForProfile(
+    const revertedRecord = {
+      id: "dp-1",
+      profileId: validProfileId,
+      batchId: validBatchId,
+      paceGroupId: validPaceGroupId,
+      taskId: validTaskId,
+      status: "not_done" as const,
+      completedAt: null,
+      createdAt: new Date("2026-01-15T10:00:00.000Z"),
+      updatedAt: new Date("2026-01-18T10:00:00.000Z"),
+    };
+    mockReturning.mockResolvedValue([revertedRecord]);
+
+    const result = await recordDailyProgressForProfile(
       validProfileId,
-      validTaskId,
+      { taskId: validTaskId, status: "not_done", localDate: "2026-01-18" },
       mockTx as any,
     );
 
-    expect(result).toEqual(existing);
+    expect(result.previousStatus).toBe("done");
+    expect(result.progress.status).toBe("not_done");
+    expect(result.progress.completedAt).toBeNull();
+    expect(result.statusChanged).toBe(true);
+  });
+
+  it("15. DONE -> NOT_DONE is rejected when task is unpublished", async () => {
+    setupValidDbMocks({ batchStartDate: "2026-01-15", taskDayNumber: 10 });
+
+    await expect(
+      recordDailyProgressForProfile(
+        validProfileId,
+        { taskId: validTaskId, status: "not_done", localDate: "2026-01-15" },
+        mockTx as any,
+      ),
+    ).rejects.toMatchObject({
+      code: "TASK_NOT_PUBLISHED",
+    });
+  });
+
+  it("16. DONE -> NOT_DONE is rejected when member membership is no longer active", async () => {
+    setupValidDbMocks();
+    mockFindFirstBatchMembership.mockResolvedValue(undefined);
+
+    await expect(
+      recordDailyProgressForProfile(
+        validProfileId,
+        { taskId: validTaskId, status: "not_done", localDate: "2026-01-15" },
+        mockTx as any,
+      ),
+    ).rejects.toMatchObject({
+      code: "NO_ACTIVE_BATCH",
+    });
   });
 });
+
