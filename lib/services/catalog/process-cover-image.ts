@@ -15,7 +15,7 @@ import {
 import {
   validateCoverImage,
   type ValidateCoverImageInput,
-} from "@/lib/services/cover-image";
+} from "@/lib/services/catalog/cover-image";
 
 /**
  * Validate, then resize/compress in memory. Does not write the app filesystem

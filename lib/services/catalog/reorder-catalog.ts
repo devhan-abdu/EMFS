@@ -1,12 +1,14 @@
-import { and, eq, gte, gt, lte, lt, sql } from "drizzle-orm";
+import { and, eq, gte, gt, inArray, lte, lt, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { books } from "@/db/schema";
 import { requireSuperAdmin } from "@/lib/auth/authorize";
 import {
+  reorderBooksSchema,
   reorderSlotsSchema,
   zodErrorToFieldErrors,
   type ActionResult,
+  type ReorderBooksInput,
   type ReorderSlotsInput,
 } from "@/lib/validations/catalog";
 
@@ -15,6 +17,12 @@ export type ReorderCatalogSlotsResult = ActionResult<{
   toSlot: number;
   movedSlotsCount: number;
 }>;
+
+export type ReorderBooksResult = ActionResult<{
+  orderedIds: string[];
+  sequenceOrders: number[];
+}>;
+
 
 /**
  * Reorders catalog slots atomically within a PostgreSQL transaction.
@@ -177,6 +185,123 @@ export async function reorderCatalogSlots(
         fromSlot,
         toSlot,
         movedSlotsCount: movedCount,
+      },
+    };
+  });
+}
+
+/**
+ * Reorders curriculum slots from a list of representative book ids.
+ *
+ * The absolute sequence numbers owned by those slots are preserved and
+ * reassigned in ascending order to match `orderedIds` — safe for within-page
+ * reordering under server-side pagination.
+ */
+export async function reorderBooks(
+  input: ReorderBooksInput,
+): Promise<ReorderBooksResult> {
+  await requireSuperAdmin();
+
+  const parsed = reorderBooksSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, errors: zodErrorToFieldErrors(parsed.error) };
+  }
+
+  const { orderedIds } = parsed.data;
+  if (new Set(orderedIds).size !== orderedIds.length) {
+    return {
+      ok: false,
+      errors: [
+        {
+          field: "orderedIds",
+          message: "orderedIds must not contain duplicates.",
+          code: "DUPLICATE_IDS",
+        },
+      ],
+    };
+  }
+
+  return await db.transaction(async (tx) => {
+    const selected = await tx.query.books.findMany({
+      where: inArray(books.id, orderedIds),
+      columns: {
+        id: true,
+        sequenceOrder: true,
+      },
+    });
+
+    if (selected.length !== orderedIds.length) {
+      return {
+        ok: false,
+        errors: [
+          {
+            field: "orderedIds",
+            message: "One or more books were not found.",
+            code: "BOOK_NOT_FOUND",
+          },
+        ],
+      };
+    }
+
+    const slotById = new Map(
+      selected.map((book) => [book.id, book.sequenceOrder] as const),
+    );
+    const slotsInOrder = orderedIds.map((id) => slotById.get(id)!);
+
+    if (new Set(slotsInOrder).size !== slotsInOrder.length) {
+      return {
+        ok: false,
+        errors: [
+          {
+            field: "orderedIds",
+            message: "Each id must represent a distinct curriculum slot.",
+            code: "DUPLICATE_SLOTS",
+          },
+        ],
+      };
+    }
+
+    const unchanged = slotsInOrder.every(
+      (slot, index, arr) => index === 0 || slot > arr[index - 1]!,
+    );
+    if (unchanged) {
+      return {
+        ok: true,
+        data: {
+          orderedIds,
+          sequenceOrders: slotsInOrder,
+        },
+      };
+    }
+
+    const targetOrders = [...slotsInOrder].sort((a, b) => a - b);
+
+    for (let i = 0; i < orderedIds.length; i++) {
+      const fromSlot = slotById.get(orderedIds[i]!)!;
+      await tx
+        .update(books)
+        .set({
+          sequenceOrder: -(i + 1),
+          updatedAt: sql`now()`,
+        })
+        .where(eq(books.sequenceOrder, fromSlot));
+    }
+
+    for (let i = 0; i < orderedIds.length; i++) {
+      await tx
+        .update(books)
+        .set({
+          sequenceOrder: targetOrders[i]!,
+          updatedAt: sql`now()`,
+        })
+        .where(eq(books.sequenceOrder, -(i + 1)));
+    }
+
+    return {
+      ok: true,
+      data: {
+        orderedIds,
+        sequenceOrders: targetOrders,
       },
     };
   });

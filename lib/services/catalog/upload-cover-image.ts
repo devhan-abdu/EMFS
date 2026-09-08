@@ -1,7 +1,6 @@
-import { generateObjectKey } from "@/lib/services/storage";
-import { processCoverImage } from "@/lib/services/process-cover-image";
+import { uploadToCloudinary } from "@/lib/services/catalog/cloudinary";
+import { processCoverImage } from "@/lib/services/catalog/process-cover-image";
 import { coverFieldError, type FieldError } from "@/lib/validations/cover-image";
-import type { StorageService } from "@/lib/services/storage/storage-service";
 
 export type UploadCoverImageInput = {
   body: Uint8Array;
@@ -9,16 +8,26 @@ export type UploadCoverImageInput = {
 };
 
 export type UploadCoverImageResult =
-  | { ok: true; data: { key: string; publicUrl: string; contentType: string; extension: string; width: number; height: number; byteLength: number } }
+  | {
+      ok: true;
+      data: {
+        url: string;
+        publicId: string;
+        contentType: string;
+        extension: string;
+        width: number;
+        height: number;
+        byteLength: number;
+      };
+    }
   | { ok: false; errors: FieldError[] };
 
 /**
- * Validate, process, generate a safe key, and upload a cover image via the
- * StorageService interface. This step intentionally does not create a Book.
+ * Validate, process, upload a cover image to Cloudinary.
+ * Returns a secure HTTPS URL suitable for storing in books.cover_url.
  */
 export async function uploadCoverImage(
   input: UploadCoverImageInput,
-  storageService: StorageService,
 ): Promise<UploadCoverImageResult> {
   const processed = await processCoverImage({
     body: input.body,
@@ -30,9 +39,7 @@ export async function uploadCoverImage(
   }
 
   try {
-    const key = generateObjectKey({ extension: processed.data.extension });
-    const uploaded = await storageService.upload({
-      key,
+    const uploaded = await uploadToCloudinary({
       body: processed.data.body,
       contentType: processed.data.contentType,
     });
@@ -40,8 +47,8 @@ export async function uploadCoverImage(
     return {
       ok: true,
       data: {
-        key: uploaded.key,
-        publicUrl: uploaded.publicUrl,
+        url: uploaded.secureUrl,
+        publicId: uploaded.publicId,
         contentType: processed.data.contentType,
         extension: processed.data.extension,
         width: processed.data.width,
@@ -54,7 +61,7 @@ export async function uploadCoverImage(
     console.error("Cover upload failed", {
       code: "COVER_UPLOAD_FAILED",
       errorName,
-      message: "storage upload failed",
+      message: "Cloudinary upload failed",
     });
 
     return {

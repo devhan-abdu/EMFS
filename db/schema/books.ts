@@ -17,6 +17,8 @@ export const books = pgTable(
     language: text("language").notNull(),
     author: text("author"),
     coverUrl: text("cover_url"),
+    summary: text("summary"),
+    pageCount: integer("page_count"),
     sequenceOrder: integer("sequence_order").notNull(),
     pairedBookId: uuid("paired_book_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
