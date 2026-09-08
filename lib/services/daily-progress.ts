@@ -8,11 +8,15 @@ import {
   tasks,
   books,
   batchPacingOffsets,
+  dailyProgress,
 } from "@/db/schema";
 import type { DbOrTx } from "@/lib/services/membership";
 import { requireSession } from "@/lib/auth/authorize";
 import type { CurrentUser } from "@/lib/auth/session";
-import { toggleDailyProgressInputSchema } from "@/lib/validations/daily-progress";
+import {
+  toggleDailyProgressInputSchema,
+  type ToggleDailyProgressInput,
+} from "@/lib/validations/daily-progress";
 
 export type ProgressErrorCode =
   | "UNAUTHENTICATED"
@@ -342,4 +346,163 @@ export async function resolveAuthoritativeProgressContext(
     ...validationContext,
     actor: currentUser,
   };
+}
+
+export type SetDailyProgressInput = {
+  taskId: string;
+  status: "done" | "not_done";
+  localDate?: string;
+};
+
+export type ProgressMutationResult = {
+  progress: typeof dailyProgress.$inferSelect;
+  previousStatus: "done" | "not_done" | null;
+  statusChanged: boolean;
+};
+
+/**
+ * Idempotently records or updates a daily progress record for a verified profile ID.
+ *
+ * Invariants:
+ * 1. Executes domain validation within the transaction.
+ * 2. Uses PostgreSQL ON CONFLICT (profile_id, task_id) DO UPDATE to guarantee idempotency and concurrency safety.
+ * 3. Preserves completedAt if already done on repeated DONE requests.
+ * 4. Sets completedAt to null if transitioned to not_done.
+ * 5. Exactly one record exists per member per task.
+ */
+export async function recordDailyProgressForProfile(
+  profileId: string,
+  input: SetDailyProgressInput,
+  executor: DbOrTx = db,
+): Promise<ProgressMutationResult> {
+  const targetStatus = input.status;
+  if (targetStatus !== "done" && targetStatus !== "not_done") {
+    throw new DailyProgressError(
+      "INVALID_INPUT",
+      `Invalid progress status '${targetStatus}'. Must be 'done' or 'not_done'.`,
+    );
+  }
+
+  const runMutation = async (tx: DbOrTx) => {
+    // 1. Perform domain & schedule validation
+    const context = await validateDailyProgressEligibility(
+      profileId,
+      input.taskId,
+      input.localDate,
+      tx,
+    );
+
+    // 2. Read current existing record (if any) to calculate previous status
+    const existing = await tx.query.dailyProgress.findFirst({
+      where: and(
+        eq(dailyProgress.profileId, profileId),
+        eq(dailyProgress.taskId, input.taskId),
+      ),
+    });
+
+    const previousStatus = existing ? (existing.status as "done" | "not_done") : null;
+    const statusChanged = previousStatus !== targetStatus;
+    const now = new Date();
+
+    // Determine completedAt timestamp
+    let completedAt: Date | null = null;
+    if (targetStatus === "done") {
+      completedAt =
+        previousStatus === "done" && existing?.completedAt
+          ? existing.completedAt
+          : now;
+    } else {
+      completedAt = null;
+    }
+
+    // 3. Perform atomic upsert with ON CONFLICT (profileId, taskId)
+    const [record] = await tx
+      .insert(dailyProgress)
+      .values({
+        profileId,
+        batchId: context.batchId,
+        paceGroupId: context.paceGroupId,
+        taskId: context.taskId,
+        status: targetStatus,
+        completedAt,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [dailyProgress.profileId, dailyProgress.taskId],
+        set: {
+          batchId: context.batchId,
+          paceGroupId: context.paceGroupId,
+          status: targetStatus,
+          completedAt,
+          updatedAt: now,
+        },
+      })
+      .returning();
+
+    return {
+      progress: record,
+      previousStatus,
+      statusChanged,
+    };
+  };
+
+  if (executor === db) {
+    return await db.transaction(async (tx) => runMutation(tx));
+  }
+
+  return await runMutation(executor);
+}
+
+/**
+ * High-level mutation entry point that derives the actor from the authenticated server session
+ * and performs the idempotent daily progress mutation.
+ */
+export async function recordDailyProgress(
+  input: unknown,
+  executor: DbOrTx = db,
+): Promise<ProgressMutationResult & { actor: CurrentUser }> {
+  // 1. Authoritative session retrieval
+  const currentUser = await requireSession();
+
+  // 2. Validate client input payload
+  const parsed = toggleDailyProgressInputSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new DailyProgressError(
+      "INVALID_INPUT",
+      parsed.error.issues[0]?.message || "Invalid daily progress input payload.",
+    );
+  }
+
+  // 3. Mutate strictly for the authenticated member profile
+  const result = await recordDailyProgressForProfile(
+    currentUser.profile.id,
+    {
+      taskId: parsed.data.taskId,
+      status: parsed.data.status,
+      localDate: parsed.data.localDate,
+    },
+    executor,
+  );
+
+  return {
+    ...result,
+    actor: currentUser,
+  };
+}
+
+/**
+ * Queries a member's progress record for a given task.
+ */
+export async function getDailyProgressForProfile(
+  profileId: string,
+  taskId: string,
+  executor: DbOrTx = db,
+) {
+  return await executor.query.dailyProgress.findFirst({
+    where: and(
+      eq(dailyProgress.profileId, profileId),
+      eq(dailyProgress.taskId, taskId),
+    ),
+  });
 }
