@@ -32,6 +32,8 @@ type SeedUser = {
   phone?: string;
 };
 
+const SEED_PASSWORD = "Password123!";
+
 const SEED_USERS: SeedUser[] = [
   {
     email: "member@example.com",
@@ -65,6 +67,46 @@ const SEED_USERS: SeedUser[] = [
     grandfatherName: "Patel",
     telegramUsername: "@nora_staff",
     phone: "+1-555-0103",
+  },
+  {
+    email: "amina.y@example.com",
+    name: "Amina Yusuf",
+    password: SEED_PASSWORD,
+    role: "member",
+    firstName: "Amina",
+    fatherName: "Yusuf",
+  },
+  {
+    email: "lensa.b@example.com",
+    name: "Lensa Bekele",
+    password: SEED_PASSWORD,
+    role: "member",
+    firstName: "Lensa",
+    fatherName: "Bekele",
+  },
+  {
+    email: "sagal.a@example.com",
+    name: "Sagal Ahmed",
+    password: SEED_PASSWORD,
+    role: "member",
+    firstName: "Sagal",
+    fatherName: "Ahmed",
+  },
+  {
+    email: "hanan.i@example.com",
+    name: "Hanan Ibrahim",
+    password: SEED_PASSWORD,
+    role: "member",
+    firstName: "Hanan",
+    fatherName: "Ibrahim",
+  },
+  {
+    email: "nejat.s@example.com",
+    name: "Nejat Seid",
+    password: SEED_PASSWORD,
+    role: "member",
+    firstName: "Nejat",
+    fatherName: "Seid",
   },
 ];
 
@@ -235,6 +277,32 @@ async function ensurePaceGroup(batchId: string, name: string, size: number) {
   } as typeof paceGroups.$inferSelect;
 }
 
+async function ensureApplication(
+  email: string,
+  batchId: string,
+  paceGroup: "5" | "10" | "20" | "40",
+) {
+  const profile = await getProfileByEmail(email);
+  const existing = await db
+    .select()
+    .from(applications)
+    .where(eq(applications.userId, profile.id));
+
+  if (existing.some((application) => application.batchId === batchId)) {
+    return;
+  }
+
+  await db.insert(applications).values({
+    userId: profile.id,
+    batchId,
+    registrationName: profile.firstName,
+    email,
+    telegramUsername: profile.telegramUsername ?? `@${email.split("@")[0]}`,
+    phoneNumber: profile.phone ?? "+1-555-0199",
+    paceGroup,
+  });
+}
+
 async function main() {
   console.log("Seeding starter data for local EMFS development database...");
 
@@ -245,22 +313,42 @@ async function main() {
   const ownerProfile = await getProfileByEmail("admin@example.com");
   const staffProfile = await getProfileByEmail("staff@example.com");
 
-  const batchOne = await ensureBatch("Rihletel ilem", {
-    maxMembers: 24,
-    paceGroupCount: 2,
+  const batchOne = await ensureBatch("Batch 04 — Winter Circle", {
+    maxMembers: 60,
+    paceGroupCount: 3,
     registrationOpen: true,
-    autoApprove: true,
-    startDate: new Date("2026-01-15"),
-    readingDaysPerWeek: 6,
+    autoApprove: false,
+    startDate: new Date("2026-09-14"),
+    readingDaysPerWeek: 5,
     createdBy: ownerProfile.id,
   });
 
-  const batchTwo = await ensureBatch("Hirastul fedila ", {
-    maxMembers: 18,
-    paceGroupCount: 1,
+  const batchTwo = await ensureBatch("Batch 03 — Autumn Circle", {
+    maxMembers: 45,
+    paceGroupCount: 3,
     registrationOpen: false,
     autoApprove: false,
-    startDate: new Date("2026-06-01"),
+    startDate: new Date("2026-06-02"),
+    readingDaysPerWeek: 5,
+    createdBy: ownerProfile.id,
+  });
+
+  await ensureBatch("Batch 02 — Summer Circle", {
+    maxMembers: 40,
+    paceGroupCount: 2,
+    registrationOpen: false,
+    autoApprove: false,
+    startDate: new Date("2026-02-10"),
+    readingDaysPerWeek: 4,
+    createdBy: ownerProfile.id,
+  });
+
+  await ensureBatch("Batch 05 — Spring Circle", {
+    maxMembers: 60,
+    paceGroupCount: 3,
+    registrationOpen: false,
+    autoApprove: false,
+    startDate: null,
     readingDaysPerWeek: 5,
     createdBy: ownerProfile.id,
   });
@@ -268,8 +356,12 @@ async function main() {
   await ensureBatchAdmin(ownerProfile.id, batchOne.id);
   await ensureBatchAdmin(staffProfile.id, batchOne.id);
 
-  const paceGroupOne = await ensurePaceGroup(batchOne.id, "Group A", 12);
-  await ensurePaceGroup(batchOne.id, "Group B", 12);
+  const paceGroupOne = await ensurePaceGroup(batchOne.id, "Nur", 20);
+  await ensurePaceGroup(batchOne.id, "Sakina", 20);
+  await ensurePaceGroup(batchOne.id, "Rahma", 20);
+  await ensurePaceGroup(batchTwo.id, "Nur", 16);
+  await ensurePaceGroup(batchTwo.id, "Sakina", 15);
+  await ensurePaceGroup(batchTwo.id, "Rahma", 14);
 
   const existingMemberships = await db.select().from(batchMemberships);
   const hasActiveMembership = existingMemberships.some(
@@ -337,25 +429,55 @@ async function main() {
     });
   }
 
+  await ensureApplication("amina.y@example.com", batchOne.id, "10");
+  await ensureApplication("lensa.b@example.com", batchOne.id, "10");
+  await ensureApplication("sagal.a@example.com", batchOne.id, "20");
+  await ensureApplication("hanan.i@example.com", batchOne.id, "20");
+  await ensureApplication("nejat.s@example.com", batchTwo.id, "10");
+
   const existingBooks = await db.select().from(books);
   const catalogList = [
     {
-      title: "The Hobbit",
-      author: "J.R.R. Tolkien",
+      title: "Reclaim Your Heart",
+      author: "Yasmin Mogahed",
       language: "en",
       sequenceOrder: 1,
+      taskCount: 8,
     },
     {
-      title: "Pride and Prejudice",
-      author: "Jane Austen",
+      title: "The Sealed Nectar",
+      author: "Safiur Rahman Mubarakpuri",
       language: "en",
       sequenceOrder: 2,
+      taskCount: 14,
     },
     {
-      title: "Le Petit Prince",
-      author: "Antoine de Saint-Exupéry",
-      language: "fr",
+      title: "Purification of the Heart",
+      author: "Hamza Yusuf",
+      language: "en",
+      sequenceOrder: 3,
+      taskCount: 10,
+    },
+    {
+      title: "Don't Be Sad",
+      author: "Aaidh ibn Abdullah al-Qarni",
+      language: "en",
+      sequenceOrder: 4,
+      taskCount: 12,
+    },
+    {
+      title: "Reclaim Your Heart",
+      author: "Yasmin Mogahed",
+      language: "am",
       sequenceOrder: 1,
+      taskCount: 8,
+    },
+    {
+      title: "Purification of the Heart",
+      author: "Hamza Yusuf",
+      language: "om",
+      sequenceOrder: 3,
+      taskCount: 10,
     },
   ];
 
@@ -377,18 +499,40 @@ async function main() {
         })
         .returning();
 
-      await db.insert(tasks).values([
-        {
+      await db.insert(tasks).values(
+        Array.from({ length: bookSeed.taskCount }, (_, index) => ({
           bookId: createdBook.id,
-          dayNumber: 1,
-          content: `Read the opening chapter of ${bookSeed.title}.`,
-        },
-        {
-          bookId: createdBook.id,
-          dayNumber: 2,
-          content: `Journal your reflections on the key themes in ${bookSeed.title}.`,
-        },
-      ]);
+          dayNumber: index + 1,
+          content:
+            index === 0 ?
+              `Read the opening chapter of ${bookSeed.title}.`
+            : `Read and reflect on day ${index + 1} of ${bookSeed.title}.`,
+        })),
+      );
+    }
+  }
+
+  const seededBooks = await db.select().from(books);
+  const pairedEditions = [
+    { title: "Reclaim Your Heart", translatedLanguage: "am" },
+    { title: "Purification of the Heart", translatedLanguage: "om" },
+  ];
+
+  for (const pairing of pairedEditions) {
+    const englishEdition = seededBooks.find(
+      (book) => book.title === pairing.title && book.language === "en",
+    );
+    const translatedEdition = seededBooks.find(
+      (book) =>
+        book.title === pairing.title &&
+        book.language === pairing.translatedLanguage,
+    );
+
+    if (englishEdition && translatedEdition) {
+      await db
+        .update(books)
+        .set({ pairedBookId: englishEdition.id })
+        .where(eq(books.id, translatedEdition.id));
     }
   }
 
