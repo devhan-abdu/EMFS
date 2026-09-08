@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ChevronLeft } from "lucide-react";
-import { PageHeader } from "@/components/admin/admin-shell";
+import { PageHeader } from "@/components/shared/page-layout";
 import { CreateBatchForm } from "@/components/admin/create-batch-form";
 import { getEligibleBatchAdmins } from "@/lib/services/batch";
 

@@ -1,6 +1,6 @@
 import { CalendarDays, Plus, Users } from "lucide-react";
 import Link from "next/link";
-import { PageHeader } from "@/components/admin/admin-shell";
+import { PageHeader } from "@/components/shared/page-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
