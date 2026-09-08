@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
@@ -75,10 +76,7 @@ vi.mock("@/db", () => ({
   },
 }));
 
-import {
-  resolveAuthoritativeProgressContext,
-  DailyProgressError,
-} from "@/lib/services/daily-progress";
+import { resolveAuthoritativeProgressContext } from "@/lib/services/daily-progress";
 import { AuthzError } from "@/lib/auth/authorize";
 
 describe("Daily Progress - Secure Actor Resolution & Invariant Enforcement", () => {

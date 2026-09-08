@@ -15,16 +15,17 @@ Read with:
 | Role                       | Cardinality                                                               | Scope                                                                                                                                                                                                                          |
 | -------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `super_admin`              | System-wide                                                               | **Book catalog** + master curriculum; assign batch admins; create batches (capacity, pace-group count, start/pacing); **superset** of batch + pace admin powers                                                                |
-| `batch_admin`              | **1–3 per batch**                                                         | Open registration; create pace groups (batch may have **one or many**); assign pace admins; batch pacing setup; optional manual review queue when `auto_approve = false`; oversee intake via the bot-mediated approval handoff |
+| `batch_admin`              | **1–3 per batch**                                                         | Open registration; create pace groups when needed (batch may have **zero, one, or many**); place members; appoint pace admins; batch pacing setup; optional manual review queue when `auto_approve = false`; oversee intake via the bot-mediated approval handoff |
 | `pace_admin` (group admin) | **One or more per pace group**; same person may admin **multiple** groups | Daily task (approve/adjust pages); reflection / inspiration / attendance (+ more duties later); review attendance; group dashboard                                                                                             |
 
 ```text
 super_admin
   └── book catalog (sequence 1, 2, 3, …) + master curriculum tasks
-  └── batch (max_members, pace_group_count ≥ 1, start_date, pacing)
-        └── batch_admin (1–3) — assigned before intake; batch pacing + pace admins
-              └── pace_admin(s) on pace groups (may reuse; may be out-of-batch poster)
-                    └── members
+  └── batch (max_members, planned pace_group_count, start_date, pacing)
+        └── batch_admin (1–3) — assigned before intake; batch pacing
+              └── optional pace group(s), created when needed
+                    └── pace_admin(s) (may reuse; may be out-of-batch poster)
+                    └── placed members
 ```
 
 ### Pace-admin duty split
@@ -82,15 +83,36 @@ Pre-intake order: [`batch-and-intake.md`](./batch-and-intake.md) § Pre-intake s
 
 ## Batch admin duties
 
-- Open/close **registration** (only **after** pace groups + pace admins are ready —
-  see pre-intake checklist in [`batch-and-intake.md`](./batch-and-intake.md))
-- Create **pace groups** (one or more)
-- **Assign pace admins** (reuse existing admins across groups)
+- Open/close **registration** once the batch and its 1–3 batch-admin assignments
+  are ready; pace groups and pace admins are not prerequisites
+- Create, edit, or archive **pace groups** when needed
+- Place active batch members into a pace group, individually or through a
+  confirmed bulk-placement action
+- **Appoint pace admins** (reuse existing admins across groups) before they may
+  perform pace-admin duties
 - Confirm **batch pacing** / offsets; assign books to pace admins when duty split
 - **Approve or reject** applicants — **only when `auto_approve = false`** for the batch; the default product pattern is first-come-first-served bot-mediated auto-approval, but the manual review path remains supported for admin-reviewed cohorts (see § Application approval)
 - Monitor intake; members complete **Telegram bot handoff** after approval (no manual DM verification in MVP)
 
 Batch admin does **not** create catalog books or reorder the global sequence.
+
+### Pace-admin appointment
+
+A pace group may exist before it has a pace admin. It becomes operational for
+pace-admin duties only when an authorized batch admin or super admin appoints
+at least one person to that group.
+
+Two appointment paths are supported:
+
+1. **Known person:** the batch admin selects an existing app user and assigns
+   group-scoped duties.
+2. **Volunteer:** a batch member expresses interest; the batch admin reviews
+   and explicitly appoints them.
+
+Volunteering never grants permissions by itself. Appointment is scoped to the
+specific pace group and selected duties. A person can remain a reading member
+while also being a pace admin; group assignment, not a broad UI role label, is
+the authorization source for pace-admin operations.
 
 ## Application approval (`auto_approve`)
 
@@ -123,7 +145,7 @@ If capacity is full or registration is closed, both modes route to the **waiting
 | Email                 | Account + contact                         |
 | Telegram username     | Identity for Telegram ops                 |
 | Phone number          | Reachability                              |
-| Pace group assignment | Preferred or assigned 5/10/20/40 at apply |
+| Pace preference | Collected only when selectable groups already exist; final placement is made later by an authorized admin |
 
 ## Intake handoff after approval (`OD-005`)
 

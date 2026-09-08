@@ -13,10 +13,7 @@ import {
 import type { DbOrTx } from "@/lib/services/membership";
 import { requireSession } from "@/lib/auth/authorize";
 import type { CurrentUser } from "@/lib/auth/session";
-import {
-  toggleDailyProgressInputSchema,
-  type ToggleDailyProgressInput,
-} from "@/lib/validations/daily-progress";
+import { toggleDailyProgressInputSchema } from "@/lib/validations/daily-progress";
 
 export type ProgressErrorCode =
   | "UNAUTHENTICATED"

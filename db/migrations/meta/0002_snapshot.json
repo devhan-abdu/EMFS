@@ -1,5 +1,5 @@
 {
-  "id": "65cf977f-6bdb-4506-9298-2fc5ba338ab4",
+  "id": "b63dc63b-8277-43ac-ba61-ffccc3c46514",
   "prevId": "dadd01e4-daae-46a8-9f0a-21dd60ae2c03",
   "version": "7",
   "dialect": "postgresql",
@@ -1595,6 +1595,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "page_count": {
+          "name": "page_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "sequence_order": {
           "name": "sequence_order",
           "type": "integer",
@@ -1774,195 +1786,6 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
-    },
-    "public.daily_progress": {
-      "name": "daily_progress",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "profile_id": {
-          "name": "profile_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "batch_id": {
-          "name": "batch_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "pace_group_id": {
-          "name": "pace_group_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "task_id": {
-          "name": "task_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "daily_progress_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'not_done'"
-        },
-        "completed_at": {
-          "name": "completed_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "daily_progress_profile_task_unique_idx": {
-          "name": "daily_progress_profile_task_unique_idx",
-          "columns": [
-            {
-              "expression": "profile_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "task_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "daily_progress_pace_group_task_idx": {
-          "name": "daily_progress_pace_group_task_idx",
-          "columns": [
-            {
-              "expression": "pace_group_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "task_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "daily_progress_profile_batch_idx": {
-          "name": "daily_progress_profile_batch_idx",
-          "columns": [
-            {
-              "expression": "profile_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "batch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "daily_progress_profile_id_profiles_id_fk": {
-          "name": "daily_progress_profile_id_profiles_id_fk",
-          "tableFrom": "daily_progress",
-          "tableTo": "profiles",
-          "columnsFrom": [
-            "profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "daily_progress_batch_id_batches_id_fk": {
-          "name": "daily_progress_batch_id_batches_id_fk",
-          "tableFrom": "daily_progress",
-          "tableTo": "batches",
-          "columnsFrom": [
-            "batch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "daily_progress_pace_group_id_pace_groups_id_fk": {
-          "name": "daily_progress_pace_group_id_pace_groups_id_fk",
-          "tableFrom": "daily_progress",
-          "tableTo": "pace_groups",
-          "columnsFrom": [
-            "pace_group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "daily_progress_task_id_tasks_id_fk": {
-          "name": "daily_progress_task_id_tasks_id_fk",
-          "tableFrom": "daily_progress",
-          "tableTo": "tasks",
-          "columnsFrom": [
-            "task_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -2006,14 +1829,6 @@
         "10",
         "20",
         "40"
-      ]
-    },
-    "public.daily_progress_status": {
-      "name": "daily_progress_status",
-      "schema": "public",
-      "values": [
-        "done",
-        "not_done"
       ]
     }
   },

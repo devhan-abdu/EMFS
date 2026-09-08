@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
@@ -98,8 +99,6 @@ vi.mock("@/db", () => ({
 import {
   recordDailyProgressForProfile,
   recordDailyProgress,
-  getDailyProgressForProfile,
-  DailyProgressError,
 } from "@/lib/services/daily-progress";
 import { AuthzError } from "@/lib/auth/authorize";
 
@@ -113,23 +112,6 @@ describe("Daily Progress Mutation Service - Idempotency, Concurrency & Security"
   const validBookId = "550e8400-e29b-41d4-a716-446655440003";
   const validBatchId = "550e8400-e29b-41d4-a716-446655440004";
   const validPaceGroupId = "550e8400-e29b-41d4-a716-446655440005";
-
-  const sessionUser = {
-    authUserId: "auth-user-1",
-    email: "member@example.com",
-    profile: {
-      id: validProfileId,
-      authUserId: "auth-user-1",
-      role: "member" as const,
-      firstName: "Alicia",
-      fatherName: "Johnson",
-      grandfatherName: null,
-      telegramUsername: "@alicia",
-      phone: "+15550101",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  };
 
   function setupValidDbMocks(overrides?: {
     batchStartDate?: string | null;

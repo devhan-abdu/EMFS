@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
@@ -101,7 +102,6 @@ import {
   recordDailyProgress,
   validateDailyProgressEligibility,
   calculateTaskEffectiveDate,
-  DailyProgressError,
 } from "@/lib/services/daily-progress";
 import { toggleDailyProgressAction } from "@/actions/daily-progress";
 import { dailyProgress } from "@/db/schema/daily-progress";

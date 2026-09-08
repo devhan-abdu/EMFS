@@ -14,19 +14,30 @@ interface CatalogPaginationProps {
   currentPage: number;
   totalPages: number;
   baseUrl: string;
+  pageSize?: number;
 }
+
+const DEFAULT_PAGE_SIZE = 10;
 
 export default function CatalogPagination({
   currentPage,
   totalPages,
   baseUrl,
+  pageSize = DEFAULT_PAGE_SIZE,
 }: CatalogPaginationProps) {
   if (totalPages <= 1) return null;
 
-  const createPageUrl = (page: number) => `${baseUrl}?page=${page}`;
+  const createPageUrl = (page: number) => {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    if (pageSize !== DEFAULT_PAGE_SIZE) {
+      params.set("pageSize", String(pageSize));
+    }
+    return `${baseUrl}?${params.toString()}`;
+  };
 
   const getPageItems = () => {
-    const items = [];
+    const items: number[] = [];
     const maxVisible = 5;
     const start = Math.max(1, currentPage - 2);
     const end = Math.min(totalPages, start + maxVisible - 1);
@@ -37,24 +48,30 @@ export default function CatalogPagination({
   };
 
   const pageItems = getPageItems();
+  const atFirst = currentPage <= 1;
+  const atLast = currentPage >= totalPages;
 
   return (
     <Pagination>
       <PaginationContent>
         <PaginationItem>
           <PaginationPrevious
-            href={currentPage > 1 ? createPageUrl(currentPage - 1) : undefined}
-            aria-disabled={currentPage <= 1}
-            tabIndex={currentPage <= 1 ? -1 : undefined}
-            className={currentPage <= 1 ? "pointer-events-none opacity-50" : ""}
+            href={atFirst ? undefined : createPageUrl(currentPage - 1)}
+            aria-disabled={atFirst}
+            tabIndex={atFirst ? -1 : undefined}
+            className={atFirst ? "pointer-events-none opacity-50" : ""}
           />
         </PaginationItem>
-        {pageItems[0] > 1 && (
+        {pageItems[0]! > 1 && (
           <>
             <PaginationItem>
               <PaginationLink href={createPageUrl(1)}>1</PaginationLink>
             </PaginationItem>
-            {pageItems[0] > 2 && <PaginationEllipsis />}
+            {pageItems[0]! > 2 && (
+              <PaginationItem>
+                <PaginationEllipsis />
+              </PaginationItem>
+            )}
           </>
         )}
         {pageItems.map((page) => (
@@ -67,10 +84,12 @@ export default function CatalogPagination({
             </PaginationLink>
           </PaginationItem>
         ))}
-        {pageItems[pageItems.length - 1] < totalPages && (
+        {pageItems[pageItems.length - 1]! < totalPages && (
           <>
-            {pageItems[pageItems.length - 1] < totalPages - 1 && (
-              <PaginationEllipsis />
+            {pageItems[pageItems.length - 1]! < totalPages - 1 && (
+              <PaginationItem>
+                <PaginationEllipsis />
+              </PaginationItem>
             )}
             <PaginationItem>
               <PaginationLink href={createPageUrl(totalPages)}>
@@ -81,16 +100,10 @@ export default function CatalogPagination({
         )}
         <PaginationItem>
           <PaginationNext
-            href={
-              currentPage < totalPages
-                ? createPageUrl(currentPage + 1)
-                : undefined
-            }
-            aria-disabled={currentPage >= totalPages}
-            tabIndex={currentPage >= totalPages ? -1 : undefined}
-            className={
-              currentPage >= totalPages ? "pointer-events-none opacity-50" : ""
-            }
+            href={atLast ? undefined : createPageUrl(currentPage + 1)}
+            aria-disabled={atLast}
+            tabIndex={atLast ? -1 : undefined}
+            className={atLast ? "pointer-events-none opacity-50" : ""}
           />
         </PaginationItem>
       </PaginationContent>
