@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import {
   createMembershipSchema,
   transitionMembershipSchema,
@@ -27,8 +29,9 @@ export async function createMembershipAction(input: unknown) {
     const membership = await createBatchMembership(
       parsed.data.profileId,
       parsed.data.batchId,
-      parsed.data.status
+      parsed.data.status,
     );
+    revalidatePath("/members");
     return { ok: true as const, data: membership };
   } catch (e) {
     if (e instanceof MembershipError) {
@@ -57,8 +60,9 @@ export async function transitionMembershipAction(input: unknown) {
       parsed.data.membershipId,
       parsed.data.targetStatus,
       parsed.data.reason,
-      currentUser.profile.id
+      currentUser.profile.id,
     );
+    revalidatePath("/members");
     return { ok: true as const, data: membership };
   } catch (e) {
     if (e instanceof MembershipError) {
@@ -87,7 +91,7 @@ export async function moveMembershipAction(input: unknown) {
       parsed.data.membershipId,
       parsed.data.newBatchId,
       currentUser.profile.id,
-      parsed.data.reason
+      parsed.data.reason,
     );
     return { ok: true as const, data: membership };
   } catch (e) {
@@ -119,7 +123,7 @@ export async function reenterMembershipAction(input: unknown) {
       parsed.data.toBatchId,
       parsed.data.targetStatus,
       currentUser.profile.id,
-      parsed.data.reason
+      parsed.data.reason,
     );
     return { ok: true as const, data: membership };
   } catch (e) {

@@ -13,7 +13,7 @@ is not listed here. Link open policy to [`open-decisions.md`](./open-decisions.m
 | `applied` | Applied while registration open; awaiting decision |
 | `approved` | Approved; handoff code issued; awaiting Telegram bot link / activation |
 | `rejected` | Rejected; not in cohort |
-| `active` | In a pace group; may track/read/attend |
+| `active` | Active batch member. May be awaiting pace-group placement or, once placed, may use pace-group tracking/reading/attendance features. |
 | `grace` | After 3 misses + valid reason; extension **duration set by admin** (`OD-021`) |
 | `removed` | Removed from batch (ops or auto after misses); seat may open for waitlist; **not** auto-reassigned to a later batch |
 
@@ -39,6 +39,9 @@ removed -> active                    # cross-batch direct admin invite when crit
 
 - `registration_open`, `max_members`, and `auto_approve` are batch properties.
 - Post-approval: **handoff code → Telegram bot link**, not direct group-link blast.
+- `active` batch membership does not require an immediate pace-group membership.
+  A member awaiting placement has no active pace-group membership and cannot use
+  pace-group-only schedule, progress, post, or attendance features.
 - **Batch removal default:** `active`/`grace` → `removed` is full removal. No
   automatic transition to a later batch.
 - **Cross-batch reassignment** (`removed` → `applied` or `removed` → `active`):
@@ -62,6 +65,9 @@ removed -> active                    # cross-batch direct admin invite when crit
 not_done -> done
 done -> not_done
 ```
+
+- Progress can be created only for an active pace-group member and that group’s
+  published daily task.
 
 ## Reflection / attendance post
 

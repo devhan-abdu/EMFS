@@ -9,8 +9,8 @@ export const createBatchSchema = z.object({
   paceGroupCount: z
     .number({ message: "Pace group count must be a number" })
     .int("Pace group count must be an integer")
-    .min(1, "Pace group count must be at least 1")
-    .default(1),
+    .min(0, "Pace group count cannot be negative")
+    .default(0),
   startDate: z.coerce.date({ message: "Invalid start date" }),
   readingDaysPerWeek: z
     .number({ message: "Reading days per week must be a number" })
@@ -18,6 +18,8 @@ export const createBatchSchema = z.object({
     .min(1, "Reading days per week must be between 1 and 7")
     .max(7, "Reading days per week must be between 1 and 7")
     .default(6),
+  registrationOpen: z.boolean().default(false),
+  requireTelegramHandoff: z.boolean().default(true),
   adminIds: z
     .array(z.string().uuid("Invalid admin UUID"))
     .min(1, "At least 1 batch admin is required")

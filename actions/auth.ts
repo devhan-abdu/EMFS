@@ -71,18 +71,18 @@ export async function signInAction(_: unknown, formData?: FormData) {
     where: eq(profiles.authUserId, session.user.id),
   });
 
-  redirect(
-    (
-      profile?.role === "super_admin" ||
-        profile?.role === "batch_admin" ||
-        profile?.role === "pace_admin"
-    ) ?
-      "/batches"
-    : "/",
-  );
+redirect(
+  (
+    profile?.role === "super_admin" ||
+      profile?.role === "batch_admin" ||
+      profile?.role === "pace_admin"
+  ) ?
+    "/admin"
+  : "/",
+);
 }
 
 export async function signOutAction() {
   await auth.api.signOut({ headers: await headers() });
-  redirect("/login");
+  redirect("/signin");
 }
