@@ -59,6 +59,8 @@ vi.mock("@/db", () => ({
   },
 }));
 
+vi.mock("server-only", () => ({}));
+
 import {
   formatDateKey,
   addCalendarDays,
