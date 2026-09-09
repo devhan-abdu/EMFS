@@ -6,6 +6,10 @@ export const signUpSchema = z.object({
   firstName: z.string().min(1),
   fatherName: z.string().min(1),
   grandfatherName: z.string().optional(),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((input) => input.password === input.confirmPassword, {
+  path: ["confirmPassword"],
+  message: "Passwords do not match",
 });
 
 export type SignUpInput = z.infer<typeof signUpSchema>;

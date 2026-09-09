@@ -8,8 +8,9 @@ Admin/intake policy → [`../domain/admin-ops.md`](../domain/admin-ops.md),
 
 ## The spine
 
-**catalog setup → assign batch admins → create batch → pace groups → open registration →
-register → approve (auto or manual) → bot handoff code → Telegram bot link → join pace group → daily progress →
+**catalog setup → assign batch admins → create batch → open registration →
+register → approve (auto or manual) → bot handoff code → Telegram bot link → active batch member →
+create/assign pace groups → place member → daily progress →
 attendance window → admin review** (removal / waitlist as needed; reassignment
 to a later batch is **not** automatic — see §02 and §06).
 
@@ -49,7 +50,7 @@ to a later batch is **not** automatic — see §02 and §06).
 
 | ID | User story | Priority | Source |
 |----|-----------|----------|--------|
-| US-REG-01 | As a member, I can apply to a batch with name, email, Telegram username, phone, and pace group preference. | Must | Meeting |
+| US-REG-01 | As a member, I can apply to a batch with name, email, Telegram username, phone, and pace preference when the batch has selectable pace groups. | Must | Meeting |
 | US-REG-02 | As a member, I see whether registration is open or closed for a batch. | Must | Meeting |
 | US-REG-03 | As a batch admin, I can approve or reject applicants. **Only applies when `auto_approve = false` for the batch. When `auto_approve = true`, approval happens automatically at submission time using the same capacity-lock pattern as waitlist advancement.** | Must | Meeting |
 | US-REG-04 | As a member, after approval I receive a handoff code and link via the **Telegram bot**; the bot verifies my code, records my Telegram identity, and activates my membership — no manual admin DM step in MVP. | Must | Meeting · `OD-005` |
@@ -73,32 +74,245 @@ re-registers through the normal application flow (`US-REG-11`). Being removed do
 
 ## 03 · Pace Groups & Schedules
 
-| ID | User story | Priority | Source |
-|----|-----------|----------|--------|
-| US-GRP-01 | As a member, I belong to one pace group in my batch (batch may have only one pace group, e.g. 5 or 10 only). | Must | Meeting |
-| US-GRP-02 | As a member, I can view my group's reading schedule. | Must | PRD |
-| US-GRP-03 | As a pace admin, I can be assigned to one or more pace groups (reuse allowed; may post without being a reading member). | Must | Meeting |
-| US-GRP-04 | As a batch admin, I create pace groups and assign pace admins with optional duty/book split. | Must | Meeting |
-| US-GRP-05 | As a pace admin, the system proposes today's page target **for my pace group**; I approve and may add/subtract pages; the system advances **this group's** cursor only. | Must | Meeting · `OD-014` |
-| US-GRP-06 | As a batch admin, I configure batch pacing, assign pace admins (optional duty/book split), and confirm pace groups are ready before registration opens. | Must | Meeting · `OD-010` |
-| US-GRP-07 | As an admin, I can pull a prepared post from the post library/source and forward it into a pace group. | Must | Meeting · `OD-022` |
-| US-GRP-08 | As a member, I can request (or an admin can approve) a move from one pace group to another **within the same batch** — a normal in-batch change, unrelated to removal or reassignment criteria. | Must | Policy |
+**Policy:** Registration may open once the batch is created, its registration
+settings/capacity/start date/pacing are valid, and one to three batch admins are
+assigned. Pace groups and pace admins are optional before registration. Batch
+membership and pace-group membership are separate: an accepted member is active
+in the batch while awaiting placement when no active pace-group membership exists.
 
-**Pace-group move (in-batch):** Moving between pace groups inside one batch is
-independent of batch removal or cross-batch reassignment. No eligibility criteria
-beyond admin approval / normal request flow.
+Until placement, the member sees: **“You are accepted into this batch. Your pace
+group will be assigned soon.”** Schedule, daily Done tracking, pace-group
+attendance/reflection submission, and the pace-group feed remain unavailable.
+
+Recommended placement status on batch membership: `awaiting_placement` or
+`assigned`. Keep the batch membership `active`; do not overload `active` to mean
+that a pace-group membership exists.
+
+### 03.1 — Pace-group data and authorization foundation
+**[Assignee: group-data]**
+
+- Add pace-group configuration: batch, name, daily page pace, active status, and current page cursor for each book/edition context.
+- Add pace-admin assignment records with optional duties: daily task, reflection, inspiration, and attendance; allow one admin on multiple groups and multiple admins per group.
+- Add optional assigned-book scope for a pace admin when duties are split by book.
+- Enforce one active pace-group membership per member within the same batch.
+- Add membership-move audit records containing member, old group, new group, reason, actor, and time.
+- Add local daily-task records scoped to `batch + pace_group + schedule_date`, with final page range, status (`draft`, `published`), reusable-task reference, and publishing admin.
+- Enforce one daily task per pace group per date and prevent duplicate page-cursor advancement during retries.
+- Create reviewed reversible Drizzle migrations and indexes for roster, task, schedule, and dashboard queries.
+
+Do not create copied catalog books or copied reusable task content per batch.
+
+**Goal:** Give every pace group its own members, admins, cursor, and daily
+operational records while preserving batch isolation.
+
+Stories: `US-GRP-01`, `US-GRP-03`, `US-GRP-04`, `US-GRP-05`, `US-GRP-08`.
+
+### 03.2 — Pace-group setup and pace-admin assignment
+**[Assignee: group-setup]**
+
+- Build the authorized batch-admin/super-admin flow to create, edit, archive, and list pace groups inside a batch.
+- Validate that every group has a name and valid configured pace, such as 5, 10, 20, or 40 pages per day.
+- Enforce the batch’s planned pace-group count unless an authorized admin deliberately updates the batch plan.
+- Assign one or more pace admins to each group.
+- Allow optional duty and book assignments without requiring every admin to have every duty.
+- Show group readiness status: groups created, pace admins assigned, and daily-task owner available. Group readiness must not gate registration.
+- Support a volunteer request visible to batch members, member applications, and batch-admin review/confirmation before granting a pace-admin assignment.
+- Never grant pace-admin permissions automatically when a member volunteers.
+- Prevent batch admins from viewing or changing groups outside their assigned batches.
+- Build mobile-ready, accessible forms using the project form/action rules.
+
+Do not allow batch admins to edit global catalog books or reusable shared task content.
+
+**Goal:** Let a batch admin finish group setup confidently before or after registration opens.
+
+Stories: `US-GRP-03`, `US-GRP-04`, `US-GRP-06`.
+
+### 03.3 — Pace-group placement and in-batch move workflow
+**[Assignee: group-membership]**
+
+- Support an accepted active batch member with no active pace-group membership and an explicit `awaiting_placement` status.
+- Place a member into exactly one pace group in their active batch, individually or through a confirmed bulk action.
+- Show pace preference only when selectable groups existed at application time; preference is advisory, not automatic placement.
+- Build member requests and batch-admin approval/rejection for in-batch group changes.
+- Allow an authorized batch admin or super admin to move a member directly when operationally necessary.
+- Keep batch membership active during a normal group move.
+- Close the old group membership, create the new one, and write the move audit record in one transaction.
+- Preserve old daily progress, reflections, and attendance history; never rewrite it to the new group.
+- Ensure a move does not alter any other member’s membership or group cursor.
+- Provide a confirmed bulk action such as “Place all unassigned active members into 10-page group”; create an audit record for every member.
+
+Do not use this workflow for removal or cross-batch reassignment.
+
+**Goal:** Members can move between groups without losing history or being treated as removed.
+
+Stories: `US-GRP-01`, `US-GRP-08`, `US-ADM-05`, `US-ADM-06`.
+
+### 03.4 — Today’s page-target generator and local task publishing
+**[Assignee: daily-task-engine]**
+
+- Read the batch’s current catalog book from the shared schedule service and the pace group’s last saved page cursor.
+- Generate the next page-range suggestion using the group’s configured pace; for example, cursor 8 and pace 10 proposes pages 9–18.
+- Let the assigned pace admin approve the suggestion or increase/decrease the final range. An authorized batch admin may publish when no pace admin is assigned.
+- Save the final page range and advance only that pace group’s cursor after publishing.
+- Refuse generation when the batch has not started, the curriculum is exhausted, no book is available, or today already has a published task.
+- Make retries idempotent so duplicate submissions cannot create tasks or skip pages.
+- Use the product timezone and calendar dates, not server-clock timestamps.
+
+**Goal:** The system proposes each group’s next range while authorized admins retain control of the final task.
+
+Stories: `US-GRP-05`, `US-CAT-05`, `OD-014`.
+
+### 03.5 — Reusable task selection and pace-group publishing
+**[Assignee: task-reuse]**
+
+- Match reusable task content to the current catalog book and reading step/range; attach it to the local task when found.
+- If no content exists, allow a local draft and optionally publish its content into the reusable library for later batches.
+- Keep reusable content separate from the local final page range.
+- Preserve the task version/reference used at publish time so historic tasks do not change when reusable content is edited.
+- Initially support the structure for image, quote, topic, and short description even if the full editor comes later.
+- Enforce pace-admin book/group scope and batch isolation on every read and write.
+
+Do not share a local daily task record between batches. Only reusable content is shared.
+
+**Goal:** Useful task content can be reused without sharing cursors, members, or local changes.
+
+Stories: `US-GRP-07`, `OD-022`.
+
+### 03.6 — Member and admin schedule views
+**[Assignee: schedule-web]**
+
+- Build member and authorized-admin schedule views with today’s published task, page range, current book, and next task when available.
+- Show explicit states for awaiting placement, before batch start, no published task, rest/unscheduled day, exhausted curriculum, empty group, and server error.
+- Ensure members see only their active pace group and batch; pace admins only assigned groups; batch admins only assigned batches; super admins all batches.
+- Make the member schedule mobile-first and fast enough for daily reading.
+- Use pagination or explicit caps for historical task lists.
+
+Do not show another batch’s roster, cursor, or unpublished daily tasks to normal members.
+
+**Goal:** Everyone sees the correct schedule for their authorized group without cross-batch data leakage.
+
+Stories: `US-GRP-02`, `US-GRP-05`.
+
+### 03.7 — Pace-group release verification
+**[Assignee: groups-quality]**
+
+- Test role allow/deny cases for member, pace admin, batch admin, and super admin.
+- Test group creation, known-user assignment, volunteer application/approval, placement, bulk placement, moves, and history preservation.
+- Test one active group per member per batch and the awaiting-placement state.
+- Test page-range generation, admin adjustment, cursor advancement, duplicate-submit protection, and exhausted-book behavior.
+- Test two groups with different paces and two batches using the same reusable task source.
+- Prove a cursor/task update in one group cannot affect any other group or batch.
+- Add end-to-end coverage: batch setup → registration opens without groups → member activated/unassigned → groups/admins assigned → member placed → daily task published → member can view it.
+- Run the required lint, type, test, and verification gates.
+
+**Goal:** Release Module 03 as one reliable flow, not separate setup and task screens.
 
 ---
 
 ## 04 · Daily Reading Tracking
 
-| ID | User story | Priority | Source |
-|----|-----------|----------|--------|
-| US-RDG-01 | As a member, I can mark today Done. | Must | PRD |
-| US-RDG-02 | As a member, I can see Done / Not Done. | Must | PRD |
-| US-RDG-03 | As a member, progress updates immediately. | Must | PRD |
-| US-RDG-04 | As a pace admin, I can see my members' daily activity on the group dashboard. | Must | Meeting |
-| US-RDG-05 | As a member, daily tracking loads in under 2s on mobile. | Must | PRD |
+### 04.1 — Daily progress data and secure service
+**[Assignee: reading-progress-data]**
+
+You own the persisted daily reading-progress record and its server-side workflow.
+
+Your tasks:
+
+- Add a daily progress record linked to the member, batch, pace group, and local published daily task.
+- Store a `done`/`not_done` state and timestamps needed for operational history.
+- Enforce one progress record per member per daily task.
+- Implement an idempotent toggle/set service: marking Done twice must not create duplicates.
+- Permit a member to change Done back to Not Done when product policy allows.
+- Require active batch membership and active pace-group membership on every mutation.
+- Verify the task belongs to the member’s current authorized group and is published for the relevant date.
+- Use the server session as the actor; never accept a client-provided member ID.
+- Add indexes for a member’s Today view and a pace-admin group activity view.
+
+Do not use daily reading progress as attendance. Attendance comes from qualifying
+text posts in Module 05/06.
+
+**Goal:** Persist a trustworthy answer to: “Did this member complete today’s assigned reading task?”
+
+Stories: `US-RDG-01`, `US-RDG-02`, `US-RDG-03`.
+
+### 04.2 — Member “Today” reading experience
+**[Assignee: member-today-web]**
+
+You own the mobile member screen for viewing today’s task and marking it Done.
+
+Your tasks:
+
+- Build the authenticated Today screen using the group’s published local daily task.
+- Show current book, cover when available, final assigned page range, optional topic/content, and Done/Not Done status.
+- Provide one accessible native form action to mark Done or Not Done.
+- Update the visible status immediately after a successful action and revalidate the authoritative server state.
+- Prevent duplicate submissions while an action is pending.
+- Show useful states: no active batch, not yet placed in a group, before batch start, no task published today, and task already completed.
+- Keep the screen mobile-first and designed for normal low-bandwidth phone use.
+- Meet the under-two-second typical-load target through efficient server reads, targeted indexes, and lightweight UI.
+
+Do not let members mark progress for another member, another date, another group,
+or an unpublished task.
+
+**Goal:** A member can open the app, understand today’s pages, and mark completion with one dependable action.
+
+Stories: `US-RDG-01`, `US-RDG-02`, `US-RDG-03`, `US-RDG-05`.
+
+### 04.3 — Edition-aware progress rules
+**[Assignee: reading-editions]**
+
+You own the rule that members in the same pace group may read different language editions of the same program book.
+
+Your tasks:
+
+- Persist or retrieve each member’s assigned reading edition for the current program slot.
+- Ensure a member reads one edition only for a task; never require both Amharic and English pages.
+- Keep the pace group on one shared curriculum day and one shared daily topic/task.
+- Display the member’s correct edition title, cover, and page range where editions have different pagination.
+- Ensure a member’s Done state means completion of their own edition’s assigned pages.
+- Allow authorized admin assignment/correction of an edition without changing the shared group curriculum day.
+- Add tests for mixed-language members in one group and for edition changes that must not affect other members.
+
+**Goal:** English and Amharic readers can stay in one pace group and follow the same topic/calendar while reading the correct pages in their own book edition.
+
+Stories: `US-RDG-01`, `US-RDG-02`, `OD-015`.
+
+### 04.4 — Pace-admin daily activity dashboard
+**[Assignee: progress-dashboard]**
+
+You own the group-level daily reading activity view for pace admins.
+
+Your tasks:
+
+- Build an authorized group dashboard for the selected date/task.
+- Show each active member’s Done/Not Done status, completion time when available, and correct reading edition.
+- Provide summaries such as completed count and remaining count without relying on incomplete client-loaded data.
+- Support pagination for larger rosters and clear loading, empty, and error states.
+- Let pace admins access only their assigned groups; batch admins only groups in assigned batches; super admins all.
+- Preserve history after a member changes pace group: historical progress remains tied to the old daily task/group.
+- Keep attendance status separate from reading progress; do not label Not Done as an attendance miss.
+
+**Goal:** Pace admins can see who completed today’s reading without exposing another group’s members or confusing reading with attendance.
+
+Stories: `US-RDG-04`, `US-ADM-01`, `US-ADM-02`.
+
+### 04.5 — Daily progress performance, reliability, and test coverage
+**[Assignee: progress-quality]**
+
+You own release verification for Module 04.
+
+Your tasks:
+
+- Add unit tests for Done/Not Done transitions, idempotency, duplicate requests, and authorization failures.
+- Add tests for active/inactive/removed/grace membership behavior.
+- Test that a member cannot mutate another member’s progress or progress for another batch/group.
+- Test that progress cannot be recorded for unpublished, expired, or nonexistent daily tasks.
+- Test mixed Amharic/English edition behavior.
+- Add end-to-end coverage: published group task → member opens Today → marks Done → pace admin sees the update.
+- Measure and address the mobile Today load target for a typical active member.
+- Verify no unbounded roster/history reads and no internal error details are exposed to users.
+
+**Goal:** Make daily reading tracking quick, secure, and dependable enough to become the habit-forming core of the product.
 
 ---
 
