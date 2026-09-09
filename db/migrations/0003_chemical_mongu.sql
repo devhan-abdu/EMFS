@@ -1,0 +1,1 @@
+ALTER TABLE "pace_groups" ADD COLUMN "cursor" integer DEFAULT 0 NOT NULL;
