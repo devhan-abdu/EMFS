@@ -123,13 +123,7 @@ export const reorderBooksSchema = z.object({
 
 export type ReorderBooksInput = z.infer<typeof reorderBooksSchema>;
 
-export const createTaskSchema = z.object({
-  bookId: z.string().uuid(),
-  dayNumber: z.number().int().positive(),
-  content: z.string().min(1),
-});
-
-export type CreateTaskInput = z.infer<typeof createTaskSchema>;
+export { createTaskSchema, type CreateTaskInput } from "./task";
 
 export const getCatalogSchema = z
   .object({

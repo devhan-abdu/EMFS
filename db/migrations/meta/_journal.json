@@ -22,6 +22,20 @@
       "when": 1788813095033,
       "tag": "0002_curvy_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789042115374,
+      "tag": "0003_demonic_kat_farrell",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789114522005,
+      "tag": "0004_steady_iron_fist",
+      "breakpoints": true
     }
   ]
 }

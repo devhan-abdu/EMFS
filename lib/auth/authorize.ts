@@ -36,8 +36,9 @@ export async function requireSession(): Promise<CurrentUser> {
 export async function requireRole(allowed: Role[]): Promise<CurrentUser> {
   const user = await requireSession();
   const role = user.profile.role as Role;
+  const minRank = Math.min(...allowed.map((r) => ROLE_RANK[r]));
 
-  if (!allowed.includes(role)) {
+  if (ROLE_RANK[role] < minRank) {
     throw new AuthzError(
       "FORBIDDEN",
       `Role '${role}' is not permitted. Required one of: ${allowed.join(", ")}.`,
