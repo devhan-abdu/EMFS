@@ -1,169 +1,407 @@
 "use client";
 
-import { useActionState } from "react";
-import { useRouter } from "next/navigation";
-import { createBatchAction } from "@/actions/batch";
+import { useActionState, useEffect, useState } from "react";
+import Link from "next/link";
+import { Check, ChevronsUpDown, X } from "lucide-react";
+import { toast } from "sonner";
+
+import {
+  createBatchAction,
+  type CreateBatchActionState,
+} from "@/actions/batch";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { AdminPicker } from "@/components/admin/admin-picker";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
-export function CreateBatchForm() {
-  const router = useRouter();
-  const [state, formAction, isPending] = useActionState(createBatchAction, null);
+export type AdminOption = {
+  profileId: string;
+  displayName: string;
+  email: string;
+  previouslyAssigned: boolean;
+};
 
-  const formErrors = state?.errors?.formErrors ?? [];
+const MAX_ADMINS = 3;
+const initialState: CreateBatchActionState = null;
+
+export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
+  const [state, formAction, isPending] = useActionState(
+    createBatchAction,
+    initialState,
+  );
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [requireTelegramHandoff, setRequireTelegramHandoff] = useState(true);
   const fieldErrors = state?.errors?.fieldErrors ?? {};
 
+  useEffect(() => {
+    if (state?.ok) toast.success("Batch created successfully");
+  }, [state]);
+
+  const isMaxReached = selectedIds.length >= MAX_ADMINS;
+  const selectedAdmins = admins.filter((a) =>
+    selectedIds.includes(a.profileId),
+  );
+  const suggested = admins.filter((a) => a.previouslyAssigned);
+  const others = admins.filter((a) => !a.previouslyAssigned);
+
+  function toggleAdmin(id: string) {
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= MAX_ADMINS) return prev;
+      return [...prev, id];
+    });
+  }
+
   return (
-    <form
-      action={formAction}
-      className="space-y-6 rounded-xl border border-border bg-card p-6 shadow-xs text-card-foreground"
-    >
-      <div>
-        <h2 className="text-xl font-semibold text-foreground">
-          Create New Batch
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Create a fully configured not-yet-open batch. Reading will conceptually start from catalog sequence 1.
-        </p>
+    <form action={formAction} className="grid gap-6 lg:grid-cols-3">
+      <div className="space-y-6 lg:col-span-2">
+        <Card className="card-soft">
+          <CardHeader>
+            <CardTitle className="font-display text-xl">
+              Batch details
+            </CardTitle>
+            <CardDescription>
+              Members will see the name and description.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="name">Batch name</Label>
+              <Input
+                id="name"
+                name="name"
+                placeholder="Batch 05 — Spring Circle"
+              />
+              <FieldError message={fieldErrors.name?.[0]} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                name="description"
+                rows={3}
+                placeholder="What members can expect from this batch…"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="card-soft">
+          <CardHeader>
+            <CardTitle className="font-display text-xl">
+              Schedule & pacing
+            </CardTitle>
+            <CardDescription>
+              Capacity and rhythm apply to every pace group in this batch.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="maxMembers">Maximum members</Label>
+                <Input
+                  id="maxMembers"
+                  name="maxMembers"
+                  type="number"
+                  min={1}
+                  defaultValue={60}
+                />
+                <FieldError message={fieldErrors.maxMembers?.[0]} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="paceGroupCount">Pace groups</Label>
+                <Input
+                  id="paceGroupCount"
+                  name="paceGroupCount"
+                  type="number"
+                  min={1}
+                  defaultValue={3}
+                />
+                <FieldError message={fieldErrors.paceGroupCount?.[0]} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="startDate">Start date</Label>
+                <Input id="startDate" name="startDate" type="date" />
+                <FieldError message={fieldErrors.startDate?.[0]} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="readingDaysPerWeek">
+                  Reading days per week
+                </Label>
+                <Select name="readingDaysPerWeek" defaultValue="5">
+                  <SelectTrigger id="readingDaysPerWeek">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[3, 4, 5, 6, 7].map((d) => (
+                      <SelectItem key={d} value={String(d)}>
+                        {d} days
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldError message={fieldErrors.readingDaysPerWeek?.[0]} />
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label htmlFor="note">Note for batch admins</Label>
+              <Textarea
+                id="note"
+                name="note"
+                rows={4}
+                placeholder="Anything the pace admins should know before intake opens…"
+              />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {formErrors.length > 0 && (
-        <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
-          <ul className="list-inside list-disc space-y-2">
-            {formErrors.map((err, i) => (
-              <li key={i}>{err}</li>
+      <div className="space-y-6">
+        <Card className="card-soft">
+          <CardHeader>
+            <CardTitle className="font-display text-xl">Registration</CardTitle>
+            <CardDescription>
+              Defaults are closed registration with Telegram handoff required —
+              change either below.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between rounded-xl bg-surface-container p-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Open registration
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Members can apply immediately
+                </p>
+              </div>
+              <Switch
+                name="registrationOpen"
+                value="true"
+                checked={registrationOpen}
+                onCheckedChange={setRegistrationOpen}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-surface-container p-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Require Telegram handoff
+                </p>
+                <p className="text-xs text-muted-foreground">After approval</p>
+              </div>
+              <Switch
+                name="requireTelegramHandoff"
+                value="true"
+                checked={requireTelegramHandoff}
+                onCheckedChange={setRequireTelegramHandoff}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="card-soft">
+          <CardHeader>
+            <CardTitle className="font-display text-xl">Batch admins</CardTitle>
+            <CardDescription>
+              Pick 1–3. People previously assigned show up first.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {selectedAdmins.map((admin) => (
+              <input
+                key={admin.profileId}
+                type="hidden"
+                name="adminIds"
+                value={admin.profileId}
+              />
             ))}
-          </ul>
-        </div>
-      )}
 
-      {/* Batch Name */}
-      <div className="space-y-2">
-        <label
-          htmlFor="batch-name"
-          className="block text-sm font-medium text-foreground"
-        >
-          Batch Name
-        </label>
-        <Input
-          id="batch-name"
-          name="name"
-          type="text"
-          required
-          placeholder="e.g. Batch 2026 - Cohort 1"
-        />
-        {fieldErrors.name && (
-          <p className="text-xs text-destructive">{fieldErrors.name[0]}</p>
-        )}
-      </div>
+            <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+              <PopoverTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={pickerOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {isMaxReached ?
+                      "Maximum admins selected"
+                    : "Search admins…"}
+                    <ChevronsUpDown className="size-4 opacity-50" />
+                  </Button>
+                }
+              />
 
-      {/* Max Members & Pace Group Count */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <label
-            htmlFor="max-members"
-            className="block text-sm font-medium text-foreground"
-          >
-            Max Members (Capacity)
-          </label>
-          <Input
-            id="max-members"
-            name="maxMembers"
-            type="number"
-            min="1"
-            required
-            defaultValue={50}
-          />
-          {fieldErrors.maxMembers && (
-            <p className="text-xs text-destructive">{fieldErrors.maxMembers[0]}</p>
-          )}
-        </div>
+              <PopoverContent
+                className="w-[--radix-popover-trigger-width] p-0"
+                align="start"
+              >
+                <Command>
+                  <CommandInput placeholder="Type a name or email…" />
+                  <CommandList>
+                    <CommandEmpty>No admins found.</CommandEmpty>
+                    {suggested.length > 0 && (
+                      <CommandGroup heading="Previously assigned">
+                        {suggested.map((admin) => (
+                          <AdminItem
+                            key={admin.profileId}
+                            admin={admin}
+                            isSelected={selectedIds.includes(admin.profileId)}
+                            disabled={
+                              isMaxReached &&
+                              !selectedIds.includes(admin.profileId)
+                            }
+                            onSelect={() => toggleAdmin(admin.profileId)}
+                          />
+                        ))}
+                      </CommandGroup>
+                    )}
+                    {others.length > 0 && (
+                      <CommandGroup heading="All admins">
+                        {others.map((admin) => (
+                          <AdminItem
+                            key={admin.profileId}
+                            admin={admin}
+                            isSelected={selectedIds.includes(admin.profileId)}
+                            disabled={
+                              isMaxReached &&
+                              !selectedIds.includes(admin.profileId)
+                            }
+                            onSelect={() => toggleAdmin(admin.profileId)}
+                          />
+                        ))}
+                      </CommandGroup>
+                    )}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
 
-        {/* Planned Pace Group Count */}
-        <div className="space-y-2">
-          <label
-            htmlFor="pace-group-count"
-            className="block text-sm font-medium text-foreground"
-          >
-            Planned Pace Group Count (≥ 1)
-          </label>
-          <Input
-            id="pace-group-count"
-            name="paceGroupCount"
-            type="number"
-            min="1"
-            required
-            defaultValue={1}
-          />
-          {fieldErrors.paceGroupCount && (
-            <p className="text-xs text-destructive">{fieldErrors.paceGroupCount[0]}</p>
-          )}
-        </div>
-      </div>
+            <div className="space-y-2">
+              {selectedAdmins.length === 0 ?
+                <p className="text-xs text-muted-foreground">
+                  No admins assigned yet — defaults to you if left empty.
+                </p>
+              : <div className="flex flex-wrap gap-2">
+                  {selectedAdmins.map((admin) => (
+                    <Badge
+                      key={admin.profileId}
+                      variant="secondary"
+                      className="gap-1 rounded-full py-1 pl-3 pr-1.5"
+                    >
+                      {admin.displayName}
+                      <button
+                        type="button"
+                        onClick={() => toggleAdmin(admin.profileId)}
+                        className="rounded-full p-0.5 hover:bg-background/60"
+                        aria-label={`Remove ${admin.displayName}`}
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              }
+            </div>
 
-      {/* Start Date */}
-      <div className="space-y-2">
-        <label
-          htmlFor="start-date"
-          className="block text-sm font-medium text-foreground"
-        >
-          Start Date
-        </label>
-        <Input
-          id="start-date"
-          name="startDate"
-          type="date"
-          required
-        />
-        {fieldErrors.startDate && (
-          <p className="text-xs text-destructive">{fieldErrors.startDate[0]}</p>
-        )}
-      </div>
+            <FieldError message={fieldErrors.adminIds?.[0]} />
+          </CardContent>
+        </Card>
 
-      {/* Reading Days Per Week */}
-      <div className="space-y-2">
-        <label
-          htmlFor="reading-days"
-          className="block text-sm font-medium text-foreground"
-        >
-          Reading Days Per Week (1–7)
-        </label>
-        <Input
-          id="reading-days"
-          name="readingDaysPerWeek"
-          type="number"
-          min="1"
-          max="7"
-          required
-          defaultValue={6}
-        />
-        <p className="text-xs text-muted-foreground">
-          Defaults to 6 days per week. Controls cohort reading schedule cadence.
-        </p>
-        {fieldErrors.readingDaysPerWeek && (
+        {state?.errors?.formErrors?.[0] && (
           <p className="text-xs text-destructive">
-            {fieldErrors.readingDaysPerWeek[0]}
+            {state.errors.formErrors[0]}
           </p>
         )}
-      </div>
 
-      {/* Batch Admins Picker (1–3 Admins) */}
-      <AdminPicker error={fieldErrors.adminIds?.[0]} />
-
-      <div className="flex justify-end gap-4 pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.back()}
-          disabled={isPending}
-        >
-          Cancel
-        </Button>
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Creating Batch..." : "Create Batch"}
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            type="submit"
+            className="flex-1"
+            disabled={isPending}
+            aria-disabled={isPending}
+          >
+            {isPending ? "Saving…" : "Save batch"}
+          </Button>
+          <Button type="button" variant="outline" asChild>
+            <Link href="/admin/batches">Cancel</Link>
+          </Button>
+        </div>
       </div>
     </form>
   );
+}
+
+function AdminItem({
+  admin,
+  isSelected,
+  disabled,
+  onSelect,
+}: {
+  admin: AdminOption;
+  isSelected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <CommandItem
+      value={`${admin.displayName} ${admin.email}`}
+      disabled={disabled}
+      onSelect={onSelect}
+      className={cn(disabled && "opacity-50")}
+    >
+      <Check
+        className={cn("mr-2 size-4", isSelected ? "opacity-100" : "opacity-0")}
+      />
+      <div className="flex flex-1 flex-col">
+        <span>{admin.displayName}</span>
+        <span className="text-xs text-muted-foreground">{admin.email}</span>
+      </div>
+    </CommandItem>
+  );
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+
+  return <p className="text-xs text-destructive">{message}</p>;
 }

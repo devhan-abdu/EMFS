@@ -4,12 +4,14 @@ import { createBookSchema, createTaskSchema } from "../lib/validations/catalog";
 const validBook: {
   title: string;
   language: string;
+  pageCount: number;
   coverUrl?: string;
   author?: string;
   pairedBookId?: string;
 } = {
   title: "Atomic Habits",
   language: "en",
+  pageCount: 300,
   coverUrl: undefined,
 };
 
@@ -56,10 +58,14 @@ describe("createBookSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects missing language", () => {
+  it("defaults missing language to 'en'", () => {
     const { language: _language, ...rest } = validBook;
     const result = createBookSchema.safeParse(rest);
-    expect(result.success).toBe(false);
+    // bookLanguageSchema preprocesses undefined → "en", so missing language is valid
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.language).toBe("en");
+    }
   });
 
   it("rejects empty title", () => {
