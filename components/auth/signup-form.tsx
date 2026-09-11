@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function SignUpForm() {
+export function SignUpForm({ next }: { next?: string | null }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [state, formAction, isPending] = useActionState(signUpAction, null);
@@ -19,6 +19,10 @@ export function SignUpForm() {
 
   return (
     <form action={formAction} className="mt-8 space-y-5">
+      {next ?
+        <input type="hidden" name="next" value={next} />
+      : null}
+
       {formErrors.length > 0 && (
         <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
           {formErrors.map((error) => (
@@ -153,7 +157,7 @@ export function SignUpForm() {
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
         <Link
-          href="/signin"
+          href={next ? `/signin?next=${encodeURIComponent(next)}` : "/signin"}
           className="font-medium text-primary hover:underline"
         >
           Sign in

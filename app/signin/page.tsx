@@ -16,7 +16,13 @@ export const metadata: Metadata = {
   icons: { icon: "/favicon.ico" },
 };
 
-export default function SignInPage() {
+type SignInPageProps = {
+  searchParams: Promise<{ next?: string }>;
+};
+
+export default async function SignInPage({ searchParams }: SignInPageProps) {
+  const { next } = await searchParams;
+
   return (
     <div className="relative flex min-h-screen flex-col bg-background lg:flex-row">
       <aside className="relative hidden overflow-hidden bg-primary px-12 py-16 text-primary-foreground lg:flex lg:w-[46%] lg:flex-col lg:justify-between">
@@ -64,7 +70,7 @@ export default function SignInPage() {
             Sign in with your email.
           </p>
 
-          <SignInForm />
+          <SignInForm next={next ?? null} />
         </div>
       </main>
     </div>

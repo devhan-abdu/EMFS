@@ -10,11 +10,27 @@ import { auth } from "@/lib/auth/auth";
 import { registerMember } from "@/lib/services/registration";
 import { signUpSchema, signInSchema } from "@/lib/validations/auth";
 
+
+function safeNext(next: FormDataEntryValue | null | undefined): string | null {
+  if (typeof next !== "string" || !next) return null;
+  if (!next.startsWith("/") || next.startsWith("//")) return null;
+  return next;
+}
+
+function defaultRedirectForRole(role: string | undefined): string {
+  return (
+      role === "super_admin" || role === "batch_admin" || role === "pace_admin"
+    ) ?
+      "/admin"
+    : "/";
+}
+
 export async function signUpAction(_: unknown, formData?: FormData) {
   if (!formData) {
     return { ok: false as const, errors: { formErrors: [], fieldErrors: {} } };
   }
 
+  const next = safeNext(formData.get("next"));
   const input = Object.fromEntries(formData.entries()) as Record<
     string,
     unknown
@@ -33,7 +49,7 @@ export async function signUpAction(_: unknown, formData?: FormData) {
     };
   }
 
-  redirect("/");
+  redirect(next ?? "/");
 }
 
 export async function signInAction(_: unknown, formData?: FormData) {
@@ -41,6 +57,7 @@ export async function signInAction(_: unknown, formData?: FormData) {
     return { ok: false as const, errors: { formErrors: [], fieldErrors: {} } };
   }
 
+  const next = safeNext(formData.get("next"));
   const input = Object.fromEntries(formData.entries()) as Record<
     string,
     unknown
@@ -64,22 +81,14 @@ export async function signInAction(_: unknown, formData?: FormData) {
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
-    redirect("/");
+    redirect(next ?? "/");
   }
 
   const profile = await db.query.profiles.findFirst({
     where: eq(profiles.authUserId, session.user.id),
   });
 
-redirect(
-  (
-    profile?.role === "super_admin" ||
-      profile?.role === "batch_admin" ||
-      profile?.role === "pace_admin"
-  ) ?
-    "/admin"
-  : "/",
-);
+  redirect(next ?? defaultRedirectForRole(profile?.role));
 }
 
 export async function signOutAction() {
