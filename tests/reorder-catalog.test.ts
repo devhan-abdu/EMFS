@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { reorderCatalogSlots } from "../lib/services/reorder-catalog";
-import { reorderCatalogSlotsAction } from "../actions/catalog";
+import {
+  reorderBooks,
+  reorderCatalogSlots,
+} from "../lib/services/catalog/reorder-catalog";
+import {
+  reorderBooksAction,
+  reorderCatalogSlotsAction,
+} from "../actions/catalog";
 
 const { mockRequireSuperAdmin, AuthzErrorMock } = vi.hoisted(() => {
   class AuthzErrorMock extends Error {
@@ -19,11 +25,12 @@ const mocks = vi.hoisted(() => {
   const selectMock = vi.fn();
   const updateMock = vi.fn();
   const transactionMock = vi.fn();
+  const findManyMock = vi.fn();
 
-  return { selectMock, updateMock, transactionMock };
+  return { selectMock, updateMock, transactionMock, findManyMock };
 });
 
-const { selectMock, updateMock, transactionMock } = mocks;
+const { selectMock, updateMock, transactionMock, findManyMock } = mocks;
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth/authorize", () => ({
@@ -41,6 +48,11 @@ vi.mock("@/db", () => ({
     select: mocks.selectMock,
     update: mocks.updateMock,
     transaction: mocks.transactionMock,
+    query: {
+      books: {
+        findMany: mocks.findManyMock,
+      },
+    },
   },
 }));
 
@@ -252,6 +264,112 @@ describe("reorderCatalogSlotsAction Server Action", () => {
     });
 
     const result = await reorderCatalogSlotsAction({ fromSlot: -1, toSlot: "abc" });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("reorderBooks Service", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("no-ops when ids are already in ascending slot order", async () => {
+    mockRequireSuperAdmin.mockResolvedValue({
+      authUserId: "admin-1",
+      email: "admin@example.com",
+      profile: { role: "super_admin" },
+    });
+
+    const idA = "11111111-1111-4111-8111-111111111111";
+    const idB = "22222222-2222-4222-8222-222222222222";
+
+    transactionMock.mockImplementation(async (fn) =>
+      fn({
+        query: {
+          books: {
+            findMany: findManyMock,
+          },
+        },
+        update: updateMock,
+      }),
+    );
+
+    findManyMock.mockResolvedValueOnce([
+      { id: idA, sequenceOrder: 11 },
+      { id: idB, sequenceOrder: 12 },
+    ]);
+
+    const result = await reorderBooks({ orderedIds: [idA, idB] });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.sequenceOrders).toEqual([11, 12]);
+    }
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("reassigns preserved page slot numbers to the new order", async () => {
+    mockRequireSuperAdmin.mockResolvedValue({
+      authUserId: "admin-1",
+      email: "admin@example.com",
+      profile: { role: "super_admin" },
+    });
+
+    const idA = "11111111-1111-4111-8111-111111111111";
+    const idB = "22222222-2222-4222-8222-222222222222";
+    const idC = "33333333-3333-4333-8333-333333333333";
+
+    const whereMock = vi.fn(() => Promise.resolve());
+    updateMock.mockReturnValue({
+      set: vi.fn(() => ({ where: whereMock })),
+    });
+
+    transactionMock.mockImplementation(async (fn) =>
+      fn({
+        query: {
+          books: {
+            findMany: findManyMock,
+          },
+        },
+        update: updateMock,
+      }),
+    );
+
+    findManyMock.mockResolvedValueOnce([
+      { id: idA, sequenceOrder: 11 },
+      { id: idB, sequenceOrder: 12 },
+      { id: idC, sequenceOrder: 13 },
+    ]);
+
+    const result = await reorderBooks({ orderedIds: [idC, idA, idB] });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.sequenceOrders).toEqual([11, 12, 13]);
+      expect(result.data.orderedIds).toEqual([idC, idA, idB]);
+    }
+    // 3 temp moves + 3 final assigns
+    expect(updateMock).toHaveBeenCalledTimes(6);
+  });
+});
+
+describe("reorderBooksAction Server Action", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("rejects invalid uuid lists", async () => {
+    mockRequireSuperAdmin.mockResolvedValue({
+      authUserId: "admin-1",
+      email: "admin@example.com",
+      profile: { role: "super_admin" },
+    });
+
+    const result = await reorderBooksAction(["not-a-uuid"]);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {

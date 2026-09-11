@@ -8,6 +8,10 @@ vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
 }));
 
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
 vi.mock("@/lib/auth/authorize", () => ({
   requireRole: vi.fn(),
   AuthzError: class AuthzError extends Error {
@@ -39,7 +43,7 @@ describe("Batch Server Actions - Authorization & Execution", () => {
     vi.clearAllMocks();
   });
 
-  it("permits Super Admin to create a batch from FormData and redirects to /batches", async () => {
+  it("permits Super Admin to create a batch from FormData and returns the created batch", async () => {
     vi.mocked(authorizeModule.requireRole).mockResolvedValue({
       authUserId: "auth-super-1",
       email: "super@example.com",
@@ -83,7 +87,7 @@ describe("Batch Server Actions - Authorization & Execution", () => {
     formData.append("startDate", "2026-09-01");
     formData.append("readingDaysPerWeek", "6");
 
-    await createBatchAction(null, formData);
+    const result = await createBatchAction(null, formData);
 
     expect(authorizeModule.requireRole).toHaveBeenCalledWith(["super_admin"]);
     expect(batchService.createBatch).toHaveBeenCalledWith(
@@ -93,12 +97,19 @@ describe("Batch Server Actions - Authorization & Execution", () => {
         maxMembers: 50,
         paceGroupCount: 1,
         readingDaysPerWeek: 6,
-      })
+      }),
     );
-    expect(redirect).toHaveBeenCalledWith("/batches");
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        batch: { id: mockBatchRecord.id, name: mockBatchRecord.name },
+        assignedAdminIds: [superAdminProfileId],
+      },
+    });
+    expect(redirect).not.toHaveBeenCalled();
   });
 
-  it("accepts plain object payload and redirects upon successful creation", async () => {
+  it("accepts plain object payload and returns the created batch", async () => {
     vi.mocked(authorizeModule.requireRole).mockResolvedValue({
       authUserId: "auth-super-1",
       email: "super@example.com",
@@ -143,7 +154,7 @@ describe("Batch Server Actions - Authorization & Execution", () => {
       readingDaysPerWeek: 6,
     };
 
-    await createBatchAction(payload);
+    const result = await createBatchAction(payload);
 
     expect(batchService.createBatch).toHaveBeenCalledWith(
       superAdminProfileId,
@@ -152,17 +163,24 @@ describe("Batch Server Actions - Authorization & Execution", () => {
         maxMembers: 80,
         paceGroupCount: 2,
         readingDaysPerWeek: 6,
-      })
+      }),
     );
-    expect(redirect).toHaveBeenCalledWith("/batches");
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        batch: { id: mockBatchRecord.id, name: mockBatchRecord.name },
+        assignedAdminIds: [superAdminProfileId],
+      },
+    });
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it("rejects unauthorized access when user is not a super_admin", async () => {
     vi.mocked(authorizeModule.requireRole).mockRejectedValue(
       new authorizeModule.AuthzError(
         "FORBIDDEN",
-        "Role 'batch_admin' is not permitted. Required at least: super_admin."
-      )
+        "Role 'batch_admin' is not permitted. Required at least: super_admin.",
+      ),
     );
 
     await expect(
@@ -172,7 +190,7 @@ describe("Batch Server Actions - Authorization & Execution", () => {
         paceGroupCount: 1,
         startDate: "2026-09-01",
         readingDaysPerWeek: 6,
-      })
+      }),
     ).rejects.toThrow("Role 'batch_admin' is not permitted");
 
     expect(batchService.createBatch).not.toHaveBeenCalled();
@@ -200,7 +218,7 @@ describe("Batch Server Actions - Authorization & Execution", () => {
     const invalidPayload = {
       name: "", // Empty name
       maxMembers: -5, // Negative max members
-      paceGroupCount: 0, // < 1
+      paceGroupCount: -1, // Negative values are invalid
       startDate: "invalid",
       readingDaysPerWeek: 10, // > 7
     };
@@ -239,8 +257,8 @@ describe("Batch Server Actions - Authorization & Execution", () => {
     vi.mocked(batchService.createBatch).mockRejectedValue(
       new batchService.BatchError(
         "ADMIN_NOT_FOUND",
-        "Admin profile(s) not found: 11111111-1111-4111-8111-111111111111"
-      )
+        "Admin profile(s) not found: 11111111-1111-4111-8111-111111111111",
+      ),
     );
 
     const payload = {
@@ -256,7 +274,7 @@ describe("Batch Server Actions - Authorization & Execution", () => {
     expect(res?.ok).toBe(false);
     if (res && !res.ok && res.errors) {
       expect(res.errors.formErrors).toContain(
-        "Admin profile(s) not found: 11111111-1111-4111-8111-111111111111"
+        "Admin profile(s) not found: 11111111-1111-4111-8111-111111111111",
       );
     }
     expect(redirect).not.toHaveBeenCalled();

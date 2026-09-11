@@ -1,8 +1,17 @@
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createBookWithCover } from "../lib/services/create-book";
+import { createBookWithCover } from "../lib/services/catalog/create-book";
 import * as authorizeModule from "../lib/auth/authorize";
+
+const mockUploadToCloudinary = vi.hoisted(() => vi.fn());
+const mockDeleteFromCloudinary = vi.hoisted(() => vi.fn());
+
+vi.mock("../lib/services/catalog/cloudinary", () => ({
+  uploadToCloudinary: mockUploadToCloudinary,
+  isCloudinaryUrl: (url: string) => url.includes("res.cloudinary.com"),
+  deleteFromCloudinary: mockDeleteFromCloudinary,
+}));
 
 type InsertPayload = {
   title: string;
@@ -15,13 +24,15 @@ type InsertPayload = {
 
 const mocks = vi.hoisted(() => {
   const insertValuesMock = vi.fn((data: InsertPayload) => ({
-    returning: vi.fn(async () => [{
-      id: "book-1",
-      title: "The Example Book",
-      language: "en",
-      author: "Jane Author",
-      coverUrl: data.coverUrl,
-    }]),
+    returning: vi.fn(async () => [
+      {
+        id: "book-1",
+        title: "The Example Book",
+        language: "en",
+        author: "Jane Author",
+        coverUrl: data.coverUrl,
+      },
+    ]),
   }));
 
   const selectMock = vi.fn();
@@ -45,6 +56,15 @@ vi.mock("@/lib/auth/authorize", () => ({
 
 describe("createBookWithCover", () => {
   beforeEach(() => {
+    mockUploadToCloudinary.mockReset();
+    mockDeleteFromCloudinary.mockReset();
+    mockDeleteFromCloudinary.mockResolvedValue(undefined);
+    mockUploadToCloudinary.mockResolvedValue({
+      secureUrl:
+        "https://res.cloudinary.com/demo/image/upload/v1/emfs-covers/test.webp",
+      publicId: "emfs-covers/test",
+    });
+
     selectMock.mockReset();
     insertMock.mockReset();
 
@@ -79,17 +99,16 @@ describe("createBookWithCover", () => {
     );
 
     await expect(
-      createBookWithCover({ title: "Blocked Book", language: "en" }, {
-        upload: vi.fn(),
-        delete: vi.fn(),
-        getPublicUrl: vi.fn(),
+      createBookWithCover({
+        title: "Blocked Book",
+        language: "en",
+        pageCount: 100,
       }),
     ).rejects.toMatchObject({ code, message });
     expect(insertMock).not.toHaveBeenCalled();
   });
 
-
-  it("uploads the cover and stores only the storage key in the book row", async () => {
+  it("uploads the cover to Cloudinary and stores the secure URL in the book row", async () => {
     const validPng = await sharp({
       create: {
         width: 1200,
@@ -101,26 +120,16 @@ describe("createBookWithCover", () => {
       .png()
       .toBuffer();
 
-    const result = await createBookWithCover(
-      {
-        title: "The Example Book",
-        language: "en",
-        author: "Jane Author",
-        cover: {
-          body: new Uint8Array(validPng),
-          declaredType: "image/png",
-        },
+    const result = await createBookWithCover({
+      title: "The Example Book",
+      language: "en",
+      author: "Jane Author",
+      pageCount: 250,
+      cover: {
+        body: new Uint8Array(validPng),
+        declaredType: "image/png",
       },
-      {
-        upload: vi.fn(async ({ key, contentType }) => ({
-          key,
-          publicUrl: `https://cdn.example.com/${key}`,
-          contentType,
-        })),
-        delete: vi.fn(async () => undefined),
-        getPublicUrl: (key) => `https://cdn.example.com/${key}`,
-      },
-    );
+    });
 
     expect(result.ok).toBe(true);
     if (!result.ok) {
@@ -134,23 +143,32 @@ describe("createBookWithCover", () => {
         sequenceOrder: expect.anything(),
       }),
     );
-    expect(result.data.coverUrl).toMatch(/^covers\/[0-9a-f-]+\.webp$/);
-    expect(result.data.coverUrl).not.toContain("fake png bytes");
-    expect(result.data.coverUrl).not.toContain("Jane Author");
-    expect(result.data.coverUrl).not.toContain("The Example Book");
+    expect(result.data.coverUrl).toBe(
+      "https://res.cloudinary.com/demo/image/upload/v1/emfs-covers/test.webp",
+    );
   });
 
-  it("deletes the uploaded object when book creation fails after upload", async () => {
-    const deleteMock = vi.fn(async () => undefined);
-    const storageService = {
-      upload: vi.fn(async ({ key }) => ({
-        key,
-        publicUrl: `https://cdn.example.com/${key}`,
-      })),
-      delete: deleteMock,
-      getPublicUrl: (key: string) => `https://cdn.example.com/${key}`,
-    };
+  it("stores an external Google Books cover URL without uploading", async () => {
+    const googleCover =
+      "https://books.google.com/books/content?id=abc&printsec=frontcover&img=1";
 
+    const result = await createBookWithCover({
+      title: "Google Book",
+      language: "en",
+      pageCount: 200,
+      coverUrl: googleCover,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error("Expected book creation to succeed");
+    }
+
+    expect(result.data.coverUrl).toBe(googleCover);
+    expect(mockUploadToCloudinary).not.toHaveBeenCalled();
+  });
+
+  it("deletes the uploaded Cloudinary asset when book creation fails after upload", async () => {
     selectMock.mockImplementation(() => ({
       from: vi.fn(() => {
         const rows: Array<Record<string, unknown>> = [];
@@ -180,19 +198,17 @@ describe("createBookWithCover", () => {
       .toBuffer();
 
     await expect(
-      createBookWithCover(
-        {
-          title: "Bad Book",
-          language: "en",
-          cover: {
-            body: new Uint8Array(validPng),
-            declaredType: "image/png",
-          },
+      createBookWithCover({
+        title: "Bad Book",
+        language: "en",
+        pageCount: 100,
+        cover: {
+          body: new Uint8Array(validPng),
+          declaredType: "image/png",
         },
-        storageService,
-      ),
+      }),
     ).rejects.toThrow("database insert failed");
 
-    expect(deleteMock).toHaveBeenCalledTimes(1);
+    expect(mockDeleteFromCloudinary).toHaveBeenCalledTimes(1);
   });
 });

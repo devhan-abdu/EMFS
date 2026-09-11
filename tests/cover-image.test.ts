@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { validateCoverImage } from "../lib/services/cover-image";
+import { validateCoverImage } from "../lib/services/catalog/cover-image";
 import {
   COVER_IMAGE_MAX_BYTES,
   COVER_IMAGE_MAX_DIMENSION_PX,

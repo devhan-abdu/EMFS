@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createBookAction } from "../actions/catalog";
-import * as createBookModule from "../lib/services/create-book";
-import * as storageFactoryModule from "../lib/services/storage/get-storage-service";
-import type { StorageService } from "../lib/services/storage/storage-service";
+import * as createBookModule from "../lib/services/catalog/create-book";
 
 const { mockRequireSuperAdmin, AuthzErrorMock } = vi.hoisted(() => {
   class AuthzErrorMock extends Error {
@@ -30,41 +28,31 @@ vi.mock("@/lib/auth/authorize", () => ({
     code: error.code,
   })),
 }));
-vi.mock("../lib/services/create-book", () => ({
+vi.mock("../lib/services/catalog/create-book", () => ({
   createBookWithCover: vi.fn(),
   addPairedEditionWithCover: vi.fn(),
 }));
-vi.mock("../lib/services/reorder-catalog", () => ({
+vi.mock("../lib/services/catalog/reorder-catalog", () => ({
   reorderCatalogSlots: vi.fn(),
 }));
-vi.mock("../lib/services/get-catalog", () => ({
+vi.mock("../lib/services/catalog/get-catalog", () => ({
   getCatalog: vi.fn(),
-}));
-vi.mock("../lib/services/storage/get-storage-service", () => ({
-  getStorageService: vi.fn(),
 }));
 
 
 describe("createBookAction", () => {
-  const mockStorageService: StorageService = {
-    upload: vi.fn(),
-    delete: vi.fn(),
-    getPublicUrl: vi.fn((key: string) => `https://cdn.example.com/${key}`),
-  };
-
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(storageFactoryModule.getStorageService).mockReturnValue(mockStorageService);
   });
 
   it("rejects unauthenticated caller with UNAUTHENTICATED error", async () => {
     mockRequireSuperAdmin.mockRejectedValue(
-      new AuthzErrorMock("UNAUTHENTICATED", "You must be signed in."),
-    );
+      new AuthzErrorMock("UNAUTHENTICATED", "You must be signed in."));
 
     const result = await createBookAction({
       title: "Test Book",
       language: "en",
+      pageCount: 100,
     });
 
     expect(result.ok).toBe(false);
@@ -83,13 +71,12 @@ describe("createBookAction", () => {
     mockRequireSuperAdmin.mockRejectedValue(
       new AuthzErrorMock(
         "FORBIDDEN",
-        "Role 'batch_admin' is not permitted. Required at least: super_admin.",
-      ),
-    );
+        "Role 'batch_admin' is not permitted. Required at least: super_admin."));
 
     const result = await createBookAction({
       title: "Test Book",
       language: "en",
+      pageCount: 100,
     });
 
     expect(result.ok).toBe(false);
@@ -139,6 +126,7 @@ describe("createBookAction", () => {
       title: "Clean Architecture",
       language: "en",
       author: "Robert C. Martin",
+      pageCount: 432,
     });
 
     expect(result.ok).toBe(true);
@@ -152,9 +140,11 @@ describe("createBookAction", () => {
         title: "Clean Architecture",
         language: "en",
         author: "Robert C. Martin",
+        summary: undefined,
+        pageCount: 432,
+        coverUrl: undefined,
         cover: undefined,
-      },
-      mockStorageService,
+      }
     );
   });
 
@@ -193,6 +183,7 @@ describe("createBookAction", () => {
     formData.append("title", "Atomic Habits");
     formData.append("language", "am");
     formData.append("author", "James Clear");
+    formData.append("pageCount", "320");
     const fakeFile = new File([new Uint8Array([1, 2, 3])], "cover.png", {
       type: "image/png",
     });
@@ -206,11 +197,11 @@ describe("createBookAction", () => {
         title: "Atomic Habits",
         language: "am",
         author: "James Clear",
+        pageCount: "320",
         cover: expect.objectContaining({
           declaredType: "image/png",
         }),
-      }),
-      mockStorageService,
+      })
     );
   });
 
@@ -238,7 +229,7 @@ describe("createBookAction", () => {
         {
           field: "language",
           code: "invalid_string",
-          message: "language must be a 2–5 letter lowercase code (e.g. en, am)",
+          message: "language must be en or am",
         },
       ],
     });
@@ -246,6 +237,7 @@ describe("createBookAction", () => {
     const result = await createBookAction({
       title: "Test Book",
       language: "ENGLISH",
+      pageCount: 100,
     });
 
     expect(result.ok).toBe(false);
