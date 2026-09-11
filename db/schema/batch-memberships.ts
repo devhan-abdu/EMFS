@@ -1,4 +1,4 @@
-import { pgTable, timestamp, text, uuid, pgEnum, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, timestamp, text, uuid, pgEnum, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { profiles } from "./users";
 import { batches } from "./batches";
@@ -8,6 +8,8 @@ export const BATCH_MEMBERSHIP_STATUSES = [
   "applied",
   "approved",
   "rejected",
+  "awaiting_placement",
+  "assigned",
   "active",
   "grace",
   "removed",
@@ -40,8 +42,11 @@ export const batchMemberships = pgTable(
     uniqueIndex("unique_active_batch_membership_idx")
       .on(table.profileId, table.batchId)
       .where(
-        sql`status IN ('waitlisted', 'applied', 'approved', 'active', 'grace')`
+        sql`status IN ('waitlisted', 'applied', 'approved', 'awaiting_placement', 'assigned', 'active', 'grace')`
       ),
+    index("batch_memberships_profile_id_idx").on(table.profileId),
+    index("batch_memberships_batch_id_idx").on(table.batchId),
+    index("batch_memberships_status_idx").on(table.status),
   ]
 );
 
