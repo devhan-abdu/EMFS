@@ -17,4 +17,5 @@ export * from "./membership-audit-logs";
 export * from "./books";
 export * from "./tasks";
 export * from "./catalog-relations";
+export * from "./daily-progress";
 

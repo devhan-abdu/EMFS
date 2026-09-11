@@ -159,6 +159,7 @@ export function AddEditionForm({
           ? "Edition updated."
           : "Edition added to the catalog",
       );
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOverrideEditionId("");
       setConflictOpen(false);
       if (onSuccess) {

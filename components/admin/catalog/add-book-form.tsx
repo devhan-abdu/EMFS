@@ -20,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -102,6 +101,7 @@ export function AddBookForm({
 
   useEffect(() => {
     if (initialValues?.coverUrl) cover.applyExternalCoverUrl(initialValues.coverUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialValues?.coverUrl]);
 
   useEffect(() => {
