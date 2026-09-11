@@ -9,7 +9,13 @@ export const metadata: Metadata = {
   description: "Create your EMFSC Book Shelf account with email and password.",
 };
 
-export default function SignUpPage() {
+type SignUpPageProps = {
+  searchParams: Promise<{ next?: string }>;
+};
+
+export default async function SignUpPage({ searchParams }: SignUpPageProps) {
+  const { next } = await searchParams;
+
   return (
     <div className="relative flex min-h-screen flex-col bg-background lg:flex-row">
       <aside className="relative hidden overflow-hidden bg-primary px-12 py-16 text-primary-foreground lg:flex lg:w-[46%] lg:flex-col lg:justify-between">
@@ -18,7 +24,9 @@ export default function SignUpPage() {
           <span className="flex size-10 items-center justify-center rounded-xl bg-primary-foreground/10">
             <Lotus className="h-6 w-6" />
           </span>
-          <span className="font-display text-lg font-semibold">EMFSC Book Shelf</span>
+          <span className="font-display text-lg font-semibold">
+            EMFSC Book Shelf
+          </span>
         </Link>
         <div className="relative max-w-md space-y-5">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary-foreground/60">
@@ -28,7 +36,8 @@ export default function SignUpPage() {
             A few pages a day, side by side with your sisters.
           </h2>
           <p className="text-sm leading-relaxed text-primary-foreground/70">
-            Create your account to keep your reading, reflections, and progress together.
+            Create your account to keep your reading, reflections, and progress
+            together.
           </p>
         </div>
         <p className="relative text-xs text-primary-foreground/50">
@@ -42,11 +51,17 @@ export default function SignUpPage() {
             <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
               <Lotus className="h-6 w-6" />
             </span>
-            <span className="font-display text-lg font-semibold text-foreground">EMFSC Book Shelf</span>
+            <span className="font-display text-lg font-semibold text-foreground">
+              EMFSC Book Shelf
+            </span>
           </div>
-          <h1 className="font-display text-3xl font-semibold text-foreground">Create your account</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Sign up with your email.</p>
-          <SignUpForm />
+          <h1 className="font-display text-3xl font-semibold text-foreground">
+            Create your account
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Sign up with your email.
+          </p>
+          <SignUpForm next={next ?? null} />
         </div>
       </main>
     </div>
