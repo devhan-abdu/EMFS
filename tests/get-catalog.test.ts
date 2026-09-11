@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getCatalog } from "../lib/services/get-catalog";
+import { getCatalog } from "../lib/services/catalog/get-catalog";
 import { getCatalogAction } from "../actions/catalog";
 
 const mocks = vi.hoisted(() => {
@@ -13,13 +13,6 @@ const mocks = vi.hoisted(() => {
 const { selectMock, selectDistinctMock, findManyMock } = mocks;
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/services/storage/get-storage-service", () => ({
-  getStorageService: vi.fn(() => ({
-    upload: vi.fn(),
-    delete: vi.fn(),
-    getPublicUrl: (key: string) => `https://cdn.example.com/${key}`,
-  })),
-}));
 vi.mock("@/db", () => ({
   db: {
     select: mocks.selectMock,
@@ -51,6 +44,7 @@ describe("getCatalog Service", () => {
       expect(result.data.pagination).toEqual({
         page: 1,
         limit: 10,
+        pageSize: 10,
         totalSlots: 0,
         totalBooks: 0,
         totalPages: 1,
@@ -141,6 +135,7 @@ describe("getCatalog Service", () => {
       expect(result.data.pagination).toEqual({
         page: 1,
         limit: 2,
+        pageSize: 2,
         totalSlots: 2,
         totalBooks: 3,
         totalPages: 1,
@@ -215,6 +210,7 @@ describe("getCatalog Service", () => {
       expect(result.data.pagination).toEqual({
         page: 2,
         limit: 2,
+        pageSize: 2,
         totalSlots: 5,
         totalBooks: 5,
         totalPages: 3,

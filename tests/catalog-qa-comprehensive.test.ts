@@ -6,12 +6,19 @@ import {
   reorderCatalogSlotsAction,
   getCatalogAction,
 } from "../actions/catalog";
-import { createBookWithCover, addPairedEditionWithCover } from "../lib/services/create-book";
-import { reorderCatalogSlots } from "../lib/services/reorder-catalog";
-import { getCatalog } from "../lib/services/get-catalog";
+import { createBookWithCover, addPairedEditionWithCover } from "../lib/services/catalog/create-book";
+import { reorderCatalogSlots } from "../lib/services/catalog/reorder-catalog";
+import { getCatalog } from "../lib/services/catalog/get-catalog";
 import { createBookSchema, addPairedEditionSchema, reorderSlotsSchema } from "../lib/validations/catalog";
-import * as storageFactoryModule from "../lib/services/storage/get-storage-service";
-import type { StorageService } from "../lib/services/storage/storage-service";
+
+const mockUploadToCloudinary = vi.hoisted(() => vi.fn());
+const mockDeleteFromCloudinary = vi.hoisted(() => vi.fn());
+
+vi.mock("../lib/services/catalog/cloudinary", () => ({
+  uploadToCloudinary: mockUploadToCloudinary,
+  isCloudinaryUrl: (url: string) => url.includes("res.cloudinary.com"),
+  deleteFromCloudinary: mockDeleteFromCloudinary,
+}));
 
 const { mockRequireSuperAdmin, AuthzErrorMock } = vi.hoisted(() => {
   class AuthzErrorMock extends Error {
@@ -65,24 +72,16 @@ vi.mock("@/lib/auth/authorize", () => ({
   })),
 }));
 
-vi.mock("../lib/services/storage/get-storage-service", () => ({
-  getStorageService: vi.fn(),
-}));
 
 describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
-  const mockStorageService: StorageService = {
-    upload: vi.fn(async ({ key, contentType }) => ({
-      key,
-      publicUrl: `https://cdn.example.com/${key}`,
-      contentType,
-    })),
-    delete: vi.fn(async () => undefined),
-    getPublicUrl: (key: string) => `https://cdn.example.com/${key}`,
-  };
-
-  beforeEach(() => {
+    beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(storageFactoryModule.getStorageService).mockReturnValue(mockStorageService);
+    mockUploadToCloudinary.mockResolvedValue({
+      secureUrl:
+        "https://res.cloudinary.com/demo/image/upload/v1/emfs-covers/test.webp",
+      publicId: "emfs-covers/test",
+    });
+    mockDeleteFromCloudinary.mockResolvedValue(undefined);
   });
 
   /* -------------------------------------------------------------------------- */
@@ -112,8 +111,7 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
       });
 
       const result = await createBookWithCover(
-        { title: "Atomic Habits", language: "en", author: "James Clear" },
-        mockStorageService,
+        { title: "Atomic Habits", language: "en", author: "James Clear", pageCount: 200 }
       );
 
       expect(result.ok).toBe(true);
@@ -131,14 +129,14 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
     });
 
     it("rejects invalid language (uppercase / too long)", () => {
-      expect(createBookSchema.safeParse({ title: "Book", language: "EN" }).success).toBe(false);
-      expect(createBookSchema.safeParse({ title: "Book", language: "english" }).success).toBe(false);
-      expect(createBookSchema.safeParse({ title: "Book", language: "am" }).success).toBe(true);
+      expect(createBookSchema.safeParse({ title: "Book", language: "EN", pageCount: 100 }).success).toBe(false);
+      expect(createBookSchema.safeParse({ title: "Book", language: "english", pageCount: 100 }).success).toBe(false);
+      expect(createBookSchema.safeParse({ title: "Book", language: "am", pageCount: 100 }).success).toBe(true);
     });
 
     it("supports optional author", () => {
-      const withAuthor = createBookSchema.safeParse({ title: "Book", language: "en", author: "Author" });
-      const withoutAuthor = createBookSchema.safeParse({ title: "Book", language: "en" });
+      const withAuthor = createBookSchema.safeParse({ title: "Book", language: "en", author: "Author", pageCount: 100 });
+      const withoutAuthor = createBookSchema.safeParse({ title: "Book", language: "en", pageCount: 100 });
       expect(withAuthor.success).toBe(true);
       expect(withoutAuthor.success).toBe(true);
     });
@@ -171,19 +169,20 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
         {
           title: "Book with cover",
           language: "en",
+          pageCount: 200,
           cover: { body: new Uint8Array(validPng), declaredType: "image/png" },
-        },
-        mockStorageService,
+        }
       );
       expect(withCover.ok).toBe(true);
       if (withCover.ok) {
-        expect(withCover.data.coverUrl).toMatch(/^covers\/[0-9a-f-]+\.webp$/);
+        expect(withCover.data.coverUrl).toBe(
+          "https://res.cloudinary.com/demo/image/upload/v1/emfs-covers/test.webp",
+        );
       }
 
       // Without cover
       const withoutCover = await createBookWithCover(
-        { title: "Book without cover", language: "en" },
-        mockStorageService,
+        { title: "Book without cover", language: "en", pageCount: 200 }
       );
       expect(withoutCover.ok).toBe(true);
       if (withoutCover.ok) {
@@ -210,10 +209,11 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
       const clientInput = {
         title: "Malicious Book",
         language: "en",
+        pageCount: 200,
         sequenceOrder: 9999, // Should be ignored
       };
 
-      const result = await createBookWithCover(clientInput, mockStorageService);
+      const result = await createBookWithCover(clientInput);
       expect(result.ok).toBe(true);
       expect(insertedSequenceOrder).toBeDefined();
       expect(insertedSequenceOrder).not.toBe(9999);
@@ -225,7 +225,7 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
       mockRequireSuperAdmin.mockRejectedValueOnce(
         new AuthzErrorMock("UNAUTHENTICATED", "You must be signed in."),
       );
-      const unauth = await createBookAction({ title: "B", language: "en" });
+      const unauth = await createBookAction({ title: "B", language: "en", pageCount: 100 });
       expect(unauth.ok).toBe(false);
       if (!unauth.ok) expect(unauth.errors[0].code).toBe("UNAUTHENTICATED");
 
@@ -233,7 +233,7 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
       mockRequireSuperAdmin.mockRejectedValueOnce(
         new AuthzErrorMock("FORBIDDEN", "Role 'batch_admin' is not permitted."),
       );
-      const forbidden = await createBookAction({ title: "B", language: "en" });
+      const forbidden = await createBookAction({ title: "B", language: "en", pageCount: 100 });
       expect(forbidden.ok).toBe(false);
       if (!forbidden.ok) expect(forbidden.errors[0].code).toBe("FORBIDDEN");
 
@@ -261,7 +261,7 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
           returning: vi.fn(async () => [{ id: "b1", ...data }]),
         })),
       });
-      const allowed = await createBookAction({ title: "B", language: "en" });
+      const allowed = await createBookAction({ title: "B", language: "en", pageCount: 100 });
       expect(allowed.ok).toBe(true);
     });
   });
@@ -313,8 +313,8 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
           pairedBookId: targetBook.id,
           title: "አቶሚክ ልማዶች",
           language: "am",
-        },
-        mockStorageService,
+          pageCount: 200,
+        }
       );
 
       expect(result.ok).toBe(true);
@@ -350,8 +350,8 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
           pairedBookId: "550e8400-e29b-41d4-a716-446655440000",
           title: "Title",
           language: "am",
-        },
-        mockStorageService,
+          pageCount: 200,
+        }
       );
       expect(notFound.ok).toBe(false);
       if (!notFound.ok) expect(notFound.errors[0].code).toBe("TARGET_BOOK_NOT_FOUND");
@@ -524,16 +524,7 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
   /*                             5. FAILURE TESTING                             */
   /* -------------------------------------------------------------------------- */
   describe("5. FAILURE TESTING & ORPHAN CLEANUP", () => {
-    it("cleans up orphaned cover upload when DB insert fails", async () => {
-      const deleteMock = vi.fn(async () => undefined);
-      const storageService = {
-        upload: vi.fn(async ({ key }) => ({
-          key,
-          publicUrl: `https://cdn.example.com/${key}`,
-        })),
-        delete: deleteMock,
-        getPublicUrl: (key: string) => `https://cdn.example.com/${key}`,
-      };
+    it("cleans up orphaned Cloudinary cover when DB insert fails", async () => {
 
       selectMock.mockImplementation(() => ({
         from: vi.fn(() => {
@@ -561,13 +552,13 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
           {
             title: "Failed Book",
             language: "en",
+            pageCount: 200,
             cover: { body: new Uint8Array(validPng), declaredType: "image/png" },
-          },
-          storageService,
+          }
         ),
       ).rejects.toThrow("DB connection lost");
 
-      expect(deleteMock).toHaveBeenCalledTimes(1);
+      expect(mockDeleteFromCloudinary).toHaveBeenCalledTimes(1);
     });
   });
 });

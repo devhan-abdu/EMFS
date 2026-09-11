@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { imageSize } from "image-size";
 
-import { processCoverImage } from "../lib/services/process-cover-image";
+import { processCoverImage } from "../lib/services/catalog/process-cover-image";
 import {
   COVER_IMAGE_MAX_DIMENSION_PX,
   COVER_IMAGE_MIN_DIMENSION_PX,

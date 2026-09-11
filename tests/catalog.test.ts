@@ -4,12 +4,14 @@ import { createBookSchema, createTaskSchema } from "../lib/validations/catalog";
 const validBook: {
   title: string;
   language: string;
+  pageCount: number;
   coverUrl?: string;
   author?: string;
   pairedBookId?: string;
 } = {
   title: "Atomic Habits",
   language: "en",
+  pageCount: 320,
   coverUrl: undefined,
 };
 
@@ -56,8 +58,17 @@ describe("createBookSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects missing language", () => {
+  it("defaults missing language to English", () => {
     const { language: _language, ...rest } = validBook;
+    const result = createBookSchema.safeParse(rest);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.language).toBe("en");
+    }
+  });
+
+  it("rejects missing pageCount", () => {
+    const { pageCount: _pageCount, ...rest } = validBook;
     const result = createBookSchema.safeParse(rest);
     expect(result.success).toBe(false);
   });
@@ -69,6 +80,16 @@ describe("createBookSchema", () => {
 
   it("rejects invalid language code (uppercase)", () => {
     const result = createBookSchema.safeParse({ ...validBook, language: "EN" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects unsupported language codes", () => {
+    const result = createBookSchema.safeParse({ ...validBook, language: "xx" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects Arabic — only English and Amharic are supported", () => {
+    const result = createBookSchema.safeParse({ ...validBook, language: "ar" });
     expect(result.success).toBe(false);
   });
 
