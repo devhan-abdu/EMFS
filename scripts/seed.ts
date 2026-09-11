@@ -402,6 +402,7 @@ async function main() {
   if (!hasMemberPaceAssignment) {
     await db.insert(paceGroupMemberships).values({
       profileId: customerProfile.id,
+      batchId: batchOne.id,
       paceGroupId: paceGroupOne.id,
       status: "active",
       startDate: new Date("2026-01-12T00:00:00.000Z"),
