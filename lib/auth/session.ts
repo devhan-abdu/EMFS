@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 
@@ -12,16 +13,13 @@ export type CurrentUser = {
   profile: Profile;
 };
 
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const session = await auth.api.getSession({ headers: await headers() });
-  console.log("DEBUG session.user.id:", session?.user?.id);
-  console.log("DEBUG session.user.email:", session?.user?.email);
   if (!session) return null;
 
   const profile = await db.query.profiles.findFirst({
     where: eq(profiles.authUserId, session.user.id),
   });
-  console.log("DEBUG profile.role:", profile?.role);
 
   if (!profile) {
     throw new Error(
@@ -30,4 +28,4 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   }
 
   return { authUserId: session.user.id, email: session.user.email, profile };
-}
+});

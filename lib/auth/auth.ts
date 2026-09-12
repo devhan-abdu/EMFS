@@ -27,8 +27,6 @@ export const auth = betterAuth({
         after: async (user) => {
           await db.insert(profiles).values({
             authUserId: user.id,
-            firstName: user.name,
-            fatherName: "",
             role: "member",
           });
         },

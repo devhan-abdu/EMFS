@@ -1,91 +1,136 @@
 "use client";
 
+import * as React from "react";
+import Form from "next/form";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
-import { useActionState } from "react";
+import { toast } from "sonner";
 
 import { signInAction } from "@/actions/auth";
+import { type SignInFormState } from "@/lib/validations/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 
 export function SignInForm({ next }: { next?: string | null }) {
-  const [show, setShow] = useState(false);
-  const [state, formAction, isPending] = useActionState(signInAction, null);
-  const formErrors = state?.errors?.formErrors ?? [];
-  const fieldErrors = state?.errors?.fieldErrors ?? {};
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTarget = next ?? searchParams.get("next");
+
+  const [showPassword, setShowPassword] = React.useState(false);
+
+  const initialState: SignInFormState = {
+    values: {
+      email: "",
+      password: "",
+    },
+    errors: null,
+    formError: null,
+    success: false,
+  };
+
+  const [formState, formAction, pending] = React.useActionState<
+    SignInFormState,
+    FormData
+  >(signInAction, initialState);
+
+  React.useEffect(() => {
+    if (formState.success) {
+      toast.success("Signed in successfully!");
+      const destination = formState.redirectTo ?? redirectTarget ?? "/";
+      router.push(destination);
+      router.refresh();
+    } else if (formState.formError) {
+      toast.error(formState.formError);
+    }
+  }, [
+    formState.success,
+    formState.formError,
+    formState.redirectTo,
+    redirectTarget,
+    router,
+  ]);
 
   return (
-    <form action={formAction} className="mt-8 space-y-5">
-      {next ?
-        <input type="hidden" name="next" value={next} />
+    <Form action={formAction} className="mt-8 space-y-5">
+      {redirectTarget ?
+        <input type="hidden" name="next" value={redirectTarget} />
       : null}
 
-      {formErrors.length > 0 && (
-        <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
-          {formErrors.map((error) => (
-            <p key={error}>{error}</p>
-          ))}
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          placeholder="you@example.com"
-          required
-        />
-        {fieldErrors.email && (
-          <p className="text-xs text-destructive">{fieldErrors.email[0]}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <div className="relative">
+      <FieldGroup>
+        {/* Email */}
+        <Field data-invalid={!!formState.errors?.email?.length}>
+          <FieldLabel htmlFor="email">Email</FieldLabel>
           <Input
-            id="password"
-            name="password"
-            type={show ? "text" : "password"}
-            autoComplete="current-password"
-            placeholder="Enter your password"
-            className="pr-10"
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            defaultValue={formState.values?.email}
+            disabled={pending}
             required
           />
-          <button
-            type="button"
-            aria-label={show ? "Hide password" : "Show password"}
-            onClick={() => setShow((visible) => !visible)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-          >
-            {show ?
-              <EyeOff className="size-4" />
-            : <Eye className="size-4" />}
-          </button>
-        </div>
-        {fieldErrors.password && (
-          <p className="text-xs text-destructive">{fieldErrors.password[0]}</p>
-        )}
-      </div>
+          {formState.errors?.email && (
+            <FieldError>{formState.errors.email[0]}</FieldError>
+          )}
+        </Field>
 
-      <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Signing in..." : "Sign in"}
+        {/* Password */}
+        <Field data-invalid={!!formState.errors?.password?.length}>
+          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <div className="relative">
+            <Input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              placeholder="Enter your password"
+              className="pr-10"
+              defaultValue={formState.values?.password}
+              disabled={pending}
+              required
+            />
+            <button
+              type="button"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              onClick={() => setShowPassword((visible) => !visible)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {showPassword ?
+                <EyeOff className="size-4" />
+              : <Eye className="size-4" />}
+            </button>
+          </div>
+          {formState.errors?.password && (
+            <FieldError>{formState.errors.password[0]}</FieldError>
+          )}
+        </Field>
+      </FieldGroup>
+
+      <Button type="submit" className="w-full" disabled={pending}>
+        {pending ? "Signing in..." : "Sign in"}
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">
         New here?{" "}
         <Link
-          href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}
+          href={
+            redirectTarget ?
+              `/signup?next=${encodeURIComponent(redirectTarget)}`
+            : "/signup"
+          }
           className="font-medium text-primary hover:underline"
         >
           Create an account
         </Link>
       </p>
-    </form>
+    </Form>
   );
 }
