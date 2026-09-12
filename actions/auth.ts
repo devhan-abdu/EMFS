@@ -8,7 +8,7 @@ import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { auth } from "@/lib/auth/auth";
 import { registerMember } from "@/lib/services/registration";
-import { signUpSchema, signInSchema } from "@/lib/validations/auth";
+import { signUpSchema, signInSchema, SignUpFormState, SignInFormState } from "@/lib/validations/auth";
 
 
 function safeNext(next: FormDataEntryValue | null | undefined): string | null {
@@ -25,46 +25,69 @@ function defaultRedirectForRole(role: string | undefined): string {
     : "/";
 }
 
-export async function signUpAction(_: unknown, formData?: FormData) {
-  if (!formData) {
-    return { ok: false as const, errors: { formErrors: [], fieldErrors: {} } };
-  }
 
-  const next = safeNext(formData.get("next"));
-  const input = Object.fromEntries(formData.entries()) as Record<
-    string,
-    unknown
-  >;
-  const parsed = signUpSchema.safeParse(input);
+
+export async function signUpAction(
+  _prevState: SignUpFormState,
+  formData: FormData,
+): Promise<SignUpFormState> {
+  const values = {
+    email: (formData.get("email") as string) ?? "",
+    password: (formData.get("password") as string) ?? "",
+    confirmPassword: (formData.get("confirmPassword") as string) ?? "",
+  };
+
+  const parsed = signUpSchema.safeParse(values);
+
   if (!parsed.success) {
-    return { ok: false as const, errors: parsed.error.flatten() };
+    return {
+      values,
+      errors: parsed.error.flatten().fieldErrors,
+      formError: null,
+      success: false,
+    };
   }
 
   try {
     await registerMember(parsed.data);
+
+    return {
+      values: {},
+      errors: null,
+      formError: null,
+      success: true,
+    };
   } catch (e) {
     return {
-      ok: false as const,
-      errors: { formErrors: [(e as Error).message], fieldErrors: {} },
+      values,
+      errors: null,
+      formError:
+        (e as Error).message || "An unexpected error occurred during signup.",
+      success: false,
     };
   }
-
-  redirect(next ?? "/");
 }
 
-export async function signInAction(_: unknown, formData?: FormData) {
-  if (!formData) {
-    return { ok: false as const, errors: { formErrors: [], fieldErrors: {} } };
-  }
-
+export async function signInAction(
+  _prevState: SignInFormState,
+  formData: FormData,
+): Promise<SignInFormState> {
   const next = safeNext(formData.get("next"));
-  const input = Object.fromEntries(formData.entries()) as Record<
-    string,
-    unknown
-  >;
-  const parsed = signInSchema.safeParse(input);
+
+  const values = {
+    email: (formData.get("email") as string) ?? "",
+    password: (formData.get("password") as string) ?? "",
+  };
+
+  const parsed = signInSchema.safeParse(values);
+
   if (!parsed.success) {
-    return { ok: false as const, errors: parsed.error.flatten() };
+    return {
+      values,
+      errors: parsed.error.flatten().fieldErrors,
+      formError: null,
+      success: false,
+    };
   }
 
   try {
@@ -74,23 +97,31 @@ export async function signInAction(_: unknown, formData?: FormData) {
     });
   } catch {
     return {
-      ok: false as const,
-      errors: { formErrors: ["Invalid email or password."], fieldErrors: {} },
+      values,
+      errors: null,
+      formError: "Invalid email or password.",
+      success: false,
     };
   }
 
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    redirect(next ?? "/");
+
+  let targetUrl = next ?? "/";
+  if (session) {
+    const profile = await db.query.profiles.findFirst({
+      where: eq(profiles.authUserId, session.user.id),
+    });
+    targetUrl = next ?? defaultRedirectForRole(profile?.role);
   }
 
-  const profile = await db.query.profiles.findFirst({
-    where: eq(profiles.authUserId, session.user.id),
-  });
-
-  redirect(next ?? defaultRedirectForRole(profile?.role));
+  return {
+    values: {},
+    errors: null,
+    formError: null,
+    success: true,
+    redirectTo: targetUrl,
+  };
 }
-
 export async function signOutAction() {
   await auth.api.signOut({ headers: await headers() });
   redirect("/signin");
