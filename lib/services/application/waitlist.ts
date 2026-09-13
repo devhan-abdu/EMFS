@@ -4,12 +4,15 @@ import { waitlist, batches, batchMemberships } from "@/db/schema";
 import {
   createBatchMembership,
   transitionBatchMembership,
+  findActiveMembershipAnywhere,
   type DbOrTx,
 } from "@/lib/services/membership";
+
 
 export type WaitlistErrorCode =
   | "BATCH_NOT_FOUND"
   | "ALREADY_WAITLISTED"
+  | "ALREADY_HAS_MEMBERSHIP"
   | "NOT_FOUND"
   | "FORBIDDEN";
 
@@ -44,6 +47,14 @@ export async function addToWaitlist(
       throw new WaitlistError(
         "BATCH_NOT_FOUND",
         `Batch with ID '${batchId}' not found.`
+      );
+    }
+
+      const existingMembership = await findActiveMembershipAnywhere(userId, tx);
+    if (existingMembership) {
+      throw new WaitlistError(
+        "ALREADY_HAS_MEMBERSHIP",
+        "You already have an active application or membership in a batch."
       );
     }
 
