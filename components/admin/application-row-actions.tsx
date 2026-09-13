@@ -1,43 +1,44 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check, Send, X } from "lucide-react";
+import { Check, Copy, Send, X } from "lucide-react";
 
-import { createMembershipAction } from "@/actions/membership";
+import { reviewApplicationAction } from "@/actions/application-review";
 import { Button } from "@/components/ui/button";
 
-type ApplicationStatus = "pending" | "approved" | "handoff" | "rejected";
+export type ApplicationRowStatus =
+  | "pending"
+  | "approved_pending_handoff"
+  | "active"
+  | "rejected";
 
 export function ApplicationRowActions({
   status,
   name,
-  profileId,
-  batchId,
+  applicationId,
+  handoffBotLink,
 }: {
-  status: ApplicationStatus;
+  status: ApplicationRowStatus;
   name: string;
-  profileId: string;
-  batchId: string;
+  applicationId: string;
+  handoffBotLink?: string | null;
 }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
   if (status === "pending") {
-    const review = (membershipStatus: "approved" | "rejected") => {
+    const review = (decision: "approved" | "rejected") => {
       startTransition(async () => {
-        const result = await createMembershipAction({
-          profileId,
-          batchId,
-          status: membershipStatus,
+        const result = await reviewApplicationAction({
+          applicationId,
+          decision,
         });
 
         if (result.ok) {
           toast.success(
-            membershipStatus === "approved" ?
-              `${name} approved`
-            : `${name} declined`,
+            decision === "approved" ? `${name} approved` : `${name} declined`,
           );
           router.refresh();
         } else {
@@ -71,16 +72,51 @@ export function ApplicationRowActions({
     );
   }
 
-  if (status === "approved") {
+  if (status === "approved_pending_handoff") {
+    return <HandoffReminder link={handoffBotLink ?? null} />;
+  }
+
+  return (
+    <span className="text-xs text-muted-foreground">No action needed</span>
+  );
+}
+
+function HandoffReminder({ link }: { link: string | null }) {
+  const [copied, setCopied] = useState(false);
+
+  if (!link) {
     return (
-      <Button size="sm" variant="outline" disabled={isPending}>
+      <Button size="sm" variant="outline" disabled>
         <Send className="size-4" />
         Remind handoff
       </Button>
     );
   }
 
+  async function copyLink() {
+    try {
+      if(!link) return
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      toast.success("Bot link copied");
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Could not copy link");
+    }
+  }
+
   return (
-    <span className="text-xs text-muted-foreground">No action needed</span>
+    <div className="flex justify-end gap-2">
+      <Button
+        size="sm"
+        variant="ghost"
+        aria-label="Copy bot link"
+        onClick={copyLink}
+      >
+        {copied ?
+          <Check className="size-4" />
+        : <Copy className="size-4" />}
+      </Button>
+    </div>
   );
 }

@@ -12,11 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getAdminApplications } from "@/lib/services/admin";
+import {
+  getAdminApplicationsWithHandoff,
+  type ApplicationHandoffStatus,
+} from "@/lib/services/application/admin-handoff";
 import { ApplicationRowActions } from "@/components/admin/application-row-actions";
 import { Metadata } from "next";
-
-type ApplicationStatus = "pending" | "approved" | "handoff" | "rejected";
 
 export const metadata: Metadata = {
   title: "Applications — EMFSC Book Shelf Admin",
@@ -28,26 +29,48 @@ export const metadata: Metadata = {
   },
 };
 
-const tabs: { value: ApplicationStatus | "all"; label: string }[] = [
+const STALE_AFTER_DAYS = 3;
+
+const tabs: { value: ApplicationHandoffStatus | "all"; label: string }[] = [
   { value: "pending", label: "Pending" },
-  { value: "approved", label: "Approved" },
-  { value: "handoff", label: "Handed off" },
+  { value: "approved_pending_handoff", label: "Handoff pending" },
+  { value: "active", label: "Active" },
+  { value: "rejected", label: "Rejected" },
   { value: "all", label: "Everyone" },
 ];
 
-function statusClass(status: ApplicationStatus): string {
-  const classes: Record<ApplicationStatus, string> = {
+function statusClass(status: ApplicationHandoffStatus, stale: boolean): string {
+  const classes: Record<ApplicationHandoffStatus, string> = {
     pending: "bg-gold/20 text-gold-foreground border-gold/30",
-    approved: "bg-teal/15 text-teal-foreground border-teal/30",
-    handoff: "bg-primary/10 text-primary border-primary/20",
+    approved_pending_handoff:
+      stale ?
+        "bg-destructive/10 text-destructive border-destructive/30"
+      : "bg-gold/20 text-gold-foreground border-gold/30",
+    active: "bg-teal/15 text-teal-foreground border-teal/30",
     rejected: "bg-muted text-muted-foreground border-border",
   };
 
   return classes[status];
 }
 
-export default async function MembersPage() {
-  const applications = await getAdminApplications();
+function statusLabel(status: ApplicationHandoffStatus): string {
+  const labels: Record<ApplicationHandoffStatus, string> = {
+    pending: "Pending",
+    approved_pending_handoff: "Handoff pending",
+    active: "Active",
+    rejected: "Rejected",
+  };
+  return labels[status];
+}
+
+type MembersPageProps = {
+  searchParams: Promise<{ batch?: string }>;
+};
+
+export default async function MembersPage({ searchParams }: MembersPageProps) {
+  const { batch: batchFilter } = await searchParams;
+  const applications = await getAdminApplicationsWithHandoff(batchFilter);
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -106,88 +129,99 @@ export default async function MembersPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {rows.map((app) => (
-                          <TableRow key={app.id} className="hover:bg-accent/40">
-                            <TableCell className="py-4 pl-6">
-                              <div className="flex items-center gap-3">
-                                <span className="flex size-9 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
-                                  {app.name
-                                    .split(" ")
-                                    .map((n) => n[0])
-                                    .join("")}
-                                </span>
-                                <div>
-                                  <p className="font-medium text-foreground">
-                                    {app.name}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {app.email}
-                                  </p>
+                        {rows.map((app) => {
+                          const stale =
+                            app.status === "approved_pending_handoff" &&
+                            (app.daysSinceApproved ?? 0) > STALE_AFTER_DAYS;
+                          return (
+                            <TableRow
+                              key={app.id}
+                              className="hover:bg-accent/40"
+                            >
+                              <TableCell className="py-4 pl-6">
+                                <div className="flex items-center gap-3">
+                                  <span className="flex size-9 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
+                                    {app.name
+                                      .split(" ")
+                                      .map((n) => n[0])
+                                      .join("")}
+                                  </span>
+                                  <div>
+                                    <p className="font-medium text-foreground">
+                                      {app.name}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {app.email}
+                                    </p>
+                                  </div>
                                 </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {app.batch}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {app.appliedOn}
-                            </TableCell>
-                            <TableCell>
-                              <span
-                                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${statusClass(app.status)}`}
-                              >
-                                {app.status === "handoff" ?
-                                  "Handed off"
-                                : app.status}
-                              </span>
-                            </TableCell>
-                            <TableCell className="pr-6 text-right">
-                              <ApplicationRowActions
-                                status={app.status}
-                                name={app.name}
-                                profileId={app.profileId}
-                                batchId={app.batchId}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {app.batch}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {app.appliedOn}
+                              </TableCell>
+                              <TableCell>
+                                <span
+                                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusClass(app.status, stale)}`}
+                                >
+                                  {statusLabel(app.status)}
+                                  {stale ? ` · ${app.daysSinceApproved}d` : ""}
+                                </span>
+                              </TableCell>
+                              <TableCell className="pr-6 text-right">
+                                <ApplicationRowActions
+                                  status={app.status}
+                                  name={app.name}
+                                  applicationId={app.id}
+                                  handoffBotLink={app.handoffBotLink}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </Card>
 
                   <div className="space-y-4 md:hidden">
-                    {rows.map((app) => (
-                      <Card key={app.id} className="card-soft">
-                        <CardContent className="space-y-3 p-5">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="font-medium text-foreground">
-                                {app.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {app.email}
-                              </p>
+                    {rows.map((app) => {
+                      const stale =
+                        app.status === "approved_pending_handoff" &&
+                        (app.daysSinceApproved ?? 0) > STALE_AFTER_DAYS;
+                      return (
+                        <Card key={app.id} className="card-soft">
+                          <CardContent className="space-y-3 p-5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-medium text-foreground">
+                                  {app.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {app.email}
+                                </p>
+                              </div>
+                              <span
+                                className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusClass(app.status, stale)}`}
+                              >
+                                {statusLabel(app.status)}
+                                {stale ? ` · ${app.daysSinceApproved}d` : ""}
+                              </span>
                             </div>
-                            <span
-                              className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${statusClass(app.status)}`}
-                            >
-                              {app.status === "handoff" ?
-                                "Handed off"
-                              : app.status}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {app.batch} · applied {app.appliedOn}
-                          </p>
-                          <ApplicationRowActions
-                            status={app.status}
-                            name={app.name}
-                            profileId={app.profileId}
-                            batchId={app.batchId}
-                          />
-                        </CardContent>
-                      </Card>
-                    ))}
+                            <p className="text-xs text-muted-foreground">
+                              {app.batch} · applied {app.appliedOn}
+                            </p>
+                            <ApplicationRowActions
+                              status={app.status}
+                              name={app.name}
+                              applicationId={app.id}
+                              handoffBotLink={app.handoffBotLink}
+                            />
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 </>
               }

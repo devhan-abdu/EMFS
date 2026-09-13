@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, count, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { countOrphanedCloudinaryAssets } from "@/lib/services/catalog/cloudinary";
 import {
   applications,
   batchAdmins,
@@ -12,8 +13,32 @@ import {
   paceGroupMemberships,
   paceGroups,
   profiles,
+  tasks,
   user,
 } from "@/db/schema";
+
+const ADMIN_OVERVIEW_RECENT_BOOK_LIMIT = 5;
+
+export type AdminCatalogBook = {
+  id: string;
+  title: string;
+  language: string;
+  sequenceOrder: number;
+  createdAt: Date;
+};
+
+export type AdminCatalogEditionGap = {
+  sequenceOrder: number;
+  editionCount: number;
+};
+
+export type AdminCatalogCurriculumGap = {
+  id: string;
+  title: string;
+  language: string;
+  sequenceOrder: number;
+  tasksCount: number;
+};
 
 export type AdminBatch = {
   id: string;
@@ -116,13 +141,13 @@ export async function getAdminApplications(): Promise<AdminApplication[]> {
   const rows = await db
     .select({
       id: applications.id,
-      name: applications.registrationName,
+      name: applications.firstName,
       email: applications.email,
       batch: batches.name,
       batchId: applications.batchId,
       appliedOn: applications.createdAt,
       telegramUsername: applications.telegramUsername,
-      profileId: applications.userId,
+      profileId: applications.profileId,
       membershipId: batchMemberships.id,
       membershipStatus: batchMemberships.status,
     })
@@ -131,7 +156,7 @@ export async function getAdminApplications(): Promise<AdminApplication[]> {
     .leftJoin(
       batchMemberships,
       and(
-        eq(batchMemberships.profileId, applications.userId),
+        eq(batchMemberships.profileId, applications.profileId),
         eq(batchMemberships.batchId, applications.batchId),
       ),
     )
@@ -223,9 +248,61 @@ export async function getAdminOverviewData() {
     .select({ count: count(profiles.id) })
     .from(profiles)
     .where(eq(profiles.role, "member"));
-  const [catalogCount] = await db
-    .select({ count: count(books.id) })
-    .from(books);
+  const [
+    [catalogCount],
+    recentAdditions,
+    editionCoverageGaps,
+    curriculumGaps,
+    referencedCoverRows,
+  ] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(distinct ${books.sequenceOrder})` })
+      .from(books),
+    db
+      .select({
+        id: books.id,
+        title: books.title,
+        language: books.language,
+        sequenceOrder: books.sequenceOrder,
+        createdAt: books.createdAt,
+      })
+      .from(books)
+      .orderBy(desc(books.createdAt))
+      .limit(ADMIN_OVERVIEW_RECENT_BOOK_LIMIT),
+    db
+      .select({
+        sequenceOrder: books.sequenceOrder,
+        editionCount: sql<number>`count(distinct ${books.language})`,
+      })
+      .from(books)
+      .groupBy(books.sequenceOrder)
+      .having(sql`count(distinct ${books.language}) = 1`)
+      .orderBy(asc(books.sequenceOrder)),
+    db
+      .select({
+        id: books.id,
+        title: books.title,
+        language: books.language,
+        sequenceOrder: books.sequenceOrder,
+        tasksCount: count(tasks.id),
+      })
+      .from(books)
+      .leftJoin(tasks, eq(tasks.bookId, books.id))
+      .groupBy(books.id)
+      .having(sql`count(${tasks.id}) = 0`)
+      .orderBy(asc(books.sequenceOrder), asc(books.language)),
+    db.select({ coverUrl: books.coverUrl }).from(books),
+  ]);
+  let orphanedUploadCount: number | null = null;
+  try {
+    orphanedUploadCount = await countOrphanedCloudinaryAssets(
+      referencedCoverRows
+        .map((row) => row.coverUrl)
+        .filter((url): url is string => Boolean(url)),
+    );
+  } catch {
+    // Cloudinary health must not prevent the admin overview from loading.
+  }
 
   return {
     batches: adminBatches,
@@ -239,6 +316,18 @@ export async function getAdminOverviewData() {
         (application) => application.status === "pending",
       ).length,
       catalogSlots: Number(catalogCount?.count ?? 0),
+    },
+    catalog: {
+      recentAdditions,
+      editionCoverageGaps: editionCoverageGaps.map((gap) => ({
+        ...gap,
+        editionCount: Number(gap.editionCount),
+      })),
+      curriculumGaps: curriculumGaps.map((gap) => ({
+        ...gap,
+        tasksCount: Number(gap.tasksCount),
+      })),
+      orphanedUploadCount,
     },
   };
 }

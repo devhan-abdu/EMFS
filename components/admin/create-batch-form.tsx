@@ -44,6 +44,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 export type AdminOption = {
   profileId: string;
@@ -61,15 +62,19 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
     initialState,
   );
 
+  const router = useRouter()
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [requireTelegramHandoff, setRequireTelegramHandoff] = useState(true);
   const fieldErrors = state?.errors?.fieldErrors ?? {};
 
-  useEffect(() => {
-    if (state?.ok) toast.success("Batch created successfully");
-  }, [state]);
+ useEffect(() => {
+   if (state?.ok && state.data?.batch?.id) {
+     toast.success("Batch created successfully");
+     router.push(`/admin/batches/${state.data.batch.id}`);
+   }
+ }, [state, router]);
 
   const isMaxReached = selectedIds.length >= MAX_ADMINS;
   const selectedAdmins = admins.filter((a) =>
@@ -154,7 +159,7 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
                 <FieldError message={fieldErrors.paceGroupCount?.[0]} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="startDate">Start date</Label>
+                <Label htmlFor="startDate">Reading start date"</Label>
                 <Input id="startDate" name="startDate" type="date" />
                 <FieldError message={fieldErrors.startDate?.[0]} />
               </div>
