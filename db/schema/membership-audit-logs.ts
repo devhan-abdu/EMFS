@@ -16,9 +16,9 @@ export const membershipAuditLogs = pgTable("membership_audit_logs", {
   toBatchId: uuid("to_batch_id").references(() => batches.id, {
     onDelete: "set null",
   }),
-  actorId: uuid("actor_id")
-    .notNull()
-    .references(() => profiles.id, { onDelete: "cascade" }),
+  actorId: uuid("actor_id").references(() => profiles.id, {
+    onDelete: "set null",
+  }),
   reason: text("reason").notNull(),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
 });

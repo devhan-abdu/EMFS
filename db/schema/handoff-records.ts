@@ -18,7 +18,7 @@ export const handoffRecords = pgTable(
     code: text("code").notNull(),
     issuedAt: timestamp("issued_at").notNull().defaultNow(),
     usedAt: timestamp("used_at"),
-    telegramChatId: bigint("telegram_chat_id", { mode: "number" }),
+    telegramChatId: bigint("telegram_chat_id", { mode: "bigint" }),
   },
   (table) => [
     uniqueIndex("unique_handoff_code_idx").on(table.code),
