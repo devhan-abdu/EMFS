@@ -49,6 +49,7 @@ export async function requireRole(allowed: Role[]): Promise<CurrentUser> {
 export async function requireMinRole(minimum: Role): Promise<CurrentUser> {
   const user = await requireSession();
   const role = user.profile.role as Role;
+  console.log(role, "what is the role it register ")
   if (ROLE_RANK[role] < ROLE_RANK[minimum]) {
     throw new AuthzError("FORBIDDEN", `Requires at least '${minimum}' role.`);
   }

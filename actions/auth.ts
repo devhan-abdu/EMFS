@@ -90,8 +90,9 @@ export async function signInAction(
     };
   }
 
+  let signInResult;
   try {
-    await auth.api.signInEmail({
+    signInResult = await auth.api.signInEmail({
       body: parsed.data,
       headers: await headers(),
     });
@@ -104,15 +105,11 @@ export async function signInAction(
     };
   }
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const profile = await db.query.profiles.findFirst({
+    where: eq(profiles.authUserId, signInResult.user.id),
+  });
 
-  let targetUrl = next ?? "/";
-  if (session) {
-    const profile = await db.query.profiles.findFirst({
-      where: eq(profiles.authUserId, session.user.id),
-    });
-    targetUrl = next ?? defaultRedirectForRole(profile?.role);
-  }
+  const targetUrl = next ?? defaultRedirectForRole(profile?.role);
 
   return {
     values: {},
