@@ -7,7 +7,6 @@ import { hashPassword } from "better-auth/crypto";
 import { db } from "../db";
 import {
   account,
-  applications,
   batchAdmins,
   batchMemberships,
   batches,
@@ -19,6 +18,7 @@ import {
   user,
   waitlist,
 } from "../db/schema";
+import { applications } from "../db/schema/applications";
 
 type SeedUser = {
   email: string;
@@ -286,21 +286,25 @@ async function ensureApplication(
   const existing = await db
     .select()
     .from(applications)
-    .where(eq(applications.userId, profile.id));
+    .where(eq(applications.profileId, profile.id));
 
   if (existing.some((application) => application.batchId === batchId)) {
     return;
   }
 
-  await db.insert(applications).values({
-    userId: profile.id,
+  const applicationValues: typeof applications.$inferInsert = {
+    profileId: profile.id,
     batchId,
-    registrationName: profile.firstName,
+    firstName: profile.firstName ?? email.split("@")[0],
+    fatherName: profile.fatherName ?? "Unknown",
+    grandfatherName: profile.grandfatherName ?? null,
     email,
     telegramUsername: profile.telegramUsername ?? `@${email.split("@")[0]}`,
-    phoneNumber: profile.phone ?? "+1-555-0199",
+    phoneNumber: profile.phone ?? "+251911000000",
     paceGroup,
-  });
+  };
+
+  await db.insert(applications).values(applicationValues);
 }
 
 async function main() {
@@ -413,20 +417,24 @@ async function main() {
   const existingApplications = await db.select().from(applications);
   const hasApplication = existingApplications.some(
     (application) =>
-      application.userId === customerProfile.id &&
+      application.profileId === customerProfile.id &&
       application.batchId === batchOne.id,
   );
 
   if (!hasApplication) {
-    await db.insert(applications).values({
-      userId: customerProfile.id,
+    const applicationValues: typeof applications.$inferInsert = {
+      profileId: customerProfile.id,
       batchId: batchOne.id,
-      registrationName: customerProfile.firstName,
+      firstName: customerProfile.firstName ?? "Alicia",
+      fatherName: customerProfile.fatherName ?? "Member",
+      grandfatherName: customerProfile.grandfatherName ?? null,
       email: "member@example.com",
       telegramUsername: customerProfile.telegramUsername ?? "@alicia_member",
       phoneNumber: customerProfile.phone ?? "+1-555-0101",
       paceGroup: "10",
-    });
+    };
+
+    await db.insert(applications).values(applicationValues);
   }
 
   await ensureApplication("amina.y@example.com", batchOne.id, "10");
