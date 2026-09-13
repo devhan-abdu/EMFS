@@ -140,6 +140,72 @@ export async function deleteFromCloudinary(
   }
 }
 
+export async function countOrphanedCloudinaryAssets(
+  referencedUrls: string[],
+  config?: CloudinaryConfig,
+): Promise<number | null> {
+  let resolvedConfig: CloudinaryConfig;
+  try {
+    resolvedConfig = config ?? readCloudinaryConfig();
+  } catch {
+    return null;
+  }
+
+  const referencedPublicIds = new Set(
+    referencedUrls
+      .map(publicIdFromCloudinaryUrl)
+      .filter((publicId): publicId is string => Boolean(publicId)),
+  );
+  let nextCursor: string | undefined;
+  let orphanedCount = 0;
+
+  do {
+    const params = new URLSearchParams({
+      prefix: resolvedConfig.folder,
+      max_results: "500",
+    });
+    if (nextCursor) params.set("next_cursor", nextCursor);
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${resolvedConfig.cloudName}/resources/image/upload?${params.toString()}`,
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${resolvedConfig.apiKey}:${resolvedConfig.apiSecret}`).toString("base64")}`,
+        },
+      },
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Cloudinary resource listing failed (${response.status}).`,
+      );
+    }
+
+    const json: unknown = await response.json();
+    if (!json || typeof json !== "object") {
+      throw new Error(
+        "Cloudinary resource listing returned an unexpected payload.",
+      );
+    }
+
+    const payload = json as {
+      resources?: Array<{ public_id?: unknown }>;
+      next_cursor?: unknown;
+    };
+    for (const resource of payload.resources ?? []) {
+      if (
+        typeof resource.public_id === "string" &&
+        !referencedPublicIds.has(resource.public_id)
+      ) {
+        orphanedCount += 1;
+      }
+    }
+    nextCursor =
+      typeof payload.next_cursor === "string" ? payload.next_cursor : undefined;
+  } while (nextCursor);
+
+  return orphanedCount;
+}
+
 function signCloudinaryParams(
   params: Record<string, string>,
   apiSecret: string,
@@ -148,7 +214,10 @@ function signCloudinaryParams(
     .sort()
     .map((key) => `${key}=${params[key]}`)
     .join("&");
-  return crypto.createHash("sha1").update(`${payload}${apiSecret}`).digest("hex");
+  return crypto
+    .createHash("sha1")
+    .update(`${payload}${apiSecret}`)
+    .digest("hex");
 }
 
 function requiredEnv(name: string): string {
