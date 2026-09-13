@@ -157,7 +157,7 @@ export async function updateBookWithCover(
 
   try {
     const [existing] = await db
-      .select({ id: books.id })
+      .select({ id: books.id, sequenceOrder: books.sequenceOrder })
       .from(books)
       .where(eq(books.id, data.bookId))
       .limit(1);
@@ -173,6 +173,33 @@ export async function updateBookWithCover(
             field: "bookId",
             message: "Book was not found.",
             code: "BOOK_NOT_FOUND",
+          },
+        ],
+      };
+    }
+
+    const [languageClash] = await db
+      .select({ id: books.id })
+      .from(books)
+      .where(
+        and(
+          eq(books.sequenceOrder, existing.sequenceOrder),
+          eq(books.language, data.language),
+        ),
+      )
+      .limit(1);
+
+    if (languageClash && languageClash.id !== existing.id) {
+      if (uploadedCoverUrl) {
+        await cleanupOrphanedUpload(uploadedCoverUrl);
+      }
+      return {
+        ok: false,
+        errors: [
+          {
+            field: "language",
+            message: `Slot ${existing.sequenceOrder} already has an edition for language '${data.language}'.`,
+            code: "SLOT_LANGUAGE_EXISTS",
           },
         ],
       };

@@ -1,17 +1,18 @@
-import Link from "next/link"
-import type {Metadata} from "next"
+import Link from "next/link";
+import type { Metadata } from "next";
 import {
   ArrowRight,
   BookOpen,
   HeartHandshake,
   NotebookPen,
 } from "lucide-react";
+import Image from "next/image";
 
 import { Lotus } from "@/components/brand/lotus";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
-
-
+import { OpenBatchCard } from "@/components/batches/open-batch-card";
+import { FeaturedBatchCard } from "@/components/batches/featured-batch-card";
+import { getOpenBatchesForPublic } from "@/lib/services/batches/batch-public";
 
 export const metadata: Metadata = {
   title: "EMFSC Book Shelf — Read together, grow together",
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
   },
   twitter: { card: "summary_large_image" },
   icons: { icon: "/favicon.ico" },
-}
+};
 
 const pillars = [
   {
@@ -44,7 +45,13 @@ const pillars = [
   },
 ];
 
-export default function Home() {
+const FEATURED_LIMIT = 3;
+
+export default async function Home() {
+  const openBatches = await getOpenBatchesForPublic();
+  const visibleBatches = openBatches.slice(0, FEATURED_LIMIT);
+  const hasMore = openBatches.length > FEATURED_LIMIT;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6">
@@ -58,7 +65,7 @@ export default function Home() {
           />
         </div>
         <Button variant="outline" asChild>
-          <Link href="/admin">Admin</Link>
+          <Link href="/signin">Sign in</Link>
         </Button>
       </header>
 
@@ -81,17 +88,50 @@ export default function Home() {
                 daily pages, weekly reflections, and sisters who notice when you
                 go quiet.
               </p>
-              <div className="mt-9 flex flex-wrap gap-3">
-                <Button size="lg" asChild>
-                  <Link href="/login">
-                    Open the admin workspace
-                    <ArrowRight className="size-4" />
-                  </Link>
-                </Button>
-              </div>
+
+              {visibleBatches.length === 0 ?
+                <div className="mt-9 flex flex-wrap gap-3">
+                  <Button size="lg" variant="outline" asChild>
+                    <Link href="/signin">
+                      Sign in
+                      <ArrowRight className="size-4" />
+                    </Link>
+                  </Button>
+                </div>
+              : null}
             </div>
           </div>
         </section>
+
+        {visibleBatches.length === 1 ?
+          <section className="mx-auto max-w-6xl px-6 pb-16">
+            <FeaturedBatchCard batch={visibleBatches[0]!} />
+          </section>
+        : null}
+
+        {visibleBatches.length > 1 ?
+          <section className="mx-auto max-w-6xl px-6 pb-16">
+            <div className="flex items-baseline justify-between gap-4">
+              <h2 className="font-display text-2xl font-semibold text-foreground">
+                Open reading batches
+              </h2>
+              {hasMore ?
+                <Link
+                  href="/batches"
+                  className="flex shrink-0 items-center gap-1 text-sm font-medium text-teal underline-offset-4 hover:underline"
+                >
+                  See all open batches
+                  <ArrowRight className="size-3.5" />
+                </Link>
+              : null}
+            </div>
+            <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleBatches.map((batch) => (
+                <OpenBatchCard key={batch.id} batch={batch} />
+              ))}
+            </div>
+          </section>
+        : null}
 
         <section className="mx-auto max-w-6xl px-6 pb-24">
           <div className="grid gap-6 md:grid-cols-3">

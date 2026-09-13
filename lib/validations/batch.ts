@@ -11,7 +11,11 @@ export const createBatchSchema = z.object({
     .int("Pace group count must be an integer")
     .min(0, "Pace group count cannot be negative")
     .default(0),
-  startDate: z.coerce.date({ message: "Invalid start date" }),
+  startDate: z.coerce
+    .date({ message: "Invalid start date" })
+    .refine((d) => d >= new Date(new Date().toDateString()), {
+      message: "Start date can't be in the past",
+    }),
   readingDaysPerWeek: z
     .number({ message: "Reading days per week must be a number" })
     .int("Reading days per week must be an integer")

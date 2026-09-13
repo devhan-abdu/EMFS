@@ -7,7 +7,7 @@ import {
   createBatch,
   BatchError,
   type CreateBatchResult,
-} from "@/lib/services/batch";
+} from "@/lib/services/batches/batch";
 
 export type CreateBatchActionState = {
   ok: boolean;
@@ -65,5 +65,8 @@ export async function createBatchAction(
   }
 
   revalidatePath("/admin/batches");
+  revalidatePath("/admin");
+  revalidatePath("/");
+  revalidatePath("/batches");
   return { ok: true, data: result };
 }
