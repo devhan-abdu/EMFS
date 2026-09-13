@@ -8,6 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { getAdminOverviewData } from "@/lib/services/admin";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 
@@ -22,7 +30,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminOverview() {
-  const { applications, batches, paceGroups, stats } =
+  const { applications, batches, paceGroups, stats, catalog } =
     await getAdminOverviewData();
   const pending = applications.filter((a) => a.status === "pending");
 
@@ -150,7 +158,7 @@ export default async function AdminOverview() {
                 <Sparkles className="size-4 text-gold" />
                 Registration closes in 6 days
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                 Approve applicants before pace groups are locked so the Telegram
                 handoff has time to finish.
               </p>
@@ -158,6 +166,251 @@ export default async function AdminOverview() {
           </CardContent>
         </Card>
       </div>
+
+      <section className="space-y-4" aria-labelledby="catalog-report-title">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-teal">
+              Operations report
+            </p>
+            <h2
+              id="catalog-report-title"
+              className="font-display text-2xl font-semibold text-foreground"
+            >
+              Catalog health
+            </h2>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Review incomplete entries before the next batch starts.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="card-soft">
+            <CardContent className="space-y-2 p-4">
+              <p className="text-xs font-medium text-muted-foreground">
+                Catalog slots
+              </p>
+              <p className="text-2xl font-semibold tabular-nums text-foreground">
+                {stats.catalogSlots}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Distinct program positions
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="card-soft">
+            <CardContent className="space-y-2 p-4">
+              <p className="text-xs font-medium text-muted-foreground">
+                Language gaps
+              </p>
+              <p className="text-2xl font-semibold tabular-nums text-foreground">
+                {catalog.editionCoverageGaps.length}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Slots with one edition
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="card-soft">
+            <CardContent className="space-y-2 p-4">
+              <p className="text-xs font-medium text-muted-foreground">
+                Curriculum gaps
+              </p>
+              <p className="text-2xl font-semibold tabular-nums text-foreground">
+                {catalog.curriculumGaps.length}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Editions with no tasks
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="card-soft">
+            <CardContent className="space-y-2 p-4">
+              <p className="text-xs font-medium text-muted-foreground">
+                Orphaned uploads
+              </p>
+              <p className="text-2xl font-semibold tabular-nums text-foreground">
+                {catalog.orphanedUploadCount ?? "—"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {catalog.orphanedUploadCount === null ?
+                  "Cloudinary unavailable"
+                : "Not linked to a book"}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="card-soft">
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle className="font-display text-xl">
+                Recent additions
+              </CardTitle>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Latest catalog rows requiring a quick completeness check.
+              </p>
+            </div>
+            <Badge variant="outline">Last 5</Badge>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Book</TableHead>
+                  <TableHead>Slot</TableHead>
+                  <TableHead>Language</TableHead>
+                  <TableHead className="text-right">Added</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {catalog.recentAdditions.length > 0 ?
+                  catalog.recentAdditions.map((book) => (
+                    <TableRow key={book.id}>
+                      <TableCell className="w-full min-w-[300px] font-medium text-foreground">
+                        {book.title}
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap tabular-nums">
+                        {book.sequenceOrder}
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap">
+                        {book.language}
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap text-right text-muted-foreground">
+                        {book.createdAt.toISOString().slice(0, 10)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                : <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="h-20 text-center text-muted-foreground"
+                    >
+                      No books added yet.
+                    </TableCell>
+                  </TableRow>
+                }
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="card-soft">
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="font-display text-xl">
+                  Edition coverage
+                </CardTitle>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Slots missing a language edition.
+                </p>
+              </div>
+              <Badge
+                variant={
+                  catalog.editionCoverageGaps.length > 0 ?
+                    "destructive"
+                  : "secondary"
+                }
+              >
+                {catalog.editionCoverageGaps.length}
+              </Badge>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Slot</TableHead>
+                    <TableHead className="text-right">Editions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {catalog.editionCoverageGaps.length > 0 ?
+                    catalog.editionCoverageGaps.map((gap) => (
+                      <TableRow key={gap.sequenceOrder}>
+                        <TableCell className="font-medium">
+                          Slot {gap.sequenceOrder}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {gap.editionCount} / 2
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  : <TableRow>
+                      <TableCell
+                        colSpan={2}
+                        className="h-20 text-center text-muted-foreground"
+                      >
+                        No coverage gaps.
+                      </TableCell>
+                    </TableRow>
+                  }
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card className="card-soft">
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="font-display text-xl">
+                  Curriculum coverage
+                </CardTitle>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Editions with no attached tasks.
+                </p>
+              </div>
+              <Badge
+                variant={
+                  catalog.curriculumGaps.length > 0 ?
+                    "destructive"
+                  : "secondary"
+                }
+              >
+                {catalog.curriculumGaps.length}
+              </Badge>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Edition</TableHead>
+                    <TableHead>Language</TableHead>
+                    <TableHead className="text-right">Tasks</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {catalog.curriculumGaps.length > 0 ?
+                    catalog.curriculumGaps.map((book) => (
+                      <TableRow key={book.id}>
+                        <TableCell className="max-w-0 truncate font-medium">
+                          Slot {book.sequenceOrder} · {book.title}
+                        </TableCell>
+                        <TableCell>{book.language}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {book.tasksCount}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  : <TableRow>
+                      <TableCell
+                        colSpan={3}
+                        className="h-20 text-center text-muted-foreground"
+                      >
+                        No curriculum gaps.
+                      </TableCell>
+                    </TableRow>
+                  }
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
 
       <Card className="card-soft">
         <CardHeader className="flex-row items-center justify-between space-y-0">

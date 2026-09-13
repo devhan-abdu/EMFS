@@ -311,24 +311,14 @@ export async function reenterBatchMembership(
 
 export async function activateMembership(
   applicationId: string,
-  actorId: string,
-  executor: DbOrTx = db
+  actorId: string | null,
+  executor: DbOrTx = db,
 ) {
   const runActivation = async (tx: DbOrTx) => {
-    const handoff = await tx.query.handoffRecords.findFirst({
-      where: eq(handoffRecords.applicationId, applicationId),
-    });
-
-    if (!handoff || !handoff.usedAt || !handoff.telegramChatId) {
-      throw new MembershipError(
-        "INVALID_TRANSITION",
-        "Cannot activate: member has not completed Telegram bot linking yet.",
-      );
-    }
-
     const application = await tx.query.applications.findFirst({
       where: eq(applications.id, applicationId),
     });
+
     if (!application) {
       throw new MembershipError(
         "NOT_FOUND",
@@ -338,11 +328,12 @@ export async function activateMembership(
 
     const membership = await tx.query.batchMemberships.findFirst({
       where: and(
-        eq(batchMemberships.profileId, application.userId),
+        eq(batchMemberships.profileId, application.profileId),
         eq(batchMemberships.batchId, application.batchId),
         eq(batchMemberships.status, "approved"),
       ),
     });
+
     if (!membership) {
       throw new MembershipError(
         "INVALID_TRANSITION",
@@ -357,7 +348,7 @@ export async function activateMembership(
       .returning();
 
     await tx.insert(membershipAuditLogs).values({
-      memberId: application.userId,
+      memberId: application.profileId,
       fromState: "approved",
       toState: "active",
       fromBatchId: application.batchId,
@@ -375,4 +366,16 @@ export async function activateMembership(
   }
 
   return await runActivation(executor);
+}
+
+export async function findActiveMembershipAnywhere(
+  profileId: string,
+  executor: DbOrTx = db,
+) {
+  return executor.query.batchMemberships.findFirst({
+    where: and(
+      eq(batchMemberships.profileId, profileId),
+      inArray(batchMemberships.status, [...NON_TERMINAL_STATUSES]),
+    ),
+  });
 }

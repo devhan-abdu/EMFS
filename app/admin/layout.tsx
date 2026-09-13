@@ -17,7 +17,11 @@ export default async function AdminLayout({
     await requireMinRole("pace_admin");
   } catch (e) {
     if (e instanceof AuthzError) {
-      redirect(e.code === "UNAUTHENTICATED" ? "/signin" : "/");
+      redirect(
+        e.code === "UNAUTHENTICATED" ?
+          `/signin?next=${encodeURIComponent("/admin")}`
+        : "/",
+      );
     }
     throw e;
   }
