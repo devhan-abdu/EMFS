@@ -50,9 +50,9 @@ export function AdminSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border/60 px-3 py-4">
-        <div className="flex items-center gap-3">
+        <Link href="/admin" className="flex items-center gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-accent text-sidebar-foreground">
-            <Lotus className="h-5 w-5" />
+            <Lotus className="size-6" />
           </span>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <p className="truncate font-display text-sm font-semibold text-sidebar-foreground">
@@ -62,7 +62,7 @@ export function AdminSidebar() {
               Admin workspace
             </p>
           </div>
-        </div>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent className="px-1">

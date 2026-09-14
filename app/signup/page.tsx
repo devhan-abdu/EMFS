@@ -16,7 +16,7 @@ export default function SignUpPage() {
         <LotusWatermark className="pointer-events-none absolute -bottom-24 -right-20 h-96 w-96 text-primary-foreground/10" />
         <Link href="/" className="relative flex items-center gap-3">
           <span className="flex size-10 items-center justify-center rounded-xl bg-primary-foreground/10">
-            <Lotus className="h-6 w-6" />
+            <Lotus className="size-6" />
           </span>
           <span className="font-display text-lg font-semibold">EMFSC Book Shelf</span>
         </Link>
@@ -38,12 +38,12 @@ export default function SignUpPage() {
 
       <main className="flex flex-1 items-center justify-center px-5 py-14 md:px-10">
         <div className="w-full max-w-sm rise-in">
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
+          <Link href="/" className="mb-8 flex items-center gap-3 lg:hidden">
             <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
-              <Lotus className="h-6 w-6" />
+              <Lotus className="size-6" />
             </span>
             <span className="font-display text-lg font-semibold text-foreground">EMFSC Book Shelf</span>
-          </div>
+          </Link>
           <h1 className="font-display text-3xl font-semibold text-foreground">Create your account</h1>
           <p className="mt-2 text-sm text-muted-foreground">Sign up with your email.</p>
           <SignUpForm />

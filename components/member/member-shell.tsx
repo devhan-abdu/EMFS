@@ -24,10 +24,10 @@ export function MemberNav() {
         <div className="mx-auto flex h-16 w-full max-w-4xl items-center gap-3 px-4 md:px-8">
           <Link href="/" className="flex items-center gap-2.5">
             <span className="flex size-9 items-center justify-center rounded-xl bg-accent text-primary">
-              <Lotus className="h-5 w-5" />
+              <Lotus className="size-6" />
             </span>
             <span className="hidden font-display text-base font-semibold text-foreground sm:block">
-              Book Shelf
+              EMFSC Book Shelf
             </span>
           </Link>
 
