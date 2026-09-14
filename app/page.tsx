@@ -9,7 +9,6 @@ import {
 
 import { Lotus } from "@/components/brand/lotus";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
 
 
 
@@ -48,15 +47,14 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       <header className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6">
-        <div className="relative h-24 w-24">
-          <Image
-            src="/brand/logo.png"
-            alt="EMFSC Book Shelf"
-            fill
-            className="object-contain dark:hidden"
-            priority
-          />
-        </div>
+        <Link href="/" className="flex items-center gap-3">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
+            <Lotus className="size-6" priority />
+          </span>
+          <span className="font-display text-lg font-semibold text-foreground">
+            EMFSC Book Shelf
+          </span>
+        </Link>
         <Button variant="outline" asChild>
           <Link href="/admin">Admin</Link>
         </Button>
@@ -117,7 +115,7 @@ export default function Home() {
 
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 px-6 py-10 text-center">
-          <Lotus className="h-8 w-8 text-primary/30" />
+          <Lotus className="size-8 opacity-40" />
           <p className="text-sm text-muted-foreground">
             EMFSC Book Shelf — built for the circle, by the circle.
           </p>

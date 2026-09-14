@@ -81,7 +81,7 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-surface-2 px-6 py-14 text-center">
-      <Lotus className="h-12 w-12 text-primary/25" />
+      <Lotus className="size-12 opacity-30" />
       <h3 className="font-display text-lg font-semibold text-foreground">{title}</h3>
       <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">{description}</p>
       {action}
