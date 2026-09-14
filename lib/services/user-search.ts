@@ -1,33 +1,29 @@
-import "server-only"
-import { eq, or, and, ilike, notInArray, sql, desc } from "drizzle-orm";
-import { db } from "@/db";
-import { profiles, batchAdmins, user, batches } from "@/db/schema";
+import 'server-only';
+import { eq, or, and, ilike, notInArray, sql, desc } from 'drizzle-orm';
+import { db } from '@/db';
+import { profiles, batchAdmins, user, batches } from '@/db/schema';
 import type {
   SearchProfilesInput,
   ProfileSearchResult,
   KnownBatchAdminBatch,
-} from "@/lib/validations/user-search";
+} from '@/lib/validations/user-search';
 export type { SearchProfilesInput };
-
-
 
 export type DbClient = typeof db;
 export type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type DbOrTx = DbClient | DbTransaction;
 
 export type UserSearchErrorCode =
-  | "INVALID_QUERY"
-  | "INVALID_INPUT"
-  | "UNAUTHORIZED";
+  'INVALID_QUERY' | 'INVALID_INPUT' | 'UNAUTHORIZED';
 
 export class UserSearchError extends Error {
   constructor(
-    public code: "DB_ERROR",
+    public code: 'DB_ERROR',
     message: string,
     public cause?: unknown,
   ) {
     super(message);
-    this.name = "UserSearchError";
+    this.name = 'UserSearchError';
   }
 }
 
@@ -42,13 +38,11 @@ export class UserSearchError extends Error {
  */
 export async function searchProfiles(
   input: SearchProfilesInput,
-  executor: DbOrTx = db
+  executor: DbOrTx = db,
 ): Promise<ProfileSearchResult[]> {
   // action send normalized input
   const trimmedQuery = input.query.trim();
   if (trimmedQuery.length < 2) return [];
-
-
 
   const requestedLimit = input.limit ?? 25;
   const effectiveLimit = Math.min(Math.max(1, requestedLimit), 25);
@@ -60,14 +54,15 @@ export async function searchProfiles(
     ilike(user.email, pattern),
     ilike(profiles.firstName, pattern),
     ilike(profiles.fatherName, pattern),
-    sql`concat(${profiles.firstName}, ' ', ${profiles.fatherName}) ILIKE ${pattern}`
+    sql`concat(${profiles.firstName}, ' ', ${profiles.fatherName}) ILIKE ${pattern}`,
   );
 
   const conditions = [nameOrEmailCondition];
 
-   if (input.excludeProfileIds.length > 0) {
-     conditions.push(notInArray(profiles.id, input.excludeProfileIds));
-   }
+  const excludeProfileIds = input.excludeProfileIds ?? [];
+  if (excludeProfileIds.length > 0) {
+    conditions.push(notInArray(profiles.id, excludeProfileIds));
+  }
 
   try {
     const rows = await executor
@@ -89,7 +84,7 @@ export async function searchProfiles(
       email: r.email,
     }));
   } catch (cause) {
-    throw new UserSearchError("DB_ERROR", "Failed to search profiles", cause);
+    throw new UserSearchError('DB_ERROR', 'Failed to search profiles', cause);
   }
 }
 
@@ -97,7 +92,7 @@ export async function searchProfiles(
  * Sub-issue 1: Retrieves distinct profiles that have previously been assigned
  * as batch admins in any batch.
  */
-// also join batch name 
+// also join batch name
 export async function getPreviouslyAssignedBatchAdmins(
   executor: DbOrTx = db,
 ): Promise<ProfileSearchResult[]> {
@@ -123,7 +118,8 @@ export async function getPreviouslyAssignedBatchAdmins(
         profiles.fatherName,
         user.name,
         user.email,
-    )
+      )
+      .orderBy(desc(sql`max(${batchAdmins.createdAt})`))
       .limit(20);
 
     return rows.map((r) => ({
@@ -134,10 +130,11 @@ export async function getPreviouslyAssignedBatchAdmins(
     }));
   } catch (cause) {
     throw new UserSearchError(
-      "DB_ERROR",
-      "Failed to load previously assigned batch admins",
+      'DB_ERROR',
+      'Failed to load previously assigned batch admins',
       cause,
     );
   }
 }
 
+export const listKnownBatchAdmins = getPreviouslyAssignedBatchAdmins;

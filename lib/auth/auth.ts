@@ -1,13 +1,13 @@
-import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { nextCookies } from "better-auth/next-js";
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { nextCookies } from 'better-auth/next-js';
 
-import { db } from "@/db";
-import { profiles } from "@/db/schema";
+import { db } from '@/db';
+import { profiles } from '@/db/schema';
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
-    provider: "pg",
+    provider: 'pg',
   }),
   emailAndPassword: {
     enabled: true,
@@ -27,9 +27,7 @@ export const auth = betterAuth({
         after: async (user) => {
           await db.insert(profiles).values({
             authUserId: user.id,
-            firstName: user.name,
-            fatherName: "",
-            role: "member",
+            role: 'member',
           });
         },
       },
