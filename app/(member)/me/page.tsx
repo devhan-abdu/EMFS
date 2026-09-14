@@ -1,13 +1,13 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import type { Metadata } from "next";
-import { Send } from "lucide-react";
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
+import { Send } from 'lucide-react';
 
-import { requireSession } from "@/lib/auth/authorize";
-import { getMemberHomeState } from "@/lib/services/member/get-member-home-state";
-import { PageHeader } from "@/components/shared/page-layout";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { requireSession } from '@/lib/auth/authorize';
+import { getMemberHomeState } from '@/lib/services/member/get-member-home-state';
+import { PageHeader } from '@/components/shared/page-layout';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {
   title: "Today's reading — EMFSC Book Shelf",
@@ -24,13 +24,13 @@ export default async function MeHomePage() {
   try {
     currentUser = await requireSession();
   } catch {
-    redirect("/signin?next=/me");
+    redirect('/signin?next=/me');
   }
 
   const state = await getMemberHomeState(currentUser.profile.id);
 
   switch (state.kind) {
-    case "no_batch":
+    case 'no_batch':
       return (
         <div className="space-y-6">
           <PageHeader
@@ -43,7 +43,7 @@ export default async function MeHomePage() {
         </div>
       );
 
-    case "waitlisted":
+    case 'waitlisted':
       return (
         <div className="space-y-6">
           <PageHeader
@@ -52,33 +52,30 @@ export default async function MeHomePage() {
           />
           <Card className="card-soft">
             <CardContent className="p-6 text-sm text-foreground">
-              You&apos;re position{" "}
+              You&apos;re position{' '}
               <span className="font-semibold tabular-nums">
                 {state.queuePosition}
-              </span>{" "}
+              </span>{' '}
               in line. We&apos;ll notify you in-app when a seat opens.
             </CardContent>
           </Card>
         </div>
       );
 
-    case "applied":
+    case 'applied':
       return (
         <div className="space-y-6">
-          <PageHeader
-            eyebrow={state.batchName}
-            title="Application under review"
-          />
+          <PageHeader eyebrow={state.batchName} title="Application received" />
           <Card className="card-soft">
             <CardContent className="p-6 text-sm text-muted-foreground">
-              A batch admin will approve or decline your application —
-              you&apos;ll see the update here.
+              Your application is in. If a seat is available you&apos;ll get a
+              Telegram bot link here to finish joining — no admin review needed.
             </CardContent>
           </Card>
         </div>
       );
 
-    case "rejected":
+    case 'rejected':
       return (
         <div className="space-y-6">
           <PageHeader
@@ -92,7 +89,7 @@ export default async function MeHomePage() {
         </div>
       );
 
-    case "approved_pending_handoff":
+    case 'approved_pending_handoff':
       return (
         <div className="space-y-6">
           <PageHeader eyebrow={state.batchName} title="One step left" />
@@ -105,7 +102,7 @@ export default async function MeHomePage() {
                 Open the Telegram bot to link your account and activate your
                 membership.
               </p>
-              {state.telegramStartLink ?
+              {state.telegramStartLink ? (
                 <Button asChild className="w-full">
                   <a
                     href={state.telegramStartLink}
@@ -116,16 +113,17 @@ export default async function MeHomePage() {
                     Finish joining — open Telegram
                   </a>
                 </Button>
-              : <p className="text-xs text-muted-foreground">
+              ) : (
+                <p className="text-xs text-muted-foreground">
                   Contact your batch admin for a new handoff link.
                 </p>
-              }
+              )}
             </CardContent>
           </Card>
         </div>
       );
 
-    case "active_awaiting_placement":
+    case 'active_awaiting_placement':
       return (
         <div className="space-y-6">
           <PageHeader
@@ -136,7 +134,7 @@ export default async function MeHomePage() {
         </div>
       );
 
-    case "active_placed":
+    case 'active_placed':
       return (
         <div className="space-y-6">
           <PageHeader

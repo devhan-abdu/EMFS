@@ -1,37 +1,37 @@
-import { eq, and, inArray, count } from "drizzle-orm";
-import { db } from "@/db";
+import { eq, and, inArray, count } from 'drizzle-orm';
+import { db } from '@/db';
 import {
   applications,
   batches,
   batchMemberships,
   membershipAuditLogs,
   profiles,
-} from "@/db/schema";
-import type { CreateApplicationInput } from "@/lib/validations/application";
+} from '@/db/schema';
+import type { CreateApplicationInput } from '@/lib/validations/application';
 import {
   createBatchMembership,
   NON_TERMINAL_STATUSES,
-} from "@/lib/services/membership";
-import { createHandoffRecord } from "@/lib/services/application/handoff";
-import { addToWaitlist } from "./waitlist";
+} from '@/lib/services/membership';
+import { createHandoffRecord } from '@/lib/services/application/handoff';
+import { addToWaitlist } from './waitlist';
 
 export type ApplicationErrorCode =
-  | "EMAIL_MISMATCH"
-  | "BATCH_NOT_FOUND"
-  | "ALREADY_APPLIED"
-  | "INVALID_INPUT"
-  | "DATABASE_ERROR";
+  | 'EMAIL_MISMATCH'
+  | 'BATCH_NOT_FOUND'
+  | 'ALREADY_APPLIED'
+  | 'INVALID_INPUT'
+  | 'DATABASE_ERROR';
 
 export class ApplicationError extends Error {
   code: ApplicationErrorCode;
   constructor(code: ApplicationErrorCode, message: string) {
     super(message);
     this.code = code;
-    this.name = "ApplicationError";
+    this.name = 'ApplicationError';
   }
 }
 
-export type ApplicationOutcome = "approved" | "applied" | "waitlisted";
+export type ApplicationOutcome = 'approved' | 'waitlisted';
 
 export type CreateApplicationResult = {
   application: typeof applications.$inferSelect;
@@ -45,8 +45,8 @@ export async function createApplication(
 ): Promise<CreateApplicationResult> {
   if (input.email.trim().toLowerCase() !== authEmail.trim().toLowerCase()) {
     throw new ApplicationError(
-      "EMAIL_MISMATCH",
-      "Submitted email does not match authenticated user email.",
+      'EMAIL_MISMATCH',
+      'Submitted email does not match authenticated user email.',
     );
   }
 
@@ -56,11 +56,11 @@ export async function createApplication(
         .select()
         .from(batches)
         .where(eq(batches.id, input.batchId))
-        .for("update");
+        .for('update');
 
       if (!batch) {
         throw new ApplicationError(
-          "BATCH_NOT_FOUND",
+          'BATCH_NOT_FOUND',
           `Batch '${input.batchId}' not found.`,
         );
       }
@@ -73,8 +73,8 @@ export async function createApplication(
 
       if (existingMembership) {
         throw new ApplicationError(
-          "ALREADY_APPLIED",
-          "You already have an active application or membership for a batch.",
+          'ALREADY_APPLIED',
+          'You already have an active application or membership for a batch.',
         );
       }
 
@@ -86,7 +86,7 @@ export async function createApplication(
         .where(
           and(
             eq(batchMemberships.batchId, input.batchId),
-            inArray(batchMemberships.status, ["approved", "active"]),
+            inArray(batchMemberships.status, ['approved', 'active']),
           ),
         );
 
@@ -103,7 +103,6 @@ export async function createApplication(
           updatedAt: new Date(),
         })
         .where(eq(profiles.id, profileId));
-
 
       const [application] = await tx
         .insert(applications)
@@ -122,17 +121,17 @@ export async function createApplication(
 
       let outcome: ApplicationOutcome;
 
-      if (batch.registrationOpen && batch.autoApprove && capacityRemains) {
-        await createBatchMembership(profileId, input.batchId, "approved", tx);
+      if (batch.registrationOpen && capacityRemains) {
+        await createBatchMembership(profileId, input.batchId, 'approved', tx);
 
         await tx.insert(membershipAuditLogs).values({
           memberId: profileId,
-          fromState: "applied",
-          toState: "approved",
+          fromState: 'applied',
+          toState: 'approved',
           fromBatchId: input.batchId,
           toBatchId: input.batchId,
           actorId: null,
-          reason: "Auto-approved: capacity available at submission time",
+          reason: 'Auto-approved: capacity available at submission time',
           timestamp: new Date(),
         });
 
@@ -143,20 +142,17 @@ export async function createApplication(
           tx,
         );
 
-        outcome = "approved";
-      } else if (batch.registrationOpen && capacityRemains) {
-        await createBatchMembership(profileId, input.batchId, "applied", tx);
-
-        outcome = "applied";
-      } else {
-        await addToWaitlist(profileId, input.batchId, tx);
-
-        outcome = "waitlisted";
+        return {
+          application,
+          outcome: 'approved',
+        };
       }
+
+      await addToWaitlist(profileId, input.batchId, tx);
 
       return {
         application,
-        outcome,
+        outcome: 'waitlisted',
       };
     });
   } catch (error) {
@@ -164,11 +160,11 @@ export async function createApplication(
       throw error;
     }
 
-    console.error("Database error during application creation:", error);
+    console.error('Database error during application creation:', error);
 
     throw new ApplicationError(
-      "DATABASE_ERROR",
-      "Unable to complete your application. Please try again.",
+      'DATABASE_ERROR',
+      'Unable to complete your application. Please try again.',
     );
   }
 }

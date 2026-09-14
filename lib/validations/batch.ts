@@ -41,12 +41,9 @@ export const createBatchSchema = z.object({
     .int('Reading days per week must be an integer')
     .min(1, 'Reading days per week must be between 1 and 7')
     .max(7, 'Reading days per week must be between 1 and 7')
-    .default(5),
+    .default(6),
 
   registrationOpen: z.boolean().default(false),
-
-  requireTelegramHandoff: z.boolean().default(true),
-
   adminIds: z
     .array(z.string().uuid('Invalid admin UUID'))
     .min(1, 'At least 1 batch admin is required')

@@ -1,18 +1,18 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import type { Metadata } from "next";
-import { ChevronLeft, Layers, Users } from "lucide-react";
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
+import { ChevronLeft, Layers, Users } from 'lucide-react';
 
-import { PageHeader, StatCard } from "@/components/shared/page-layout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { RegistrationToggle } from "@/components/admin/registration-toggle";
-import { getBatchDetail } from "@/lib/services/batches/batch-detail";
-import { getAdminApplicationsWithHandoff } from "@/lib/services/application/admin-handoff";
+import { PageHeader, StatCard } from '@/components/shared/page-layout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { RegistrationToggle } from '@/components/admin/registration-toggle';
+import { getBatchDetail } from '@/lib/services/batches/batch-detail';
+import { getAdminApplicationsWithHandoff } from '@/lib/services/application/admin-handoff';
 
 export const metadata: Metadata = {
-  title: "Batch overview — EMFSC Book Shelf Admin",
+  title: 'Batch overview — EMFSC Book Shelf Admin',
 };
 
 const STALE_AFTER_DAYS = 3;
@@ -30,10 +30,10 @@ export default async function BatchDetailPage({
 
   const applications = await getAdminApplicationsWithHandoff(batchId);
   const pendingCount = applications.filter(
-    (a) => a.status === "pending",
+    (a) => a.status === 'pending',
   ).length;
   const handoffPending = applications.filter(
-    (a) => a.status === "approved_pending_handoff",
+    (a) => a.status === 'approved_pending_handoff',
   );
   const staleHandoffCount = handoffPending.filter(
     (a) => (a.daysSinceApproved ?? 0) > STALE_AFTER_DAYS,
@@ -52,7 +52,7 @@ export default async function BatchDetailPage({
       <PageHeader
         eyebrow="Batch overview"
         title={batch.name}
-        description="Everything you need right after creating a batch — capacity, registration, and who's waiting on you."
+        description="Capacity, registration, and who still needs to open the Telegram bot."
       />
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -64,25 +64,23 @@ export default async function BatchDetailPage({
         <StatCard
           label="Pending review"
           value={pendingCount}
-          hint={
-            batch.autoApprove ? "Auto-approve is on" : "Manual review required"
-          }
+          hint="New applicants are auto-approved when seats remain"
           tone="gold"
         />
         <StatCard
           label="Handoff pending"
           value={handoffPending.length}
           hint={
-            staleHandoffCount > 0 ?
-              `${staleHandoffCount} stale (3+ days)`
-            : "None stale"
+            staleHandoffCount > 0
+              ? `${staleHandoffCount} still need to open the bot (3+ days)`
+              : 'Members who still need to open the bot'
           }
-          tone={staleHandoffCount > 0 ? "gold" : "teal"}
+          tone={staleHandoffCount > 0 ? 'gold' : 'teal'}
         />
         <StatCard
           label="Batch admins"
           value={batch.admins.length}
-          hint={batch.admins.length === 0 ? "None assigned yet" : undefined}
+          hint={batch.admins.length === 0 ? 'None assigned yet' : undefined}
           tone="teal"
         />
       </div>
@@ -99,7 +97,7 @@ export default async function BatchDetailPage({
             />
             <p className="text-sm text-muted-foreground">
               {batch.enrolled} of {batch.maxMembers} seats filled
-              {batch.startDate ? ` · starts ${batch.startDate}` : ""}.
+              {batch.startDate ? ` · starts ${batch.startDate}` : ''}.
             </p>
 
             <div className="flex items-center justify-between rounded-xl bg-surface-container p-4">
@@ -108,9 +106,9 @@ export default async function BatchDetailPage({
                   Registration
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {batch.registrationOpen ?
-                    "Open — members can apply now."
-                  : "Closed — applicants are routed to the waiting list."}
+                  {batch.registrationOpen
+                    ? 'Open — members can apply now.'
+                    : 'Closed — applicants are routed to the waiting list.'}
                 </p>
               </div>
               <RegistrationToggle
@@ -124,7 +122,7 @@ export default async function BatchDetailPage({
                 <Link href={`/admin/members?batch=${batch.id}`}>
                   <Users className="size-4" />
                   Review applications
-                  {pendingCount > 0 ? ` (${pendingCount})` : ""}
+                  {pendingCount > 0 ? ` (${pendingCount})` : ''}
                 </Link>
               </Button>
               <Button variant="outline" disabled>
@@ -140,27 +138,28 @@ export default async function BatchDetailPage({
             <CardTitle className="font-display text-xl">Batch admins</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {batch.admins.length === 0 ?
+            {batch.admins.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No batch admins assigned yet.
               </p>
-            : batch.admins.map((admin) => (
+            ) : (
+              batch.admins.map((admin) => (
                 <div
                   key={admin.profileId}
                   className="flex items-center gap-3 rounded-xl bg-surface-container p-3"
                 >
                   <span className="flex size-8 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
                     {admin.name
-                      .split(" ")
+                      .split(' ')
                       .map((n) => n[0])
-                      .join("")}
+                      .join('')}
                   </span>
                   <p className="text-sm font-medium text-foreground">
                     {admin.name}
                   </p>
                 </div>
               ))
-            }
+            )}
           </CardContent>
         </Card>
       </div>
