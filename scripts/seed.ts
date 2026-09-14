@@ -1,13 +1,12 @@
-import "dotenv/config";
-import { randomUUID } from "node:crypto";
+import 'dotenv/config';
+import { randomUUID } from 'node:crypto';
 
-import { eq, inArray } from "drizzle-orm";
-import { hashPassword } from "better-auth/crypto";
+import { eq, inArray } from 'drizzle-orm';
+import { hashPassword } from 'better-auth/crypto';
 
-import { db } from "../db";
+import { db } from '../db';
 import {
   account,
-  applications,
   batchAdmins,
   batchMemberships,
   batches,
@@ -18,13 +17,14 @@ import {
   tasks,
   user,
   waitlist,
-} from "../db/schema";
+} from '../db/schema';
+import { applications } from '../db/schema/applications';
 
 type SeedUser = {
   email: string;
   name: string;
   password: string;
-  role: "super_admin" | "batch_admin" | "member";
+  role: 'super_admin' | 'batch_admin' | 'member';
   firstName: string;
   fatherName: string;
   grandfatherName?: string | null;
@@ -32,39 +32,81 @@ type SeedUser = {
   phone?: string;
 };
 
+const SEED_PASSWORD = 'Password123!';
+
 const SEED_USERS: SeedUser[] = [
   {
-    email: "member@example.com",
-    name: "Alicia Member",
-    password: "Password123!",
-    role: "member",
-    firstName: "Alicia",
-    fatherName: "Johnson",
-    grandfatherName: "Lee",
-    telegramUsername: "@alicia_member",
-    phone: "+1-555-0101",
+    email: 'member@example.com',
+    name: 'Alicia Member',
+    password: 'Password123!',
+    role: 'member',
+    firstName: 'Alicia',
+    fatherName: 'Johnson',
+    grandfatherName: 'Lee',
+    telegramUsername: '@alicia_member',
+    phone: '+1-555-0101',
   },
   {
-    email: "admin@example.com",
-    name: "Jordan Admin",
-    password: "Password123!",
-    role: "super_admin",
-    firstName: "Jordan",
-    fatherName: "Miller",
-    grandfatherName: "Khan",
-    telegramUsername: "@jordan_admin",
-    phone: "+1-555-0102",
+    email: 'admin@example.com',
+    name: 'Jordan Admin',
+    password: 'Password123!',
+    role: 'super_admin',
+    firstName: 'Jordan',
+    fatherName: 'Miller',
+    grandfatherName: 'Khan',
+    telegramUsername: '@jordan_admin',
+    phone: '+1-555-0102',
   },
   {
-    email: "staff@example.com",
-    name: "Nora Staff",
-    password: "Password123!",
-    role: "batch_admin",
-    firstName: "Nora",
-    fatherName: "Smith",
-    grandfatherName: "Patel",
-    telegramUsername: "@nora_staff",
-    phone: "+1-555-0103",
+    email: 'staff@example.com',
+    name: 'Nora Staff',
+    password: 'Password123!',
+    role: 'batch_admin',
+    firstName: 'Nora',
+    fatherName: 'Smith',
+    grandfatherName: 'Patel',
+    telegramUsername: '@nora_staff',
+    phone: '+1-555-0103',
+  },
+  {
+    email: 'amina.y@example.com',
+    name: 'Amina Yusuf',
+    password: SEED_PASSWORD,
+    role: 'member',
+    firstName: 'Amina',
+    fatherName: 'Yusuf',
+  },
+  {
+    email: 'lensa.b@example.com',
+    name: 'Lensa Bekele',
+    password: SEED_PASSWORD,
+    role: 'member',
+    firstName: 'Lensa',
+    fatherName: 'Bekele',
+  },
+  {
+    email: 'sagal.a@example.com',
+    name: 'Sagal Ahmed',
+    password: SEED_PASSWORD,
+    role: 'member',
+    firstName: 'Sagal',
+    fatherName: 'Ahmed',
+  },
+  {
+    email: 'hanan.i@example.com',
+    name: 'Hanan Ibrahim',
+    password: SEED_PASSWORD,
+    role: 'member',
+    firstName: 'Hanan',
+    fatherName: 'Ibrahim',
+  },
+  {
+    email: 'nejat.s@example.com',
+    name: 'Nejat Seid',
+    password: SEED_PASSWORD,
+    role: 'member',
+    firstName: 'Nejat',
+    fatherName: 'Seid',
   },
 ];
 
@@ -109,7 +151,7 @@ async function ensureUserAndProfile(seedUser: SeedUser) {
   await db.insert(account).values({
     id: randomUUID(),
     accountId: authUserId,
-    providerId: "credential",
+    providerId: 'credential',
     userId: authUserId,
     password: passwordHash,
   });
@@ -235,32 +277,82 @@ async function ensurePaceGroup(batchId: string, name: string, size: number) {
   } as typeof paceGroups.$inferSelect;
 }
 
+async function ensureApplication(
+  email: string,
+  batchId: string,
+  paceGroup: '5' | '10' | '20' | '40',
+) {
+  const profile = await getProfileByEmail(email);
+  const existing = await db
+    .select()
+    .from(applications)
+    .where(eq(applications.profileId, profile.id));
+
+  if (existing.some((application) => application.batchId === batchId)) {
+    return;
+  }
+
+  const applicationValues: typeof applications.$inferInsert = {
+    profileId: profile.id,
+    batchId,
+    firstName: profile.firstName ?? email.split('@')[0],
+    fatherName: profile.fatherName ?? 'Unknown',
+    grandfatherName: profile.grandfatherName ?? null,
+    email,
+    telegramUsername: profile.telegramUsername ?? `@${email.split('@')[0]}`,
+    phoneNumber: profile.phone ?? '+251911000000',
+    paceGroup,
+  };
+
+  await db.insert(applications).values(applicationValues);
+}
+
 async function main() {
-  console.log("Seeding starter data for local EMFS development database...");
+  console.log('Seeding starter data for local EMFS development database...');
 
   await Promise.all(
     SEED_USERS.map((userSeed) => ensureUserAndProfile(userSeed)),
   );
-  const customerProfile = await getProfileByEmail("member@example.com");
-  const ownerProfile = await getProfileByEmail("admin@example.com");
-  const staffProfile = await getProfileByEmail("staff@example.com");
+  const customerProfile = await getProfileByEmail('member@example.com');
+  const ownerProfile = await getProfileByEmail('admin@example.com');
+  const staffProfile = await getProfileByEmail('staff@example.com');
 
-  const batchOne = await ensureBatch("Rihletel ilem", {
-    maxMembers: 24,
-    paceGroupCount: 2,
+  const batchOne = await ensureBatch('Batch 04 — Winter Circle', {
+    maxMembers: 60,
+    paceGroupCount: 3,
     registrationOpen: true,
-    autoApprove: true,
-    startDate: new Date("2026-01-15"),
-    readingDaysPerWeek: 6,
+    autoApprove: false,
+    startDate: new Date('2026-09-14'),
+    readingDaysPerWeek: 5,
     createdBy: ownerProfile.id,
   });
 
-  const batchTwo = await ensureBatch("Hirastul fedila ", {
-    maxMembers: 18,
-    paceGroupCount: 1,
+  const batchTwo = await ensureBatch('Batch 03 — Autumn Circle', {
+    maxMembers: 45,
+    paceGroupCount: 3,
     registrationOpen: false,
     autoApprove: false,
-    startDate: new Date("2026-06-01"),
+    startDate: new Date('2026-06-02'),
+    readingDaysPerWeek: 5,
+    createdBy: ownerProfile.id,
+  });
+
+  await ensureBatch('Batch 02 — Summer Circle', {
+    maxMembers: 40,
+    paceGroupCount: 2,
+    registrationOpen: false,
+    autoApprove: false,
+    startDate: new Date('2026-02-10'),
+    readingDaysPerWeek: 4,
+    createdBy: ownerProfile.id,
+  });
+
+  await ensureBatch('Batch 05 — Spring Circle', {
+    maxMembers: 60,
+    paceGroupCount: 3,
+    registrationOpen: false,
+    autoApprove: false,
+    startDate: null,
     readingDaysPerWeek: 5,
     createdBy: ownerProfile.id,
   });
@@ -268,8 +360,12 @@ async function main() {
   await ensureBatchAdmin(ownerProfile.id, batchOne.id);
   await ensureBatchAdmin(staffProfile.id, batchOne.id);
 
-  const paceGroupOne = await ensurePaceGroup(batchOne.id, "Group A", 12);
-  await ensurePaceGroup(batchOne.id, "Group B", 12);
+  const paceGroupOne = await ensurePaceGroup(batchOne.id, 'Nur', 20);
+  await ensurePaceGroup(batchOne.id, 'Sakina', 20);
+  await ensurePaceGroup(batchOne.id, 'Rahma', 20);
+  await ensurePaceGroup(batchTwo.id, 'Nur', 16);
+  await ensurePaceGroup(batchTwo.id, 'Sakina', 15);
+  await ensurePaceGroup(batchTwo.id, 'Rahma', 14);
 
   const existingMemberships = await db.select().from(batchMemberships);
   const hasActiveMembership = existingMemberships.some(
@@ -282,8 +378,8 @@ async function main() {
     await db.insert(batchMemberships).values({
       profileId: customerProfile.id,
       batchId: batchOne.id,
-      status: "active",
-      startDate: new Date("2026-01-10T00:00:00.000Z"),
+      status: 'active',
+      startDate: new Date('2026-01-10T00:00:00.000Z'),
       endDate: null,
     });
   }
@@ -298,7 +394,7 @@ async function main() {
       batchId: batchTwo.id,
       userId: staffProfile.id,
       queuePosition: 1,
-      joinedAt: new Date("2026-05-10T00:00:00.000Z"),
+      joinedAt: new Date('2026-05-10T00:00:00.000Z'),
     });
 
     const staffMembershipExists = existingMemberships.some(
@@ -311,8 +407,8 @@ async function main() {
       await db.insert(batchMemberships).values({
         profileId: staffProfile.id,
         batchId: batchTwo.id,
-        status: "waitlisted",
-        startDate: new Date("2026-05-10T00:00:00.000Z"),
+        status: 'waitlisted',
+        startDate: new Date('2026-05-10T00:00:00.000Z'),
         endDate: null,
       });
     }
@@ -321,41 +417,75 @@ async function main() {
   const existingApplications = await db.select().from(applications);
   const hasApplication = existingApplications.some(
     (application) =>
-      application.userId === customerProfile.id &&
+      application.profileId === customerProfile.id &&
       application.batchId === batchOne.id,
   );
 
   if (!hasApplication) {
-    await db.insert(applications).values({
-      userId: customerProfile.id,
+    const applicationValues: typeof applications.$inferInsert = {
+      profileId: customerProfile.id,
       batchId: batchOne.id,
-      registrationName: customerProfile.firstName,
-      email: "member@example.com",
-      telegramUsername: customerProfile.telegramUsername ?? "@alicia_member",
-      phoneNumber: customerProfile.phone ?? "+1-555-0101",
-      paceGroup: "10",
-    });
+      firstName: customerProfile.firstName ?? 'Alicia',
+      fatherName: customerProfile.fatherName ?? 'Member',
+      grandfatherName: customerProfile.grandfatherName ?? null,
+      email: 'member@example.com',
+      telegramUsername: customerProfile.telegramUsername ?? '@alicia_member',
+      phoneNumber: customerProfile.phone ?? '+1-555-0101',
+      paceGroup: '10',
+    };
+
+    await db.insert(applications).values(applicationValues);
   }
+
+  await ensureApplication('amina.y@example.com', batchOne.id, '10');
+  await ensureApplication('lensa.b@example.com', batchOne.id, '10');
+  await ensureApplication('sagal.a@example.com', batchOne.id, '20');
+  await ensureApplication('hanan.i@example.com', batchOne.id, '20');
+  await ensureApplication('nejat.s@example.com', batchTwo.id, '10');
 
   const existingBooks = await db.select().from(books);
   const catalogList = [
     {
-      title: "The Hobbit",
-      author: "J.R.R. Tolkien",
-      language: "en",
+      title: 'Reclaim Your Heart',
+      author: 'Yasmin Mogahed',
+      language: 'en',
       sequenceOrder: 1,
+      taskCount: 8,
     },
     {
-      title: "Pride and Prejudice",
-      author: "Jane Austen",
-      language: "en",
+      title: 'The Sealed Nectar',
+      author: 'Safiur Rahman Mubarakpuri',
+      language: 'en',
       sequenceOrder: 2,
+      taskCount: 14,
     },
     {
-      title: "Le Petit Prince",
-      author: "Antoine de Saint-Exupéry",
-      language: "fr",
+      title: 'Purification of the Heart',
+      author: 'Hamza Yusuf',
+      language: 'en',
+      sequenceOrder: 3,
+      taskCount: 10,
+    },
+    {
+      title: "Don't Be Sad",
+      author: 'Aaidh ibn Abdullah al-Qarni',
+      language: 'en',
+      sequenceOrder: 4,
+      taskCount: 12,
+    },
+    {
+      title: 'Reclaim Your Heart',
+      author: 'Yasmin Mogahed',
+      language: 'am',
       sequenceOrder: 1,
+      taskCount: 8,
+    },
+    {
+      title: 'Purification of the Heart',
+      author: 'Hamza Yusuf',
+      language: 'om',
+      sequenceOrder: 3,
+      taskCount: 10,
     },
   ];
 
@@ -377,18 +507,40 @@ async function main() {
         })
         .returning();
 
-      await db.insert(tasks).values([
-        {
+      await db.insert(tasks).values(
+        Array.from({ length: bookSeed.taskCount }, (_, index) => ({
           bookId: createdBook.id,
-          dayNumber: 1,
-          content: `Read the opening chapter of ${bookSeed.title}.`,
-        },
-        {
-          bookId: createdBook.id,
-          dayNumber: 2,
-          content: `Journal your reflections on the key themes in ${bookSeed.title}.`,
-        },
-      ]);
+          dayNumber: index + 1,
+          content:
+            index === 0
+              ? `Read the opening chapter of ${bookSeed.title}.`
+              : `Read and reflect on day ${index + 1} of ${bookSeed.title}.`,
+        })),
+      );
+    }
+  }
+
+  const seededBooks = await db.select().from(books);
+  const pairedEditions = [
+    { title: 'Reclaim Your Heart', translatedLanguage: 'am' },
+    { title: 'Purification of the Heart', translatedLanguage: 'om' },
+  ];
+
+  for (const pairing of pairedEditions) {
+    const englishEdition = seededBooks.find(
+      (book) => book.title === pairing.title && book.language === 'en',
+    );
+    const translatedEdition = seededBooks.find(
+      (book) =>
+        book.title === pairing.title &&
+        book.language === pairing.translatedLanguage,
+    );
+
+    if (englishEdition && translatedEdition) {
+      await db
+        .update(books)
+        .set({ pairedBookId: englishEdition.id })
+        .where(eq(books.id, translatedEdition.id));
     }
   }
 
@@ -404,8 +556,8 @@ async function main() {
       profileId: customerProfile.id,
       batchId: batchOne.id,
       paceGroupId: paceGroupOne.id,
-      status: "active",
-      startDate: new Date("2026-01-12T00:00:00.000Z"),
+      status: 'active',
+      startDate: new Date('2026-01-12T00:00:00.000Z'),
     });
   }
 
@@ -415,13 +567,13 @@ async function main() {
     .from(user)
     .where(inArray(user.email, usersInSeed));
 
-  console.log("Seed complete.");
+  console.log('Seed complete.');
   console.log(
     JSON.stringify(
       {
         accounts: existingAuthUsers.map((entry) => ({
           email: entry.email,
-          password: "Password123!",
+          password: 'Password123!',
         })),
         batches: [batchOne.name, batchTwo.name],
       },
@@ -432,6 +584,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error("Seed script failed:", error);
+  console.error('Seed script failed:', error);
   process.exitCode = 1;
 });
