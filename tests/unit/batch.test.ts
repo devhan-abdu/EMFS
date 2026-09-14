@@ -60,11 +60,14 @@ vi.mock('@/db', () => {
 });
 
 describe('Batch Validation - createBatchSchema', () => {
+  // Must stay in the future relative to createBatchSchema's "not in the past" refine.
+  const futureStartDate = '2099-01-15';
+
   const validBatch = {
     name: 'Cohort 2026-Alpha',
     maxMembers: 100,
     paceGroupCount: 2,
-    startDate: '2026-09-01',
+    startDate: futureStartDate,
     readingDaysPerWeek: 6,
   };
 
@@ -157,18 +160,34 @@ describe('Batch Validation - createBatchSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects paceGroupCount less than 1', () => {
+  it('rejects negative paceGroupCount', () => {
+    const result = createBatchSchema.safeParse({
+      ...validBatch,
+      paceGroupCount: -1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('allows paceGroupCount of 0', () => {
     const result = createBatchSchema.safeParse({
       ...validBatch,
       paceGroupCount: 0,
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it('rejects invalid date string for startDate', () => {
     const result = createBatchSchema.safeParse({
       ...validBatch,
       startDate: 'invalid-date',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects startDate in the past', () => {
+    const result = createBatchSchema.safeParse({
+      ...validBatch,
+      startDate: '2000-01-01',
     });
     expect(result.success).toBe(false);
   });
@@ -263,7 +282,6 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       startDate: new Date('2026-09-01'),
       readingDaysPerWeek: 6,
       registrationOpen: false,
-      requireTelegramHandoff: true,
     });
 
     expect(mockTransaction).toHaveBeenCalledTimes(1);
@@ -319,7 +337,6 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       startDate: new Date('2026-09-01'),
       readingDaysPerWeek: 6,
       registrationOpen: false,
-      requireTelegramHandoff: true,
       adminIds: [memberProfileId],
     });
 
@@ -359,7 +376,6 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       startDate: new Date('2026-10-01'),
       readingDaysPerWeek: 3,
       registrationOpen: false,
-      requireTelegramHandoff: true,
       adminIds: [admin1, admin2],
     });
 
@@ -382,7 +398,6 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
         startDate: new Date('2026-09-01'),
         readingDaysPerWeek: 6,
         registrationOpen: false,
-        requireTelegramHandoff: true,
         adminIds: [invalidAdminId],
       }),
     ).rejects.toThrow(BatchError);
@@ -404,7 +419,6 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
         startDate: new Date('2026-09-01'),
         readingDaysPerWeek: 6,
         registrationOpen: false,
-        requireTelegramHandoff: true,
         adminIds: [fakeAdminId],
       }),
     ).rejects.toThrow(BatchError);
@@ -447,7 +461,6 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
         startDate: new Date('2026-09-01'),
         readingDaysPerWeek: 6,
         registrationOpen: false,
-        requireTelegramHandoff: true,
       }),
     ).rejects.toThrow('Foreign key constraint violation on batch_admins');
   });
@@ -478,7 +491,6 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       startDate: new Date('2026-09-01'),
       readingDaysPerWeek: 6,
       registrationOpen: false,
-      requireTelegramHandoff: true,
     });
 
     expect(result.batch.name).toBe('Clean Batch');

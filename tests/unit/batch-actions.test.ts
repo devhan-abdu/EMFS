@@ -24,7 +24,7 @@ vi.mock('@/lib/auth/authorize', () => ({
   },
 }));
 
-vi.mock('@/lib/services/batch', () => ({
+vi.mock('@/lib/services/batches/batch', () => ({
   createBatch: vi.fn(),
   BatchError: class BatchError extends Error {
     code: string;
@@ -68,7 +68,7 @@ describe('Batch Server Actions - Authorization & Execution', () => {
       paceGroupCount: 1,
       registrationOpen: false,
       autoApprove: true,
-      startDate: '2026-09-01',
+      startDate: '2099-01-15',
       readingDaysPerWeek: 6,
       createdBy: superAdminProfileId,
       createdAt: new Date(),
@@ -84,7 +84,7 @@ describe('Batch Server Actions - Authorization & Execution', () => {
     formData.append('name', 'New Batch 2026');
     formData.append('maxMembers', '50');
     formData.append('paceGroupCount', '1');
-    formData.append('startDate', '2026-09-01');
+    formData.append('startDate', '2099-01-15');
     formData.append('readingDaysPerWeek', '6');
 
     const result = await createBatchAction(null, formData);
@@ -134,7 +134,7 @@ describe('Batch Server Actions - Authorization & Execution', () => {
       paceGroupCount: 2,
       registrationOpen: false,
       autoApprove: true,
-      startDate: '2026-09-01',
+      startDate: '2099-01-15',
       readingDaysPerWeek: 6,
       createdBy: superAdminProfileId,
       createdAt: new Date(),
@@ -150,7 +150,7 @@ describe('Batch Server Actions - Authorization & Execution', () => {
     formData.append('name', 'Object Batch 2026');
     formData.append('maxMembers', '80');
     formData.append('paceGroupCount', '2');
-    formData.append('startDate', '2026-09-01');
+    formData.append('startDate', '2099-01-15');
     formData.append('readingDaysPerWeek', '6');
 
     const result = await createBatchAction(null, formData);
@@ -186,7 +186,7 @@ describe('Batch Server Actions - Authorization & Execution', () => {
     formData.append('name', 'Forbidden Batch');
     formData.append('maxMembers', '50');
     formData.append('paceGroupCount', '1');
-    formData.append('startDate', '2026-09-01');
+    formData.append('startDate', '2099-01-15');
     formData.append('readingDaysPerWeek', '6');
 
     await expect(createBatchAction(null, formData)).rejects.toThrow(
@@ -264,7 +264,7 @@ describe('Batch Server Actions - Authorization & Execution', () => {
     formData.append('name', 'Valid Name');
     formData.append('maxMembers', '50');
     formData.append('paceGroupCount', '1');
-    formData.append('startDate', '2026-09-01');
+    formData.append('startDate', '2099-01-15');
     formData.append('readingDaysPerWeek', '6');
     formData.append('adminIds', '11111111-1111-4111-8111-111111111111');
 

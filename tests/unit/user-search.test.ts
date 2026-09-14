@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   searchProfiles,
   listKnownBatchAdmins,
-  UserSearchError,
 } from '@/lib/services/user-search';
 import { searchProfilesSchema } from '@/lib/validations/user-search';
 import {
@@ -11,36 +10,46 @@ import {
 } from '@/actions/user-search';
 import * as authorizeModule from '@/lib/auth/authorize';
 
+vi.mock('server-only', () => ({}));
+
 // Mock DB for user-search service tests
-const { mockSelect, mockLimit, mockWhere, mockOrderBy } = vi.hoisted(() => {
-  const mockLimit = vi.fn();
-  const mockOrderBy = vi.fn();
-  const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
-
-  const createJoinStep = () => {
-    const step: {
-      innerJoin: ReturnType<typeof vi.fn>;
-      where: typeof mockWhere;
-      orderBy: typeof mockOrderBy;
-    } = {
-      innerJoin: vi.fn(),
-      where: mockWhere,
+const { mockSelect, mockLimit, mockWhere, mockOrderBy, mockGroupBy } =
+  vi.hoisted(() => {
+    const mockLimit = vi.fn();
+    const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit });
+    const mockGroupBy = vi.fn().mockReturnValue({
       orderBy: mockOrderBy,
+      limit: mockLimit,
+    });
+    const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
+
+    const createJoinStep = () => {
+      const step: {
+        innerJoin: ReturnType<typeof vi.fn>;
+        where: typeof mockWhere;
+        orderBy: typeof mockOrderBy;
+        groupBy: typeof mockGroupBy;
+      } = {
+        innerJoin: vi.fn(),
+        where: mockWhere,
+        orderBy: mockOrderBy,
+        groupBy: mockGroupBy,
+      };
+      step.innerJoin.mockImplementation(() => step);
+      return step;
     };
-    step.innerJoin.mockImplementation(() => step);
-    return step;
-  };
 
-  const mockFrom = vi.fn().mockImplementation(() => createJoinStep());
-  const mockSelect = vi.fn().mockReturnValue({ from: mockFrom });
+    const mockFrom = vi.fn().mockImplementation(() => createJoinStep());
+    const mockSelect = vi.fn().mockReturnValue({ from: mockFrom });
 
-  return {
-    mockSelect,
-    mockLimit,
-    mockWhere,
-    mockOrderBy,
-  };
-});
+    return {
+      mockSelect,
+      mockLimit,
+      mockWhere,
+      mockOrderBy,
+      mockGroupBy,
+    };
+  });
 
 vi.mock('@/db', () => {
   return {
@@ -65,6 +74,12 @@ vi.mock('@/lib/auth/authorize', () => ({
 describe('EMF-58: User Search Service - searchProfiles', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockOrderBy.mockReturnValue({ limit: mockLimit });
+    mockGroupBy.mockReturnValue({
+      orderBy: mockOrderBy,
+      limit: mockLimit,
+    });
+    mockWhere.mockReturnValue({ limit: mockLimit });
   });
 
   it('returns matched profiles by display name (first name + father name)', async () => {
@@ -255,22 +270,16 @@ describe('EMF-58: User Search Service - searchProfiles', () => {
     expect(mockWhere).toHaveBeenCalled();
   });
 
-  it('rejects queries shorter than 2 characters with UserSearchError', async () => {
+  it('returns empty results for queries shorter than 2 characters', async () => {
     await expect(
       searchProfiles({ query: '' } as Parameters<typeof searchProfiles>[0]),
-    ).rejects.toThrow('Search query must be at least 2 characters.');
-    await expect(
-      searchProfiles({ query: '' } as Parameters<typeof searchProfiles>[0]),
-    ).rejects.toThrowError(UserSearchError);
+    ).resolves.toEqual([]);
     await expect(
       searchProfiles({ query: 'a' } as Parameters<typeof searchProfiles>[0]),
-    ).rejects.toThrow('Search query must be at least 2 characters.');
+    ).resolves.toEqual([]);
     await expect(
       searchProfiles({ query: '   ' } as Parameters<typeof searchProfiles>[0]),
-    ).rejects.toThrow('Search query must be at least 2 characters.');
-    await expect(
-      (searchProfiles as unknown as (arg: string) => Promise<unknown>)('b'),
-    ).rejects.toThrow('Search query must be at least 2 characters.');
+    ).resolves.toEqual([]);
     expect(mockSelect).not.toHaveBeenCalled();
   });
 
@@ -392,6 +401,12 @@ describe('EMF-58: Validation Schema - searchProfilesSchema', () => {
 describe('EMF-58: Server Action - searchProfilesAction Authorization & Execution', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockOrderBy.mockReturnValue({ limit: mockLimit });
+    mockGroupBy.mockReturnValue({
+      orderBy: mockOrderBy,
+      limit: mockLimit,
+    });
+    mockWhere.mockReturnValue({ limit: mockLimit });
   });
 
   it('authorizes and succeeds when super_admin calls searchProfilesAction', async () => {
@@ -513,22 +528,26 @@ describe('EMF-58: Server Action - searchProfilesAction Authorization & Execution
 describe('Backend: list known batch admins - listKnownBatchAdmins & listKnownBatchAdminsAction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockOrderBy.mockReturnValue({ limit: mockLimit });
+    mockGroupBy.mockReturnValue({
+      orderBy: mockOrderBy,
+      limit: mockLimit,
+    });
+    mockWhere.mockReturnValue({ limit: mockLimit });
   });
 
   it('returns profile with one batch_admins row and its batch info', async () => {
     const mockRows = [
       {
-        profileId: 'p-1',
+        id: 'p-1',
         firstName: 'Aisha',
         fatherName: 'Mohammed',
         userName: 'Aisha Mohammed',
         email: 'aisha@example.com',
-        batchId: 'b-1',
-        batchName: 'Cohort 2026 Alpha',
-        assignedAt: new Date('2026-09-01T10:00:00Z'),
+        adminOfBatches: [{ id: 'b-1', name: 'Cohort 2026 Alpha' }],
       },
     ];
-    mockOrderBy.mockResolvedValueOnce(mockRows);
+    mockLimit.mockResolvedValueOnce(mockRows);
 
     const result = await listKnownBatchAdmins();
 
@@ -550,27 +569,18 @@ describe('Backend: list known batch admins - listKnownBatchAdmins & listKnownBat
   it('groups profile with multiple batch_admins rows so the profile appears only once with multiple entries in adminOfBatches', async () => {
     const mockRows = [
       {
-        profileId: 'p-1',
+        id: 'p-1',
         firstName: 'Fatima',
         fatherName: 'Ahmed',
         userName: 'Fatima Ahmed',
         email: 'fatima@example.com',
-        batchId: 'b-2',
-        batchName: 'Cohort 2026 Beta',
-        assignedAt: new Date('2026-09-02T12:00:00Z'),
-      },
-      {
-        profileId: 'p-1',
-        firstName: 'Fatima',
-        fatherName: 'Ahmed',
-        userName: 'Fatima Ahmed',
-        email: 'fatima@example.com',
-        batchId: 'b-1',
-        batchName: 'Cohort 2026 Alpha',
-        assignedAt: new Date('2026-08-01T10:00:00Z'),
+        adminOfBatches: [
+          { id: 'b-2', name: 'Cohort 2026 Beta' },
+          { id: 'b-1', name: 'Cohort 2026 Alpha' },
+        ],
       },
     ];
-    mockOrderBy.mockResolvedValueOnce(mockRows);
+    mockLimit.mockResolvedValueOnce(mockRows);
 
     const result = await listKnownBatchAdmins();
 
@@ -595,47 +605,34 @@ describe('Backend: list known batch admins - listKnownBatchAdmins & listKnownBat
   it('orders profiles by their most recent batch admin assignment', async () => {
     const mockRows = [
       {
-        profileId: 'p-2',
+        id: 'p-2',
         firstName: 'Khadija',
         fatherName: 'Ali',
         userName: 'Khadija Ali',
         email: 'khadija@example.com',
-        batchId: 'b-2',
-        batchName: 'Cohort 2026 Beta',
-        assignedAt: new Date('2026-09-03T10:00:00Z'),
+        adminOfBatches: [
+          { id: 'b-2', name: 'Cohort 2026 Beta' },
+          { id: 'b-1', name: 'Cohort 2026 Alpha' },
+        ],
       },
       {
-        profileId: 'p-1',
+        id: 'p-1',
         firstName: 'Fatima',
         fatherName: 'Ahmed',
         userName: 'Fatima Ahmed',
         email: 'fatima@example.com',
-        batchId: 'b-1',
-        batchName: 'Cohort 2026 Alpha',
-        assignedAt: new Date('2026-09-02T10:00:00Z'),
+        adminOfBatches: [{ id: 'b-1', name: 'Cohort 2026 Alpha' }],
       },
       {
-        profileId: 'p-3',
+        id: 'p-3',
         firstName: 'Maryam',
         fatherName: 'Hassan',
         userName: 'Maryam Hassan',
         email: 'maryam@example.com',
-        batchId: 'b-3',
-        batchName: 'Cohort 2026 Gamma',
-        assignedAt: new Date('2026-09-01T10:00:00Z'),
-      },
-      {
-        profileId: 'p-2',
-        firstName: 'Khadija',
-        fatherName: 'Ali',
-        userName: 'Khadija Ali',
-        email: 'khadija@example.com',
-        batchId: 'b-1',
-        batchName: 'Cohort 2026 Alpha',
-        assignedAt: new Date('2026-08-15T10:00:00Z'),
+        adminOfBatches: [{ id: 'b-3', name: 'Cohort 2026 Gamma' }],
       },
     ];
-    mockOrderBy.mockResolvedValueOnce(mockRows);
+    mockLimit.mockResolvedValueOnce(mockRows);
 
     const result = await listKnownBatchAdmins();
 
@@ -643,99 +640,98 @@ describe('Backend: list known batch admins - listKnownBatchAdmins & listKnownBat
     expect(result.map((r) => r.profileId)).toEqual(['p-2', 'p-1', 'p-3']);
     expect(result[0].adminOfBatches).toHaveLength(2);
     expect(result[0]!.adminOfBatches!.map((b) => b.id)).toEqual(['b-2', 'b-1']);
-    it('does not return profiles without any batch_admins row', async () => {
-      mockOrderBy.mockResolvedValueOnce([]);
+    expect(mockOrderBy).toHaveBeenCalled();
+  });
 
-      const result = await listKnownBatchAdmins();
+  it('does not return profiles without any batch_admins row', async () => {
+    mockLimit.mockResolvedValueOnce([]);
 
-      expect(result).toEqual([]);
-    });
+    const result = await listKnownBatchAdmins();
 
-    it('returns maximum 20 distinct profiles', async () => {
-      const mockRows = Array.from({ length: 30 }, (_, i) => ({
-        profileId: `p-${i + 1}`,
-        firstName: `Admin`,
-        fatherName: `${i + 1}`,
-        userName: `Admin ${i + 1}`,
-        email: `admin${i + 1}@example.com`,
-        batchId: `b-${i + 1}`,
-        batchName: `Batch ${i + 1}`,
-        assignedAt: new Date(Date.now() - i * 10000),
-      }));
-      mockOrderBy.mockResolvedValueOnce(mockRows);
+    expect(result).toEqual([]);
+  });
 
-      const result = await listKnownBatchAdmins();
+  it('returns maximum 20 distinct profiles', async () => {
+    const mockRows = Array.from({ length: 20 }, (_, i) => ({
+      id: `p-${i + 1}`,
+      firstName: `Admin`,
+      fatherName: `${i + 1}`,
+      userName: `Admin ${i + 1}`,
+      email: `admin${i + 1}@example.com`,
+      adminOfBatches: [{ id: `b-${i + 1}`, name: `Batch ${i + 1}` }],
+    }));
+    mockLimit.mockResolvedValueOnce(mockRows);
 
-      expect(result).toHaveLength(20);
-      expect(result[0].profileId).toBe('p-1');
-      expect(result[19].profileId).toBe('p-20');
-    });
+    const result = await listKnownBatchAdmins();
 
-    it('returns empty array [] when batch_admins table is empty', async () => {
-      mockOrderBy.mockResolvedValueOnce([]);
+    expect(mockLimit).toHaveBeenCalledWith(20);
+    expect(result).toHaveLength(20);
+    expect(result[0].profileId).toBe('p-1');
+    expect(result[19].profileId).toBe('p-20');
+  });
 
-      const result = await listKnownBatchAdmins();
+  it('returns empty array [] when batch_admins table is empty', async () => {
+    mockLimit.mockResolvedValueOnce([]);
 
-      expect(result).toEqual([]);
-    });
+    const result = await listKnownBatchAdmins();
 
-    it('permits super_admin to execute listKnownBatchAdminsAction', async () => {
-      vi.mocked(authorizeModule.requireRole).mockResolvedValue({
+    expect(result).toEqual([]);
+  });
+
+  it('permits super_admin to execute listKnownBatchAdminsAction', async () => {
+    vi.mocked(authorizeModule.requireRole).mockResolvedValue({
+      authUserId: 'auth-super-1',
+      email: 'super@example.com',
+      profile: {
+        id: 'super-profile-id',
         authUserId: 'auth-super-1',
-        email: 'super@example.com',
-        profile: {
-          id: 'super-profile-id',
-          authUserId: 'auth-super-1',
-          role: 'super_admin',
-          firstName: 'Super',
-          fatherName: 'Admin',
-          grandfatherName: null,
-          telegramUsername: null,
-          phone: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-
-      const mockRows = [
-        {
-          profileId: 'p-1',
-          firstName: 'Aisha',
-          fatherName: 'Mohammed',
-          userName: 'Aisha Mohammed',
-          email: 'aisha@example.com',
-          batchId: 'b-1',
-          batchName: 'Cohort 2026 Alpha',
-          assignedAt: new Date('2026-09-01T10:00:00Z'),
-        },
-      ];
-      mockOrderBy.mockResolvedValueOnce(mockRows);
-
-      const res = await listKnownBatchAdminsAction();
-
-      expect(res.ok).toBe(true);
-      if (res.ok && res.data) {
-        expect(res.data).toHaveLength(1);
-        expect(res.data[0].profileId).toBe('p-1');
-        expect(res.data[0].adminOfBatches).toEqual([
-          { id: 'b-1', name: 'Cohort 2026 Alpha' },
-        ]);
-      }
-      expect(authorizeModule.requireRole).toHaveBeenCalledWith(['super_admin']);
+        role: 'super_admin',
+        firstName: 'Super',
+        fatherName: 'Admin',
+        grandfatherName: null,
+        telegramUsername: null,
+        phone: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
     });
 
-    it('rejects non-super_admin callers (member, batch_admin, pace_admin, unauthenticated) from listKnownBatchAdminsAction', async () => {
-      vi.mocked(authorizeModule.requireRole).mockRejectedValue(
-        new authorizeModule.AuthzError(
-          'FORBIDDEN',
-          "Role 'batch_admin' is not permitted. Required at least: super_admin.",
-        ),
-      );
+    const mockRows = [
+      {
+        id: 'p-1',
+        firstName: 'Aisha',
+        fatherName: 'Mohammed',
+        userName: 'Aisha Mohammed',
+        email: 'aisha@example.com',
+        adminOfBatches: [{ id: 'b-1', name: 'Cohort 2026 Alpha' }],
+      },
+    ];
+    mockLimit.mockResolvedValueOnce(mockRows);
 
-      await expect(listKnownBatchAdminsAction()).rejects.toThrow(
-        "Role 'batch_admin' is not permitted",
-      );
-      expect(mockSelect).not.toHaveBeenCalled();
-    });
+    const res = await listKnownBatchAdminsAction();
+
+    expect(res.ok).toBe(true);
+    if (res.ok && res.data) {
+      expect(res.data).toHaveLength(1);
+      expect(res.data[0].profileId).toBe('p-1');
+      expect(res.data[0].adminOfBatches).toEqual([
+        { id: 'b-1', name: 'Cohort 2026 Alpha' },
+      ]);
+    }
+    expect(authorizeModule.requireRole).toHaveBeenCalledWith(['super_admin']);
+  });
+
+  it('rejects non-super_admin callers (member, batch_admin, pace_admin, unauthenticated) from listKnownBatchAdminsAction', async () => {
+    vi.mocked(authorizeModule.requireRole).mockRejectedValue(
+      new authorizeModule.AuthzError(
+        'FORBIDDEN',
+        "Role 'batch_admin' is not permitted. Required at least: super_admin.",
+      ),
+    );
+
+    await expect(listKnownBatchAdminsAction()).rejects.toThrow(
+      "Role 'batch_admin' is not permitted",
+    );
+    expect(mockSelect).not.toHaveBeenCalled();
   });
 });

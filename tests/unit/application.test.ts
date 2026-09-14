@@ -12,9 +12,9 @@ import { getTableConfig } from 'drizzle-orm/pg-core';
 
 import { createBatchMembership } from '@/lib/services/membership';
 
-import { createHandoffRecord } from '@/lib/services/application//handoff';
+import { createHandoffRecord } from '@/lib/services/application/handoff';
 
-import { addToWaitlist } from '@/lib/services//application/waitlist';
+import { addToWaitlist } from '@/lib/services/application/waitlist';
 
 import { db } from '@/db';
 
@@ -28,11 +28,11 @@ vi.mock('@/lib/services/membership', async (importOriginal) => {
   };
 });
 
-vi.mock('@/lib/services/handoff', () => ({
+vi.mock('@/lib/services/application/handoff', () => ({
   createHandoffRecord: vi.fn(),
 }));
 
-vi.mock('@/lib/services/waitlist', () => ({
+vi.mock('@/lib/services/application/waitlist', () => ({
   addToWaitlist: vi.fn(),
 }));
 
@@ -46,6 +46,8 @@ const dbTx = {
   select: vi.fn(),
 
   insert: vi.fn(),
+
+  update: vi.fn(),
 };
 
 vi.mock('@/db', () => ({
@@ -68,7 +70,7 @@ describe('Application Validation Schema', () => {
     fatherName: 'Doe',
     email: 'john@example.com',
     telegramUsername: 'johndoe',
-    phoneNumber: '+1234567890',
+    phoneNumber: '+251911234567',
     batchId: '123e4567-e89b-12d3-a456-426614174000',
     paceGroup: '10' as const,
   };
@@ -154,6 +156,30 @@ describe('Application Validation Schema', () => {
     ).toBe(false);
   });
 
+  it('rejects non-Ethiopian phone numbers', () => {
+    expect(
+      createApplicationSchema.safeParse({
+        ...validPayload,
+        phoneNumber: '+1234567890',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('accepts Ethiopian phones with +251 or leading 0', () => {
+    expect(
+      createApplicationSchema.safeParse({
+        ...validPayload,
+        phoneNumber: '+251911234567',
+      }).success,
+    ).toBe(true);
+    expect(
+      createApplicationSchema.safeParse({
+        ...validPayload,
+        phoneNumber: '0911234567',
+      }).success,
+    ).toBe(true);
+  });
+
   it('rejects invalid batch UUID', () => {
     expect(
       createApplicationSchema.safeParse({
@@ -178,7 +204,7 @@ describe('Application Service - createApplication', () => {
     fatherName: 'Doe',
     email: 'jane@example.com',
     telegramUsername: 'janedoe',
-    phoneNumber: '+9876543210',
+    phoneNumber: '0911234567',
     batchId: '123e4567-e89b-12d3-a456-426614174000',
     paceGroup: '20' as const,
   };
@@ -227,6 +253,12 @@ describe('Application Service - createApplication', () => {
         from: fromCountMock,
       } as unknown as ReturnType<typeof dbTx.select>;
     });
+
+    vi.mocked(dbTx.update).mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      }),
+    } as unknown as ReturnType<typeof dbTx.update>);
   }
 
   it('creates an application and auto-approves when capacity is available', async () => {
@@ -238,7 +270,7 @@ describe('Application Service - createApplication', () => {
 
     const insertedRecord = {
       id: 'app-123',
-      userId: 'profile-123',
+      profileId: 'profile-123',
       ...validAppInput,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -256,7 +288,10 @@ describe('Application Service - createApplication', () => {
       validAppInput,
     );
 
-    expect(result).toEqual(insertedRecord);
+    expect(result).toEqual({
+      application: insertedRecord,
+      outcome: 'approved',
+    });
 
     expect(createBatchMembership).toHaveBeenCalledWith(
       'profile-123',
@@ -275,7 +310,7 @@ describe('Application Service - createApplication', () => {
     expect(addToWaitlist).not.toHaveBeenCalled();
   });
 
-  it('creates applied membership when auto_approve is false and capacity is available', async () => {
+  it('always auto-approves and issues handoff when registration is open and capacity remains', async () => {
     mockBatchQueries(
       {
         ...mockBatch,
@@ -290,7 +325,7 @@ describe('Application Service - createApplication', () => {
 
     const insertedRecord = {
       id: 'app-123',
-      userId: 'profile-123',
+      profileId: 'profile-123',
       ...validAppInput,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -308,16 +343,24 @@ describe('Application Service - createApplication', () => {
       validAppInput,
     );
 
-    expect(result).toEqual(insertedRecord);
+    expect(result).toEqual({
+      application: insertedRecord,
+      outcome: 'approved',
+    });
 
     expect(createBatchMembership).toHaveBeenCalledWith(
       'profile-123',
       validAppInput.batchId,
-      'applied',
+      'approved',
       dbTx,
     );
 
-    expect(createHandoffRecord).not.toHaveBeenCalled();
+    expect(createHandoffRecord).toHaveBeenCalledWith(
+      {
+        applicationId: insertedRecord.id,
+      },
+      dbTx,
+    );
 
     expect(addToWaitlist).not.toHaveBeenCalled();
   });
@@ -359,7 +402,9 @@ describe('Application Service - createApplication', () => {
 
     await expect(
       createApplication('profile-123', 'jane@example.com', validAppInput),
-    ).rejects.toThrow('You already have an application for this batch.');
+    ).rejects.toThrow(
+      'You already have an active application or membership for a batch.',
+    );
   });
 
   it('waitlists the user when registration is closed', async () => {
@@ -377,7 +422,7 @@ describe('Application Service - createApplication', () => {
 
     const insertedRecord = {
       id: 'app-123',
-      userId: 'profile-123',
+      profileId: 'profile-123',
       ...validAppInput,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -395,7 +440,10 @@ describe('Application Service - createApplication', () => {
       validAppInput,
     );
 
-    expect(result).toEqual(insertedRecord);
+    expect(result).toEqual({
+      application: insertedRecord,
+      outcome: 'waitlisted',
+    });
 
     expect(addToWaitlist).toHaveBeenCalledWith(
       'profile-123',
@@ -417,7 +465,7 @@ describe('Application Service - createApplication', () => {
 
     const updatedAppRecord = {
       id: 'app-123',
-      userId: 'profile-123',
+      profileId: 'profile-123',
       ...validAppInput,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -435,7 +483,10 @@ describe('Application Service - createApplication', () => {
       validAppInput,
     );
 
-    expect(result).toEqual(updatedAppRecord);
+    expect(result).toEqual({
+      application: updatedAppRecord,
+      outcome: 'approved',
+    });
 
     expect(createBatchMembership).toHaveBeenCalled();
   });
@@ -449,7 +500,7 @@ describe('Application Service - createApplication', () => {
 
     const updatedAppRecord = {
       id: 'app-123',
-      userId: 'profile-123',
+      profileId: 'profile-123',
       ...validAppInput,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -467,18 +518,21 @@ describe('Application Service - createApplication', () => {
       validAppInput,
     );
 
-    expect(result).toEqual(updatedAppRecord);
+    expect(result).toEqual({
+      application: updatedAppRecord,
+      outcome: 'approved',
+    });
   });
 });
 
 describe('Applications Schema Index Verification', () => {
-  it('verifies applications.batchId index and unique_user_batch_application_idx exist', () => {
+  it('verifies applications.batchId index and unique_profile_batch_application_idx exist', () => {
     const config = getTableConfig(applications);
 
     const indexNames = config.indexes.map((index) => index.config.name);
 
     expect(indexNames).toContain('applications_batch_id_idx');
 
-    expect(indexNames).toContain('unique_user_batch_application_idx');
+    expect(indexNames).toContain('unique_profile_batch_application_idx');
   });
 });

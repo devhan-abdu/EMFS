@@ -59,8 +59,9 @@ export async function searchProfiles(
 
   const conditions = [nameOrEmailCondition];
 
-  if (input.excludeProfileIds.length > 0) {
-    conditions.push(notInArray(profiles.id, input.excludeProfileIds));
+  const excludeProfileIds = input.excludeProfileIds ?? [];
+  if (excludeProfileIds.length > 0) {
+    conditions.push(notInArray(profiles.id, excludeProfileIds));
   }
 
   try {
@@ -118,6 +119,7 @@ export async function getPreviouslyAssignedBatchAdmins(
         user.name,
         user.email,
       )
+      .orderBy(desc(sql`max(${batchAdmins.createdAt})`))
       .limit(20);
 
     return rows.map((r) => ({

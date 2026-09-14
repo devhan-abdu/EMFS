@@ -45,7 +45,6 @@ export async function createBatchAction(
     startDate: formData.get('startDate') || undefined,
     readingDaysPerWeek: parseNumber(formData.get('readingDaysPerWeek')),
     registrationOpen: formData.get('registrationOpen') === 'true',
-    requireTelegramHandoff: formData.get('requireTelegramHandoff') !== 'false',
     ...(adminIds.length > 0 ? { adminIds } : {}),
   };
 
