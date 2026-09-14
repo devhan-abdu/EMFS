@@ -1,0 +1,8 @@
+node_modules
+.next
+.gitnexus
+.claude
+.agents
+db/migrations
+pnpm-lock.yaml
+skills-lock.json
