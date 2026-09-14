@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+echo "🧹 Running Prettier on staged files..."
+pnpm exec prettier --write $(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|jsx|ts|tsx|json|css|md)$' || true)
