@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+
+echo "🔍 Checking for Drizzle migration conflicts after merge..."
+
+# 1. Detect if any files inside db/migrations are in a conflict state
+if git status --porcelain | grep -q '^UU.*db/migrations/'; then
+  echo "⚠️ Drizzle migration conflicts found! Discarding and regenerating..."
+  
+  # 2. Discard conflict markers in the meta directory by accepting your branch's copy
+  git checkout --ours db/migrations/meta/* || true
+  
+  # 3. Discard and remove the conflicting SQL files to prepare for a fresh generation
+  git diff --name-only --diff-filter=U db/migrations/*.sql | xargs rm -f || true
+  
+  # 4. Load your Node environment pathing
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  if [ -s "$NVM_DIR/nvm.sh" ]; then
+    set +u; . "$NVM_DIR/nvm.sh"; nvm use >/dev/null; set -u
+  fi
+  
+  # 5. Run a brand-new generation using the combined schema file as the absolute truth
+  echo "🔄 Running brand-new Drizzle generation..."
+  pnpm db:generate
+  
+  # 6. Stage the newly generated migrations folder automatically
+  git add db/migrations/
+  echo "✅ Conflicts resolved and fresh migrations staged automatically!"
+fi

@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+echo "🧹 Running Prettier on staged files..."
+
+# 1. Capture the staged files into a variable
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|jsx|ts|tsx|json|css|md)$' || true)
+
+# 2. Only run if there are matching staged files
+if [ -n "$STAGED_FILES" ]; then
+  # Reformat the files
+  pnpm exec prettier --write $STAGED_FILES
+
+  # Re-stage the formatted files so they are included in the commit
+  git add $STAGED_FILES
+fi
