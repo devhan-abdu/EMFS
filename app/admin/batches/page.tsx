@@ -16,6 +16,7 @@ import { getAdminBatches } from '@/lib/services/admin';
 
 import type { Metadata } from 'next';
 import { StatusBadge } from '@/components/admin/StatusBadge';
+import { PaceGroupCreateButton } from '@/components/admin/pace-groups/pace-group-create-button';
 
 export const metadata: Metadata = {
   title: 'Batches — EMFSC Book Shelf Admin',
