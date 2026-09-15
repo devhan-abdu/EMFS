@@ -32,8 +32,6 @@ export const NON_TERMINAL_STATUSES: readonly BatchMembershipStatus[] = [
   'waitlisted',
   'applied',
   'approved',
-  'awaiting_placement',
-  'assigned',
   'active',
   'grace',
 ] as const;
@@ -47,10 +45,8 @@ export const ALLOWED_TRANSITIONS: Record<
 > = {
   waitlisted: ['applied', 'removed'],
   applied: ['approved', 'rejected'],
-  approved: ['awaiting_placement', 'active'],
+  approved: ['active'],
   rejected: [],
-  awaiting_placement: ['assigned', 'removed'],
-  assigned: ['active', 'removed'],
   active: ['grace', 'removed'],
   grace: ['active', 'removed'],
   removed: [],

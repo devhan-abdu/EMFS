@@ -19,9 +19,9 @@
     "db:seed": "npm run db:up && npm run db:migrate && tsx scripts/seed.ts",
     "db:volume:rm": "docker volume rm emfs-book-shelf_emfs_pgdata",
     "db:wait": "until docker compose exec db pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done",
-    "db:reset": "npm run db:down && npm run db:volume:rm && npm run db:up && npm run db:wait && npm run db:migrate",
+    "db:reset": "pnpm run db:down && pnpm run db:volume:rm && pnpm run db:up && pnpm run db:wait && pnpm run db:migrate",
     "db:nuke": "rm -rf drizzle && npm run db:generate && npm run db:reset",
-    "db:resolve-merge": "git checkout --theirs db/migrations/ && rm -f db/migrations/*.sql && pnpm db:generate && git add db/migrations/",
+    "db:resolve-merge": "rm -rf db/migrations/*.sql db/migrations/meta && pnpm db:generate && git add db/migrations/",
     "prepare": "husky"
   },
   "lint-staged": {

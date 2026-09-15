@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1787806008692,
-      "tag": "0000_flimsy_darkhawk",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1787878967796,
-      "tag": "0001_absurd_the_santerians",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1788813095033,
-      "tag": "0002_curvy_bullseye",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1789203547069,
-      "tag": "0003_left_stark_industries",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1789204160547,
-      "tag": "0004_past_carlie_cooper",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1789214816961,
-      "tag": "0005_optimal_hardball",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1789246102573,
-      "tag": "0006_condemned_eternals",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1789410474608,
-      "tag": "0007_demonic_alice",
+      "when": 1789462956636,
+      "tag": "0000_careless_tomorrow_man",
       "breakpoints": true
     }
   ]
