@@ -5,6 +5,8 @@ import {
   PaceAdminDuty,
   paceGroups,
   profiles,
+  user,
+  books,
 } from '@/db/schema';
 import type {
   AssignPaceAdminInput,
@@ -157,6 +159,7 @@ export async function removePaceAdminAssignment(
   return { id: assignmentId };
 }
 
+import { sql } from 'drizzle-orm';
 export async function listPaceAdminAssignments(
   input: ListPaceAdminAssignmentsInput,
 ): Promise<PaceAdminAssignmentDetailRow[]> {
@@ -172,25 +175,37 @@ export async function listPaceAdminAssignments(
     throw new PaceAdminError('PACE_GROUP_NOT_FOUND', 'Pace group not found.');
   }
 
-  const rows = await db.query.paceAdminAssignments.findMany({
-    where: eq(paceAdminAssignments.paceGroupId, paceGroupId),
-    orderBy: (assignments, { asc }) => [asc(assignments.createdAt)],
-    with: {
-      profile: {
-        columns: {
-          id: true,
-          fullName: true,
-          email: true,
-        },
-      },
-      book: {
-        columns: {
-          id: true,
-          title: true,
-        },
-      },
-    },
-  });
+  const rows = await db
+    .select({
+      id: paceAdminAssignments.id,
+      duty: paceAdminAssignments.duty,
+      notes: paceAdminAssignments.notes,
+      createdAt: paceAdminAssignments.createdAt,
+      profileId: profiles.id,
+      firstName: profiles.firstName,
+      fatherName: profiles.fatherName,
+      email: user.email,
+      bookId: books.id,
+      bookTitle: books.title,
+    })
+    .from(paceAdminAssignments)
+    .innerJoin(profiles, eq(paceAdminAssignments.profileId, profiles.id))
+    .innerJoin(user, eq(profiles.authUserId, user.id))
+    .leftJoin(books, eq(paceAdminAssignments.assignedBookId, books.id))
+    .where(eq(paceAdminAssignments.paceGroupId, paceGroupId))
+    .orderBy(asc(paceAdminAssignments.createdAt));
 
-  return rows;
+  return rows.map((row) => ({
+    id: row.id,
+    duty: row.duty,
+    notes: row.notes,
+    createdAt: row.createdAt,
+    profile: {
+      id: row.profileId,
+      fullName:
+        [row.firstName, row.fatherName].filter(Boolean).join(' ') || null,
+      email: row.email,
+    },
+    book: row.bookId ? { id: row.bookId, title: row.bookTitle! } : null,
+  }));
 }

@@ -10,6 +10,7 @@ import {
 import { profiles } from './users';
 import { paceGroups } from './pace-groups';
 import { books } from './books';
+import { relations } from 'drizzle-orm';
 
 export const PACE_ADMIN_DUTIES = [
   'reflection',
@@ -55,6 +56,24 @@ export const paceAdminAssignments = pgTable(
       table.assignedBookId,
     ),
   ],
+);
+
+export const paceAdminAssignmentsRelations = relations(
+  paceAdminAssignments,
+  ({ one }) => ({
+    profile: one(profiles, {
+      fields: [paceAdminAssignments.profileId],
+      references: [profiles.id],
+    }),
+    book: one(books, {
+      fields: [paceAdminAssignments.assignedBookId],
+      references: [books.id],
+    }),
+    paceGroup: one(paceGroups, {
+      fields: [paceAdminAssignments.paceGroupId],
+      references: [paceGroups.id],
+    }),
+  }),
 );
 
 export type PaceAdminAssignment = typeof paceAdminAssignments.$inferSelect;
