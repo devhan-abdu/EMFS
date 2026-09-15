@@ -36,7 +36,7 @@ export default async function PublicBatchesPage() {
         </Button>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-10 md:py-16">
+      <main className="mx-auto  px-6 py-10 md:py-16">
         <div className="max-w-2xl rise-in">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal">
             Join the circle
