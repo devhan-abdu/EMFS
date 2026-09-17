@@ -119,6 +119,13 @@ export function CreateBatchForm({
     });
   }
 
+  useEffect(() => {
+    if (state?.ok && state.data?.batch?.id) {
+      toast.success('Batch created successfully');
+      router.push(`/admin/batches/${state.data.batch.id}`);
+    }
+  }, [state, router]);
+
   return (
     <form action={formAction} className="grid gap-6 lg:grid-cols-3">
       <div className="space-y-6 lg:col-span-2">
