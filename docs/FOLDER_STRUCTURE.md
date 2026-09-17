@@ -97,15 +97,15 @@ db/
 
 ## Ownership rules
 
-| Kind | Home |
-| --- | --- |
-| Page / layout | `app/` |
-| Mutation entry | `actions/` |
-| Business workflow | `lib/services/` |
-| Zod input/output | `lib/validations/` |
-| Tables / relations | `db/schema/` |
-| shadcn primitives | `components/ui/` |
-| Feature UI | `components/<feature>/` or colocated under `app/` |
+| Kind               | Home                                              |
+| ------------------ | ------------------------------------------------- |
+| Page / layout      | `app/`                                            |
+| Mutation entry     | `actions/`                                        |
+| Business workflow  | `lib/services/`                                   |
+| Zod input/output   | `lib/validations/`                                |
+| Tables / relations | `db/schema/`                                      |
+| shadcn primitives  | `components/ui/`                                  |
+| Feature UI         | `components/<feature>/` or colocated under `app/` |
 
 Search these homes before adding a duplicate helper. Full hard gates:
 [Development Rules](./DEVELOPMENT_RULES.md).

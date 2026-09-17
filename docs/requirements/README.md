@@ -12,4 +12,4 @@ How to use:
 - Cite stable story IDs (`US-REG-01`, `US-RDG-02`, …) in plans, PRs, and tests.
 - If the PRD and module map disagree, reconcile into the module map and record
   any unresolved policy in [`../domain/open-decisions.md`](../domain/open-decisions.md).
-- Do **not** invent answers for rows marked *confirm* or linked to an `OD-XXX`.
+- Do **not** invent answers for rows marked _confirm_ or linked to an `OD-XXX`.

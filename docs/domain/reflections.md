@@ -9,10 +9,10 @@ See also [`admin-ops.md`](./admin-ops.md).
 
 ## Two member surfaces
 
-| Surface | Content | Who reads | Who writes |
-| --- | --- | --- | --- |
-| **Profile page** | Personal reflections | **Author only** | Author only |
-| **Groups page** | Pace group feeds | **Anyone on the website** (view/react) | **Pace group members** in attendance window |
+| Surface          | Content              | Who reads                              | Who writes                                  |
+| ---------------- | -------------------- | -------------------------------------- | ------------------------------------------- |
+| **Profile page** | Personal reflections | **Author only**                        | Author only                                 |
+| **Groups page**  | Pace group feeds     | **Anyone on the website** (view/react) | **Pace group members** in attendance window |
 
 ## Personal reflection (Profile)
 

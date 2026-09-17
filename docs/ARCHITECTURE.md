@@ -39,11 +39,11 @@ Full ownership notes: [Folder Structure](./FOLDER_STRUCTURE.md).
 
 ## Runtime boundaries (development)
 
-| Surface | Port / URL | Notes |
-| --- | --- | --- |
-| Next.js app | `3000` | App Router UI + Server Actions |
-| Better Auth | `/api/auth/*` | Mounted via Next.js route handler |
-| PostgreSQL | hosted or local | Connection via `DATABASE_URL` |
+| Surface     | Port / URL      | Notes                             |
+| ----------- | --------------- | --------------------------------- |
+| Next.js app | `3000`          | App Router UI + Server Actions    |
+| Better Auth | `/api/auth/*`   | Mounted via Next.js route handler |
+| PostgreSQL  | hosted or local | Connection via `DATABASE_URL`     |
 
 Exact local ports and scripts are confirmed when the app is scaffolded; keep
 `.env.example` as the single env map.

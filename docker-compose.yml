@@ -8,11 +8,11 @@ services:
       POSTGRES_PASSWORD: emfs_dev_password
       POSTGRES_DB: emfs_book_shelf
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - emfs_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U emfs -d emfs_book_shelf"]
+      test: ['CMD-SHELL', 'pg_isready -U emfs -d emfs_book_shelf']
       interval: 2s
       timeout: 5s
       retries: 20
@@ -26,12 +26,12 @@ services:
       MINIO_ROOT_USER: emfs_minio
       MINIO_ROOT_PASSWORD: emfs_minio_dev_password
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - '9000:9000'
+      - '9001:9001'
     volumes:
       - emfs_minio:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ['CMD', 'mc', 'ready', 'local']
       interval: 5s
       timeout: 5s
       retries: 20
