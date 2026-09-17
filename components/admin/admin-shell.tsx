@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 import {
   BookOpen,
@@ -13,11 +13,11 @@ import {
   Sun,
   UserRoundCheck,
   Users,
-} from "lucide-react";
-import { useEffect, useState } from "react";
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-import { Lotus } from "@/components/brand/lotus";
-import { Button } from "@/components/ui/button";
+import { Lotus } from '@/components/brand/lotus';
+import { Button } from '@/components/ui/button';
 import {
   Sidebar,
   SidebarContent,
@@ -30,22 +30,22 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
-} from "@/components/ui/sidebar";
+} from '@/components/ui/sidebar';
 
 const navItems = [
-  { title: "Overview", url: "/admin", icon: LayoutDashboard },
-  { title: "Batches", url: "/admin/batches", icon: Layers },
-  { title: "Applications", url: "/admin/members", icon: UserRoundCheck },
-  { title: "Pace groups", url: "/admin/pace-groups", icon: Users },
-  { title: "Book catalog", url: "/admin/catalog", icon: BookOpen },
-  { title: "Roles & access", url: "/admin/roles", icon: ShieldCheck },
+  { title: 'Overview', url: '/admin', icon: LayoutDashboard },
+  { title: 'Batches', url: '/admin/batches', icon: Layers },
+  { title: 'Applications', url: '/admin/members', icon: UserRoundCheck },
+  { title: 'Pace groups', url: '/admin/pace-groups', icon: Users },
+  { title: 'Book catalog', url: '/admin/catalog', icon: BookOpen },
+  { title: 'Roles & access', url: '/admin/roles', icon: ShieldCheck },
 ] as const;
 
 export function AdminSidebar() {
   const pathname = usePathname();
 
   const isActive = (url: string) =>
-    url === "/admin" ? pathname === "/admin" : pathname.startsWith(url);
+    url === '/admin' ? pathname === '/admin' : pathname.startsWith(url);
 
   return (
     <Sidebar collapsible="icon">
@@ -99,7 +99,9 @@ export function AdminSidebar() {
           </span>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-sm text-sidebar-foreground">Hayat A.</p>
-            <p className="truncate text-xs text-sidebar-foreground/60">Super admin</p>
+            <p className="truncate text-xs text-sidebar-foreground/60">
+              Super admin
+            </p>
           </div>
           <Link
             href="/signin"
@@ -119,7 +121,7 @@ function ThemeToggle() {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
+    document.documentElement.classList.toggle('dark', dark);
   }, [dark]);
 
   return (
@@ -144,4 +146,3 @@ export function AdminTopBar() {
     </header>
   );
 }
-

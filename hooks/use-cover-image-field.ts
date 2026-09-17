@@ -1,25 +1,25 @@
-"use client";
+'use client';
 
-import { useRef, useState } from "react";
+import { useRef, useState } from 'react';
 
 export function useCoverImageField() {
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
-  const [coverUrl, setCoverUrl] = useState("");
+  const [coverUrl, setCoverUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function applyExternalCoverUrl(url: string | null) {
     if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      fileInputRef.current.value = '';
     }
     setCoverPreview(url);
-    setCoverUrl(url ?? "");
+    setCoverUrl(url ?? '');
   }
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setCoverUrl("");
+    setCoverUrl('');
 
     const reader = new FileReader();
     reader.onload = (loadEvent) =>
@@ -29,9 +29,9 @@ export function useCoverImageField() {
 
   function clearCover() {
     setCoverPreview(null);
-    setCoverUrl("");
+    setCoverUrl('');
     if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      fileInputRef.current.value = '';
     }
   }
 

@@ -1,13 +1,13 @@
-import Link from "next/link";
-import { ArrowRight, CalendarDays, Sparkles } from "lucide-react";
-import type { Metadata } from "next";
+import Link from 'next/link';
+import { ArrowRight, CalendarDays, Sparkles } from 'lucide-react';
+import type { Metadata } from 'next';
 
-import { PageHeader, StatCard } from "@/components/shared/page-layout";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
+import { PageHeader, StatCard } from '@/components/shared/page-layout';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
 import {
   Table,
   TableBody,
@@ -15,24 +15,24 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { getAdminOverviewData } from "@/lib/services/admin";
-import { StatusBadge } from "@/components/admin/StatusBadge";
+} from '@/components/ui/table';
+import { getAdminOverviewData } from '@/lib/services/admin';
+import { StatusBadge } from '@/components/admin/StatusBadge';
 
 export const metadata: Metadata = {
-  title: "Admin Overview — EMFSC Book Shelf",
+  title: 'Admin Overview — EMFSC Book Shelf',
   description:
-    "Track batches, pace groups, applications and reading progress across the EMFSC reading circle.",
+    'Track batches, pace groups, applications and reading progress across the EMFSC reading circle.',
   openGraph: {
-    title: "Admin Overview — EMFSC Book Shelf",
-    description: "Batches, pace groups and reading progress at a glance.",
+    title: 'Admin Overview — EMFSC Book Shelf',
+    description: 'Batches, pace groups and reading progress at a glance.',
   },
 };
 
 export default async function AdminOverview() {
   const { applications, batches, paceGroups, stats, catalog } =
     await getAdminOverviewData();
-  const pending = applications.filter((a) => a.status === "pending");
+  const pending = applications.filter((a) => a.status === 'pending');
 
   return (
     <div className="space-y-10">
@@ -102,7 +102,7 @@ export default async function AdminOverview() {
                         {group.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {group.currentBook} · {group.members} members ·{" "}
+                        {group.currentBook} · {group.members} members ·{' '}
                         {group.admin}
                       </p>
                     </div>
@@ -132,15 +132,13 @@ export default async function AdminOverview() {
           <CardContent className="space-y-4">
             {pending.map((app, i) => (
               <div key={app.id}>
-                {i > 0 ?
-                  <Separator className="mb-4" />
-                : null}
+                {i > 0 ? <Separator className="mb-4" /> : null}
                 <div className="flex items-center gap-3">
                   <span className="flex size-9 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
                     {app.name
-                      .split(" ")
+                      .split(' ')
                       .map((n) => n[0])
-                      .join("")}
+                      .join('')}
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-foreground">
@@ -231,12 +229,12 @@ export default async function AdminOverview() {
                 Orphaned uploads
               </p>
               <p className="text-2xl font-semibold tabular-nums text-foreground">
-                {catalog.orphanedUploadCount ?? "—"}
+                {catalog.orphanedUploadCount ?? '—'}
               </p>
               <p className="text-xs text-muted-foreground">
-                {catalog.orphanedUploadCount === null ?
-                  "Cloudinary unavailable"
-                : "Not linked to a book"}
+                {catalog.orphanedUploadCount === null
+                  ? 'Cloudinary unavailable'
+                  : 'Not linked to a book'}
               </p>
             </CardContent>
           </Card>
@@ -265,7 +263,7 @@ export default async function AdminOverview() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {catalog.recentAdditions.length > 0 ?
+                {catalog.recentAdditions.length > 0 ? (
                   catalog.recentAdditions.map((book) => (
                     <TableRow key={book.id}>
                       <TableCell className="w-full min-w-[300px] font-medium text-foreground">
@@ -285,7 +283,8 @@ export default async function AdminOverview() {
                       </TableCell>
                     </TableRow>
                   ))
-                : <TableRow>
+                ) : (
+                  <TableRow>
                     <TableCell
                       colSpan={4}
                       className="h-20 text-center text-muted-foreground"
@@ -293,7 +292,7 @@ export default async function AdminOverview() {
                       No books added yet.
                     </TableCell>
                   </TableRow>
-                }
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -312,9 +311,9 @@ export default async function AdminOverview() {
               </div>
               <Badge
                 variant={
-                  catalog.editionCoverageGaps.length > 0 ?
-                    "destructive"
-                  : "secondary"
+                  catalog.editionCoverageGaps.length > 0
+                    ? 'destructive'
+                    : 'secondary'
                 }
               >
                 {catalog.editionCoverageGaps.length}
@@ -329,7 +328,7 @@ export default async function AdminOverview() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {catalog.editionCoverageGaps.length > 0 ?
+                  {catalog.editionCoverageGaps.length > 0 ? (
                     catalog.editionCoverageGaps.map((gap) => (
                       <TableRow key={gap.sequenceOrder}>
                         <TableCell className="font-medium">
@@ -340,7 +339,8 @@ export default async function AdminOverview() {
                         </TableCell>
                       </TableRow>
                     ))
-                  : <TableRow>
+                  ) : (
+                    <TableRow>
                       <TableCell
                         colSpan={2}
                         className="h-20 text-center text-muted-foreground"
@@ -348,7 +348,7 @@ export default async function AdminOverview() {
                         No coverage gaps.
                       </TableCell>
                     </TableRow>
-                  }
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -366,9 +366,9 @@ export default async function AdminOverview() {
               </div>
               <Badge
                 variant={
-                  catalog.curriculumGaps.length > 0 ?
-                    "destructive"
-                  : "secondary"
+                  catalog.curriculumGaps.length > 0
+                    ? 'destructive'
+                    : 'secondary'
                 }
               >
                 {catalog.curriculumGaps.length}
@@ -384,7 +384,7 @@ export default async function AdminOverview() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {catalog.curriculumGaps.length > 0 ?
+                  {catalog.curriculumGaps.length > 0 ? (
                     catalog.curriculumGaps.map((book) => (
                       <TableRow key={book.id}>
                         <TableCell className="max-w-0 truncate font-medium">
@@ -396,7 +396,8 @@ export default async function AdminOverview() {
                         </TableCell>
                       </TableRow>
                     ))
-                  : <TableRow>
+                  ) : (
+                    <TableRow>
                       <TableCell
                         colSpan={3}
                         className="h-20 text-center text-muted-foreground"
@@ -404,7 +405,7 @@ export default async function AdminOverview() {
                         No curriculum gaps.
                       </TableCell>
                     </TableRow>
-                  }
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -432,16 +433,17 @@ export default async function AdminOverview() {
                 <p className="font-medium text-foreground">{batch.name}</p>
                 <StatusBadge
                   status={
-                    batch.registrationOpen ? "open"
-                    : batch.startDate ?
-                      "running"
-                    : "draft"
+                    batch.registrationOpen
+                      ? 'open'
+                      : batch.startDate
+                        ? 'running'
+                        : 'draft'
                   }
                 />
               </div>
               <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                 <CalendarDays className="size-3.5" />
-                {batch.startDate ?? "Start date not set"} · {batch.enrolled}/
+                {batch.startDate ?? 'Start date not set'} · {batch.enrolled}/
                 {batch.maxMembers} members
               </p>
             </div>

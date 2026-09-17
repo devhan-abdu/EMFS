@@ -14,13 +14,13 @@ and [Architecture](../ARCHITECTURE.md).
 The **book catalog** is the global, sequenced library of books the program may
 read. Only **`super_admin`** creates or reorders catalog entries.
 
-| Rule | Detail |
-| --- | --- |
-| Sequence | **`sequence_order` is the program slot** (book 1, book 2, …). The system **auto-assigns** the next slot on “add new book” (`max + 1`). Super admin **never types** a sequence number. Reorder via move up/down (or drag); the system renumbers to keep **contiguous** slots `1..N` with **no gaps**. Amharic + English editions of the **same** title share **one** slot — see [Language editions](#language-editions-am--en). |
-| New batch start | Every **new batch always starts at sequence 1** (the first catalog book). Later batches may be on book 3 while an older batch is on book 5 — that is expected. |
-| Ownership | Catalog rows have **no** `batch_id`. Batches reference the catalog; they do not copy book content. |
-| Metadata | Required: `title`, `sequence_order`, `language` (`en`, `am`, …). Recommended: `cover_url` (file upload), `author`. Super admin types these in the app (`OD-023`). |
-| Language editions (Am + En) | Same **program slot**, different `language` rows. Members read **one** edition (Am **or** En), not both. The whole pace group stays on the **same curriculum day** and finishes the slot together. |
+| Rule                        | Detail                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Sequence                    | **`sequence_order` is the program slot** (book 1, book 2, …). The system **auto-assigns** the next slot on “add new book” (`max + 1`). Super admin **never types** a sequence number. Reorder via move up/down (or drag); the system renumbers to keep **contiguous** slots `1..N` with **no gaps**. Amharic + English editions of the **same** title share **one** slot — see [Language editions](#language-editions-am--en). |
+| New batch start             | Every **new batch always starts at sequence 1** (the first catalog book). Later batches may be on book 3 while an older batch is on book 5 — that is expected.                                                                                                                                                                                                                                                                 |
+| Ownership                   | Catalog rows have **no** `batch_id`. Batches reference the catalog; they do not copy book content.                                                                                                                                                                                                                                                                                                                             |
+| Metadata                    | Required: `title`, `sequence_order`, `language` (`en`, `am`, …). Recommended: `cover_url` (file upload), `author`. Super admin types these in the app (`OD-023`).                                                                                                                                                                                                                                                              |
+| Language editions (Am + En) | Same **program slot**, different `language` rows. Members read **one** edition (Am **or** En), not both. The whole pace group stays on the **same curriculum day** and finishes the slot together.                                                                                                                                                                                                                             |
 
 ### Catalog entry (V1 — decided)
 
@@ -44,12 +44,12 @@ The product docs previously required a cover **file upload** without numeric
 limits. These V1 constraints are the citable SSOT for server-side validation
 (contents, not filename). They are enforced before object storage.
 
-| Constraint | V1 limit | Why |
-| --- | --- | --- |
-| Detected types | JPEG, PNG, WebP only | No SVG (scriptable), GIF, BMP, or PDF. Type is sniffed from magic bytes. |
-| Max file size | **5 MiB** (`5 × 1024 × 1024` bytes) | Caps upload abuse before decoding. |
-| Min dimensions | **200 × 200** pixels | Covers must be usable in portfolio/admin UI. |
-| Max dimensions | **4096 × 4096** pixels | Limits decompression-bomb pixel counts. |
+| Constraint     | V1 limit                            | Why                                                                      |
+| -------------- | ----------------------------------- | ------------------------------------------------------------------------ |
+| Detected types | JPEG, PNG, WebP only                | No SVG (scriptable), GIF, BMP, or PDF. Type is sniffed from magic bytes. |
+| Max file size  | **5 MiB** (`5 × 1024 × 1024` bytes) | Caps upload abuse before decoding.                                       |
+| Min dimensions | **200 × 200** pixels                | Covers must be usable in portfolio/admin UI.                             |
+| Max dimensions | **4096 × 4096** pixels              | Limits decompression-bomb pixel counts.                                  |
 
 Client `Content-Type` and original filename are **not** trusted. A mismatch
 between a declared MIME type and the sniffed type is rejected.
@@ -65,12 +65,12 @@ Applied **after** validation and **before** object storage. Processing is
 in-memory (Sharp `Buffer`); uploaded covers are never written to the app
 filesystem as durable storage.
 
-| Constraint | V1 limit | Why |
-| --- | --- | --- |
-| Max **output** dimensions | **4096 × 4096** (`fit: inside`) | Same cap as validation; oversized inputs are scaled down. |
-| Enlargement | **Never** (`withoutEnlargement`) | Do not upscale small covers. |
-| Output format | **WebP** | Single public-delivery format; smaller than PNG/JPEG at similar quality. |
-| WebP quality | **80** | Balance of size vs. catalog-cover fidelity. |
+| Constraint                | V1 limit                          | Why                                                                          |
+| ------------------------- | --------------------------------- | ---------------------------------------------------------------------------- |
+| Max **output** dimensions | **4096 × 4096** (`fit: inside`)   | Same cap as validation; oversized inputs are scaled down.                    |
+| Enlargement               | **Never** (`withoutEnlargement`)  | Do not upscale small covers.                                                 |
+| Output format             | **WebP**                          | Single public-delivery format; smaller than PNG/JPEG at similar quality.     |
+| WebP quality              | **80**                            | Balance of size vs. catalog-cover fidelity.                                  |
 | Max input pixels (decode) | **8192 × 8192** (`67_108_864` px) | Caps decompression bombs; larger headers are rejected without a full decode. |
 
 Processed bytes must still satisfy min dimensions (200×200) and max file size
@@ -80,12 +80,12 @@ Processed bytes must still satisfy min dimensions (200×200) and max file size
 
 **Assign automatically; reorder explicitly; never allow gaps.**
 
-| Action | System behavior |
-| --- | --- |
-| Add **new program book** | `sequence_order = max(existing slots) + 1` |
-| Add **Amharic edition** for an existing English book (or vice versa) | **Same** `sequence_order` as the paired edition — does **not** consume a new slot |
-| Reorder | Move whole slot (all editions at that position); renumber affected rows in one transaction |
-| Delete | Only if policy allows; then renumber remaining slots to close gaps (`1..N`) |
+| Action                                                               | System behavior                                                                            |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Add **new program book**                                             | `sequence_order = max(existing slots) + 1`                                                 |
+| Add **Amharic edition** for an existing English book (or vice versa) | **Same** `sequence_order` as the paired edition — does **not** consume a new slot          |
+| Reorder                                                              | Move whole slot (all editions at that position); renumber affected rows in one transaction |
+| Delete                                                               | Only if policy allows; then renumber remaining slots to close gaps (`1..N`)                |
 
 **Why auto-increment is correct**
 
@@ -95,7 +95,7 @@ Processed bytes must still satisfy min dimensions (200×200) and max file size
 
 **Tradeoff (acceptable)**
 
-- Inserting a book *between* slot 2 and 3 requires **reorder UI**, not typing `2.5`.
+- Inserting a book _between_ slot 2 and 3 requires **reorder UI**, not typing `2.5`.
 - Deleting a slot requires **renumber** (or soft-delete with renumber) — do not leave hole `1, 2, 4`.
 
 **Constraint (implementation)**
@@ -122,13 +122,13 @@ pace group (20 members)
   └── admin today task → ONE post for the group (same day / topic)
 ```
 
-| Rule | Detail |
-| --- | --- |
-| Member reads | **One** edition only — chosen at registration or assigned by admin |
-| Member Done | Finished **their** edition's pages for today — not both languages |
-| Group sync | Same `day_number` / curriculum step; same pace-group page cursor |
-| Admin task | **One** daily task per pace group (`OD-015`, `OD-022`) — topics align because curriculum step is shared |
-| Catalog link | `paired_book_id` or shared `sequence_order` + opposite `language` |
+| Rule         | Detail                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------- |
+| Member reads | **One** edition only — chosen at registration or assigned by admin                                      |
+| Member Done  | Finished **their** edition's pages for today — not both languages                                       |
+| Group sync   | Same `day_number` / curriculum step; same pace-group page cursor                                        |
+| Admin task   | **One** daily task per pace group (`OD-015`, `OD-022`) — topics align because curriculum step is shared |
+| Catalog link | `paired_book_id` or shared `sequence_order` + opposite `language`                                       |
 
 **Not this:** requiring each member to read both Amharic and English every day.
 
@@ -170,20 +170,20 @@ books(sequence_order)                  start_date
 The exact Drizzle names should follow the project conventions, but the
 responsibilities below are required.
 
-| Model | Required fields | Ownership and constraint |
-| --- | --- | --- |
-| `books` | `id`, `title`, `sequence_order`, `language`, `cover_url`, optional `paired_book_id` | Global **catalog**. `(sequence_order, language)` unique. Same `sequence_order` for Am+En editions of one program book. `sequence_order` auto-assigned; contiguous `1..N` per slot. |
-| `tasks` | `id`, `book_id`, `day_number`, task content/target | Global library. `book_id` points to a shared book. `day_number` is unique and ascending. |
-| `batches` | `start_date`, `pacing_type` | One row per cohort. Existing capacity and registration fields remain. |
-| `batch_pacing_offsets` | `batch_id`, `effective_from_day_number`, `offset_days`, reason/audit fields | Optional exception rows; they change dates only and never reference copied task content. |
+| Model                  | Required fields                                                                     | Ownership and constraint                                                                                                                                                           |
+| ---------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `books`                | `id`, `title`, `sequence_order`, `language`, `cover_url`, optional `paired_book_id` | Global **catalog**. `(sequence_order, language)` unique. Same `sequence_order` for Am+En editions of one program book. `sequence_order` auto-assigned; contiguous `1..N` per slot. |
+| `tasks`                | `id`, `book_id`, `day_number`, task content/target                                  | Global library. `book_id` points to a shared book. `day_number` is unique and ascending.                                                                                           |
+| `batches`              | `start_date`, `pacing_type`                                                         | One row per cohort. Existing capacity and registration fields remain.                                                                                                              |
+| `batch_pacing_offsets` | `batch_id`, `effective_from_day_number`, `offset_days`, reason/audit fields         | Optional exception rows; they change dates only and never reference copied task content.                                                                                           |
 
 Recommended batch cadence settings:
 
-| `pacing_type` | Configuration | Meaning |
-| --- | --- | --- |
-| `daily` | none | One task step per calendar day. |
-| `three_times_week` | three ISO weekdays, with a documented default | The next step occurs on each selected weekday. |
-| `custom` | one or more ISO weekdays or an explicitly documented repeat pattern | A batch-specific recurring pace. |
+| `pacing_type`      | Configuration                                                       | Meaning                                        |
+| ------------------ | ------------------------------------------------------------------- | ---------------------------------------------- |
+| `daily`            | none                                                                | One task step per calendar day.                |
+| `three_times_week` | three ISO weekdays, with a documented default                       | The next step occurs on each selected weekday. |
+| `custom`           | one or more ISO weekdays or an explicitly documented repeat pattern | A batch-specific recurring pace.               |
 
 Use ISO weekday numbers (`1` Monday through `7` Sunday) if weekdays are stored.
 Validate that custom cadence includes at least one valid weekday. Do not use a
@@ -268,11 +268,11 @@ pace-group daily draft (per batch + pace group)
   page target for 5 / 10 / 20 / 40 + optional admin +/- for THIS group only
 ```
 
-| Layer | Who owns it | Editable by pace admin? |
-| --- | --- | --- |
-| Catalog books + curriculum tasks | `super_admin` | No |
-| Batch calendar position (which step is today) | System from batch config + offsets | Batch admin may add pacing offsets; not content |
-| Today’s page target draft | System per **pace group** | Yes — approve, +/- pages; advances **this group’s** page cursor only |
+| Layer                                         | Who owns it                        | Editable by pace admin?                                              |
+| --------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------- |
+| Catalog books + curriculum tasks              | `super_admin`                      | No                                                                   |
+| Batch calendar position (which step is today) | System from batch config + offsets | Batch admin may add pacing offsets; not content                      |
+| Today’s page target draft                     | System per **pace group**          | Yes — approve, +/- pages; advances **this group’s** page cursor only |
 
 - **Same calendar date, two batches:** both resolve the **same master task id**
   when on the same relative curriculum step; effective calendar dates differ by

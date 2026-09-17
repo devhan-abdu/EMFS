@@ -1,17 +1,20 @@
-"use client";
+'use client';
 
-import { useTransition } from "react";
-import { toast } from "sonner";
+import { useTransition } from 'react';
+import { toast } from 'sonner';
 
-import { updateProfileRoleAction } from "@/actions/admin";
+import { updateProfileRoleAction } from '@/actions/admin';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { roleLabels, type AdminRole } from "@/lib/services/constants/admin-constants";
+} from '@/components/ui/select';
+import {
+  roleLabels,
+  type AdminRole,
+} from '@/lib/services/constants/admin-constants';
 
 export function RoleSelector({
   profileId,

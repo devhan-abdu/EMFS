@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
-import { toggleRegistrationAction } from "@/actions/batch-toggle";
-import { Switch } from "@/components/ui/switch";
+import { toggleRegistrationAction } from '@/actions/batch-toggle';
+import { Switch } from '@/components/ui/switch';
 
 export function RegistrationToggle({
   batchId,
@@ -30,12 +30,12 @@ export function RegistrationToggle({
             open: next,
           });
           if (result.ok) {
-            toast.success(next ? "Registration opened" : "Registration closed");
+            toast.success(next ? 'Registration opened' : 'Registration closed');
             router.refresh();
           } else {
             setOpen(!next);
             toast.error(
-              result.errors.formErrors[0] ?? "Could not update registration",
+              result.errors.formErrors[0] ?? 'Could not update registration',
             );
           }
         });

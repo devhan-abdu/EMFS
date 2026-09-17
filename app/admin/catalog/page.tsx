@@ -1,23 +1,23 @@
-import Link from "next/link";
-import type { Metadata } from "next";
+import Link from 'next/link';
+import type { Metadata } from 'next';
 
-import { Languages, Plus } from "lucide-react";
+import { Languages, Plus } from 'lucide-react';
 
-import { CatalogSortableList } from "@/components/admin/catalog/catalog-sortable-list";
-import CatalogPagination from "@/components/catalog/catalog-pagination";
-import { PageHeader, StatCard } from "@/components/shared/page-layout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { getCatalog } from "@/lib/services/catalog/get-catalog";
-import { getCatalogSchema } from "@/lib/validations/catalog";
+import { CatalogSortableList } from '@/components/admin/catalog/catalog-sortable-list';
+import CatalogPagination from '@/components/catalog/catalog-pagination';
+import { PageHeader, StatCard } from '@/components/shared/page-layout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { getCatalog } from '@/lib/services/catalog/get-catalog';
+import { getCatalogSchema } from '@/lib/validations/catalog';
 
 export const metadata: Metadata = {
-  title: "Book catalog — EMFSC Book Shelf Admin",
+  title: 'Book catalog — EMFSC Book Shelf Admin',
   description:
-    "Curate the shared EMFSC reading order: program books, language editions, pairings and reading tasks.",
+    'Curate the shared EMFSC reading order: program books, language editions, pairings and reading tasks.',
   openGraph: {
-    title: "Book catalog — EMFSC Book Shelf Admin",
-    description: "Curate the shared reading order and language editions.",
+    title: 'Book catalog — EMFSC Book Shelf Admin',
+    description: 'Curate the shared reading order and language editions.',
   },
 };
 
@@ -40,7 +40,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
 
   const result = await getCatalog({ page, pageSize });
   if (!result.ok) {
-    throw new Error("Failed to load catalog");
+    throw new Error('Failed to load catalog');
   }
 
   const { slots, pagination } = result.data;
@@ -99,26 +99,27 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
       </div>
 
       <div className="space-y-4">
-        {slots.length === 0 ?
+        {slots.length === 0 ? (
           <Card className="card-soft">
             <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
               <p className="text-sm text-muted-foreground">
                 {pagination.totalSlots === 0
-                  ? "No books in the catalog yet."
-                  : "No books on this page."}
+                  ? 'No books in the catalog yet.'
+                  : 'No books on this page.'}
               </p>
-              {pagination.totalSlots === 0 ?
+              {pagination.totalSlots === 0 ? (
                 <Button asChild>
                   <Link href="/admin/catalog/new?mode=book">
                     <Plus className="size-4" />
                     Add program book
                   </Link>
                 </Button>
-              : null}
+              ) : null}
             </CardContent>
           </Card>
-        : <CatalogSortableList slots={slots} />
-        }
+        ) : (
+          <CatalogSortableList slots={slots} />
+        )}
       </div>
 
       <CatalogPagination

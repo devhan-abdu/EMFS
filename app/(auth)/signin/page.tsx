@@ -1,19 +1,19 @@
-import Link from "next/link";
-import type { Metadata } from "next";
+import Link from 'next/link';
+import type { Metadata } from 'next';
 
-import { Lotus, LotusWatermark } from "@/components/brand/lotus";
-import { SignInForm } from "@/components/auth/signin-form";
+import { Lotus, LotusWatermark } from '@/components/brand/lotus';
+import { SignInForm } from '@/components/auth/signin-form';
 
 export const metadata: Metadata = {
-  title: "Sign in — EMFSC Book Shelf",
+  title: 'Sign in — EMFSC Book Shelf',
   description:
-    "Sign in to the EMFSC Book Shelf to see your daily pages, write reflections and follow your reading batch.",
+    'Sign in to the EMFSC Book Shelf to see your daily pages, write reflections and follow your reading batch.',
   openGraph: {
-    title: "Sign in — EMFSC Book Shelf",
-    description: "Sign in to your EMFSC reading batch.",
+    title: 'Sign in — EMFSC Book Shelf',
+    description: 'Sign in to your EMFSC reading batch.',
   },
-  twitter: { card: "summary_large_image" },
-  icons: { icon: "/favicon.ico" },
+  twitter: { card: 'summary_large_image' },
+  icons: { icon: '/favicon.ico' },
 };
 
 type SignInPageProps = {

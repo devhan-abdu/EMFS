@@ -1,6 +1,4 @@
-
-
-export default  function MemberLayout({
+export default function MemberLayout({
   children,
 }: {
   children: React.ReactNode;

@@ -1,15 +1,15 @@
-"use server";
+'use server';
 
-import { requireSession } from "@/lib/auth/authorize";
+import { requireSession } from '@/lib/auth/authorize';
 import {
   createWaitlistSchema,
   removeWaitlistSchema,
-} from "@/lib/validations/waitlist";
+} from '@/lib/validations/waitlist';
 import {
   addToWaitlist,
   removeFromWaitlist,
   WaitlistError,
-} from "@/lib/services/application/waitlist";
+} from '@/lib/services/application/waitlist';
 
 export async function joinWaitlistAction(input: unknown) {
   let currentUser;

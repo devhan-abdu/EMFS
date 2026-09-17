@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { batches, paceGroups } from "@/db/schema";
-import { findActiveMembershipAnywhere } from "@/lib/services/membership";
+import { eq } from 'drizzle-orm';
+import { db } from '@/db';
+import { batches, paceGroups } from '@/db/schema';
+import { findActiveMembershipAnywhere } from '@/lib/services/membership';
 
 export type BatchForApplication = {
   batch: {
@@ -26,9 +26,8 @@ export async function getBatchForApplication(
   return {
     batch: batch ?? null,
     hasSelectablePaceGroups: groups.length > 0,
-    existingMembership:
-      existingMembership ?
-        {
+    existingMembership: existingMembership
+      ? {
           status: existingMembership.status,
           batchId: existingMembership.batchId,
         }

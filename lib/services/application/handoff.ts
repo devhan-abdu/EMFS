@@ -1,23 +1,31 @@
-import { randomBytes } from "node:crypto";
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { handoffRecords, applications } from "@/db/schema";
-import type { DbOrTx } from "@/lib/services/membership";
+import { randomBytes } from 'node:crypto';
+import { eq } from 'drizzle-orm';
+import { db } from '@/db';
+import { handoffRecords, applications } from '@/db/schema';
+import type { DbOrTx } from '@/lib/services/membership';
 
-export type HandoffErrorCode = "NOT_FOUND" | "ALREADY_EXISTS" | "INVALID_INPUT" | "ALREADY_USED" | "CODE_COLLISION";
+export type HandoffErrorCode =
+  | 'NOT_FOUND'
+  | 'ALREADY_EXISTS'
+  | 'INVALID_INPUT'
+  | 'ALREADY_USED'
+  | 'CODE_COLLISION';
 
 export class HandoffError extends Error {
   code: HandoffErrorCode;
   constructor(code: HandoffErrorCode, message: string) {
     super(message);
     this.code = code;
-    this.name = "HandoffError";
+    this.name = 'HandoffError';
   }
 }
 
-import { createHandoffSchema, type CreateHandoffInput } from "@/lib/validations/handoff";
+import {
+  createHandoffSchema,
+  type CreateHandoffInput,
+} from '@/lib/validations/handoff';
 
-const ALPHANUMERIC_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const ALPHANUMERIC_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 /**
  * Generates a cryptographically secure alphanumeric code.
@@ -25,7 +33,7 @@ const ALPHANUMERIC_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
  */
 export function generateHandoffCode(length = 6): string {
   const bytes = randomBytes(length);
-  let code = "";
+  let code = '';
   for (let i = 0; i < length; i++) {
     const randomIndex = bytes[i] % ALPHANUMERIC_CHARS.length;
     code += ALPHANUMERIC_CHARS[randomIndex];
@@ -39,11 +47,11 @@ export function generateHandoffCode(length = 6): string {
  */
 export async function createHandoffRecord(
   input: CreateHandoffInput,
-  executor: DbOrTx = db
+  executor: DbOrTx = db,
 ) {
   const parsed = createHandoffSchema.safeParse(input);
   if (!parsed.success) {
-    throw new HandoffError("INVALID_INPUT", parsed.error.issues[0].message);
+    throw new HandoffError('INVALID_INPUT', parsed.error.issues[0].message);
   }
 
   const { applicationId } = parsed.data;
@@ -55,8 +63,8 @@ export async function createHandoffRecord(
 
     if (!existingApp) {
       throw new HandoffError(
-        "NOT_FOUND",
-        `Application with ID '${applicationId}' not found.`
+        'NOT_FOUND',
+        `Application with ID '${applicationId}' not found.`,
       );
     }
 
@@ -66,8 +74,8 @@ export async function createHandoffRecord(
 
     if (existingHandoff) {
       throw new HandoffError(
-        "ALREADY_EXISTS",
-        `Handoff record already exists for application '${applicationId}'.`
+        'ALREADY_EXISTS',
+        `Handoff record already exists for application '${applicationId}'.`,
       );
     }
 
@@ -91,12 +99,15 @@ export async function createHandoffRecord(
         return inserted;
       } catch (error: unknown) {
         const err = error as { code?: string; message?: string };
-        if (err.code === "23505" && err.message?.includes("unique_handoff_code_idx")) {
+        if (
+          err.code === '23505' &&
+          err.message?.includes('unique_handoff_code_idx')
+        ) {
           attempt++;
           if (attempt >= MAX_RETRIES) {
             throw new HandoffError(
-              "CODE_COLLISION",
-              "Failed to generate a unique handoff code after multiple attempts."
+              'CODE_COLLISION',
+              'Failed to generate a unique handoff code after multiple attempts.',
             );
           }
           continue;
@@ -105,7 +116,10 @@ export async function createHandoffRecord(
       }
     }
 
-    throw new HandoffError("CODE_COLLISION", "Failed to generate a unique handoff code.");
+    throw new HandoffError(
+      'CODE_COLLISION',
+      'Failed to generate a unique handoff code.',
+    );
   };
 
   if (executor === db) {
@@ -125,15 +139,15 @@ export async function markHandoffUsed(handoffId: string) {
 
   if (!existing) {
     throw new HandoffError(
-      "NOT_FOUND",
-      `Handoff record with ID '${handoffId}' not found.`
+      'NOT_FOUND',
+      `Handoff record with ID '${handoffId}' not found.`,
     );
   }
 
   if (existing.usedAt !== null) {
     throw new HandoffError(
-      "ALREADY_USED",
-      `Handoff record with ID '${handoffId}' has already been used.`
+      'ALREADY_USED',
+      `Handoff record with ID '${handoffId}' has already been used.`,
     );
   }
 

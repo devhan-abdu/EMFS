@@ -1,12 +1,12 @@
-import "server-only";
+import 'server-only';
 
-import { getCurrentUser, type CurrentUser } from "@/lib/auth/session";
+import { getCurrentUser, type CurrentUser } from '@/lib/auth/session';
 
-export type Role = "super_admin" | "batch_admin" | "pace_admin" | "member";
+export type Role = 'super_admin' | 'batch_admin' | 'pace_admin' | 'member';
 
 export class AuthzError extends Error {
-  code: "UNAUTHENTICATED" | "FORBIDDEN";
-  constructor(code: "UNAUTHENTICATED" | "FORBIDDEN", message: string) {
+  code: 'UNAUTHENTICATED' | 'FORBIDDEN';
+  constructor(code: 'UNAUTHENTICATED' | 'FORBIDDEN', message: string) {
     super(message);
     this.code = code;
   }
@@ -23,7 +23,7 @@ const ROLE_RANK: Record<Role, number> = {
 export async function requireSession(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) {
-    throw new AuthzError("UNAUTHENTICATED", "You must be signed in.");
+    throw new AuthzError('UNAUTHENTICATED', 'You must be signed in.');
   }
   return user;
 }
@@ -39,8 +39,8 @@ export async function requireRole(allowed: Role[]): Promise<CurrentUser> {
 
   if (!allowed.includes(role)) {
     throw new AuthzError(
-      "FORBIDDEN",
-      `Role '${role}' is not permitted. Required one of: ${allowed.join(", ")}.`,
+      'FORBIDDEN',
+      `Role '${role}' is not permitted. Required one of: ${allowed.join(', ')}.`,
     );
   }
   return user;
@@ -49,9 +49,9 @@ export async function requireRole(allowed: Role[]): Promise<CurrentUser> {
 export async function requireMinRole(minimum: Role): Promise<CurrentUser> {
   const user = await requireSession();
   const role = user.profile.role as Role;
-  console.log(role, "what is the role it register ")
+  console.log(role, 'what is the role it register ');
   if (ROLE_RANK[role] < ROLE_RANK[minimum]) {
-    throw new AuthzError("FORBIDDEN", `Requires at least '${minimum}' role.`);
+    throw new AuthzError('FORBIDDEN', `Requires at least '${minimum}' role.`);
   }
   return user;
 }
@@ -61,13 +61,13 @@ export async function requireMinRole(minimum: Role): Promise<CurrentUser> {
  * Only super_admin rank is permitted (rank 3).
  */
 export async function requireSuperAdmin(): Promise<CurrentUser> {
-  return requireRole(["super_admin"]);
+  return requireRole(['super_admin']);
 }
 
 /** Formats an AuthzError into the standard FieldError structure used across actions. */
 export function authzErrorToFieldError(error: AuthzError) {
   return {
-    field: "auth",
+    field: 'auth',
     message: error.message,
     code: error.code,
   };

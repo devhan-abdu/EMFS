@@ -1,44 +1,44 @@
-"use client";
+'use client';
 
-import { useActionState, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { useActionState, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   createBookAction,
   updateBookAction,
   type CreateBookActionResult,
-} from "@/actions/catalog";
-import type { GoogleBookSearchResult } from "@/lib/validations/google-books";
-import { CoverImageField } from "@/components/admin/catalog/cover-image-field";
-import { fieldErrorMap } from "@/components/admin/catalog/field-error-map";
-import { FormErrorBanner } from "@/components/admin/catalog/form-error-banner";
-import { GoogleBooksSearch } from "@/components/admin/catalog/google-books-search";
-import { Button } from "@/components/ui/button";
+} from '@/actions/catalog';
+import type { GoogleBookSearchResult } from '@/lib/validations/google-books';
+import { CoverImageField } from '@/components/admin/catalog/cover-image-field';
+import { fieldErrorMap } from '@/components/admin/catalog/field-error-map';
+import { FormErrorBanner } from '@/components/admin/catalog/form-error-banner';
+import { GoogleBooksSearch } from '@/components/admin/catalog/google-books-search';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { useCoverImageField } from "@/hooks/use-cover-image-field";
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useCoverImageField } from '@/hooks/use-cover-image-field';
 import {
   PROGRAM_BOOK_CATEGORY_PRESETS,
   PROGRAM_BOOK_LANGUAGES,
-} from "@/lib/services/constants/admin-catalog-constants";
+} from '@/lib/services/constants/admin-catalog-constants';
 
 const initialState: CreateBookActionResult = { ok: false, errors: [] };
 
@@ -83,49 +83,53 @@ export function AddBookForm({
   );
   const errors = state.ok ? {} : fieldErrorMap(state.errors);
 
-  const [title, setTitle] = useState(initialValues?.title ?? "");
-  const [author, setAuthor] = useState(initialValues?.author ?? "");
-  const [language, setLanguage] = useState(initialValues?.language ?? "en");
+  const [title, setTitle] = useState(initialValues?.title ?? '');
+  const [author, setAuthor] = useState(initialValues?.author ?? '');
+  const [language, setLanguage] = useState(initialValues?.language ?? 'en');
   const [pageCount, setPageCount] = useState(
-    initialValues?.pageCount ? String(initialValues.pageCount) : "",
+    initialValues?.pageCount ? String(initialValues.pageCount) : '',
   );
-  const [summary, setSummary] = useState(initialValues?.summary ?? "");
-  const [categoryPreset, setCategoryPreset] = useState("spiritual");
-  const [customCategory, setCustomCategory] = useState("");
+  const [summary, setSummary] = useState(initialValues?.summary ?? '');
+  const [categoryPreset, setCategoryPreset] = useState('spiritual');
+  const [customCategory, setCustomCategory] = useState('');
   const categoryValue =
-    categoryPreset === "other" ? customCategory.trim() : categoryPreset;
+    categoryPreset === 'other' ? customCategory.trim() : categoryPreset;
 
   const [searchEnabled, setSearchEnabled] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
 
   const cover = useCoverImageField();
 
   useEffect(() => {
-    if (initialValues?.coverUrl) cover.applyExternalCoverUrl(initialValues.coverUrl);
+    if (initialValues?.coverUrl)
+      cover.applyExternalCoverUrl(initialValues.coverUrl);
   }, [initialValues?.coverUrl]);
 
   useEffect(() => {
     if (state.ok) {
-      toast.success(bookId ? "Book updated" : "Book added to the catalog");
+      toast.success(bookId ? 'Book updated' : 'Book added to the catalog');
       if (onSuccess) onSuccess();
       if (!embedded) {
-        router.push("/admin/catalog");
+        router.push('/admin/catalog');
         router.refresh();
       }
     } else if (state.errors?.length) {
-      toast.error(state.errors[0]?.message ?? `Failed to ${bookId ? "update" : "create"} book`);
+      toast.error(
+        state.errors[0]?.message ??
+          `Failed to ${bookId ? 'update' : 'create'} book`,
+      );
     }
   }, [state, router, bookId, embedded, onSuccess]);
 
   function applyGoogleBook(book: GoogleBookSearchResult) {
     setTitle(book.title);
-    setAuthor(book.authors.join(", "));
-    setLanguage("en");
+    setAuthor(book.authors.join(', '));
+    setLanguage('en');
     if (book.pageCount) setPageCount(String(book.pageCount));
     if (book.description) setSummary(book.description.slice(0, 600));
     cover.applyExternalCoverUrl(book.thumbnailUrl);
-    setSearchQuery("");
-    toast.success("Fields filled from Google Books — review before saving");
+    setSearchQuery('');
+    toast.success('Fields filled from Google Books — review before saving');
   }
 
   return (
@@ -141,7 +145,6 @@ export function AddBookForm({
         <Card className="card-soft lg:col-span-2">
           <CardHeader>
             <CardTitle className="font-display text-xl">Book details</CardTitle>
-
           </CardHeader>
           <CardContent className="space-y-6">
             <GoogleBooksSearch
@@ -188,7 +191,9 @@ export function AddBookForm({
                 <Label htmlFor="category">Category</Label>
                 <Select
                   value={categoryPreset}
-                  onValueChange={(value) => setCategoryPreset(value ?? "spiritual")}
+                  onValueChange={(value) =>
+                    setCategoryPreset(value ?? 'spiritual')
+                  }
                 >
                   <SelectTrigger id="category" className="w-full">
                     <SelectValue />
@@ -201,7 +206,7 @@ export function AddBookForm({
                     ))}
                   </SelectContent>
                 </Select>
-                {categoryPreset === "other" && (
+                {categoryPreset === 'other' && (
                   <Input
                     autoFocus
                     value={customCategory}
@@ -217,14 +222,14 @@ export function AddBookForm({
 
               <div className="space-y-2">
                 <Label htmlFor="language">
-                  Language{" "}
+                  Language{' '}
                   <span className="text-xs font-normal text-muted-foreground">
                     (optional)
                   </span>
                 </Label>
                 <Select
                   value={language}
-                  onValueChange={(value) => setLanguage(value ?? "en")}
+                  onValueChange={(value) => setLanguage(value ?? 'en')}
                 >
                   <SelectTrigger id="language" className="w-full">
                     <SelectValue placeholder="Defaults to English" />
@@ -270,7 +275,7 @@ export function AddBookForm({
 
             <div className="space-y-2">
               <Label htmlFor="summary">
-                Short summary{" "}
+                Short summary{' '}
                 <span className="text-xs font-normal text-muted-foreground">
                   (optional)
                 </span>
@@ -302,7 +307,7 @@ export function AddBookForm({
               onFileChange={cover.handleFileChange}
               onClear={cover.clearCover}
               onTriggerUpload={cover.triggerFileInput}
-              title={title || "Cover"}
+              title={title || 'Cover'}
             />
           </CardContent>
         </Card>
@@ -310,7 +315,12 @@ export function AddBookForm({
 
       <div className="flex gap-4">
         {embedded ? (
-          <Button type="button" variant="outline" className="h-12 flex-1" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-12 flex-1"
+            onClick={onCancel}
+          >
             Cancel
           </Button>
         ) : (
@@ -322,12 +332,16 @@ export function AddBookForm({
           </Link>
         )}
         <Button type="submit" className="h-12 flex-1" disabled={isPending}>
-          {isPending ?
+          {isPending ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              {bookId ? "Updating…" : "Adding…"}
+              {bookId ? 'Updating…' : 'Adding…'}
             </>
-          : bookId ? "Update book" : "Add book"}
+          ) : bookId ? (
+            'Update book'
+          ) : (
+            'Add book'
+          )}
         </Button>
       </div>
     </form>

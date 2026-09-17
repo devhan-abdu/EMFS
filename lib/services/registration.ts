@@ -1,7 +1,7 @@
-import { headers } from "next/headers";
+import { headers } from 'next/headers';
 
-import { auth } from "@/lib/auth/auth";
-import type { SignUpInput } from "@/lib/validations/auth";
+import { auth } from '@/lib/auth/auth';
+import type { SignUpInput } from '@/lib/validations/auth';
 
 export async function registerMember(input: SignUpInput) {
   const result = await auth.api.signUpEmail({

@@ -1,29 +1,36 @@
-import sharp from "sharp";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import sharp from 'sharp';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createBookAction,
   addPairedEditionAction,
   reorderCatalogSlotsAction,
   getCatalogAction,
-} from "../actions/catalog";
-import { createBookWithCover, addPairedEditionWithCover } from "../lib/services/catalog/create-book";
-import { reorderCatalogSlots } from "../lib/services/catalog/reorder-catalog";
-import { getCatalog } from "../lib/services/catalog/get-catalog";
-import { createBookSchema, addPairedEditionSchema, reorderSlotsSchema } from "../lib/validations/catalog";
+} from '../actions/catalog';
+import {
+  createBookWithCover,
+  addPairedEditionWithCover,
+} from '../lib/services/catalog/create-book';
+import { reorderCatalogSlots } from '../lib/services/catalog/reorder-catalog';
+import { getCatalog } from '../lib/services/catalog/get-catalog';
+import {
+  createBookSchema,
+  addPairedEditionSchema,
+  reorderSlotsSchema,
+} from '../lib/validations/catalog';
 
 const mockUploadToCloudinary = vi.hoisted(() => vi.fn());
 const mockDeleteFromCloudinary = vi.hoisted(() => vi.fn());
 
-vi.mock("../lib/services/catalog/cloudinary", () => ({
+vi.mock('../lib/services/catalog/cloudinary', () => ({
   uploadToCloudinary: mockUploadToCloudinary,
-  isCloudinaryUrl: (url: string) => url.includes("res.cloudinary.com"),
+  isCloudinaryUrl: (url: string) => url.includes('res.cloudinary.com'),
   deleteFromCloudinary: mockDeleteFromCloudinary,
 }));
 
 const { mockRequireSuperAdmin, AuthzErrorMock } = vi.hoisted(() => {
   class AuthzErrorMock extends Error {
-    code: "UNAUTHENTICATED" | "FORBIDDEN";
-    constructor(code: "UNAUTHENTICATED" | "FORBIDDEN", message: string) {
+    code: 'UNAUTHENTICATED' | 'FORBIDDEN';
+    constructor(code: 'UNAUTHENTICATED' | 'FORBIDDEN', message: string) {
       super(message);
       this.code = code;
     }
@@ -41,13 +48,27 @@ const mocks = vi.hoisted(() => {
   const transactionMock = vi.fn();
   const findManyMock = vi.fn();
 
-  return { selectMock, selectDistinctMock, insertMock, updateMock, transactionMock, findManyMock };
+  return {
+    selectMock,
+    selectDistinctMock,
+    insertMock,
+    updateMock,
+    transactionMock,
+    findManyMock,
+  };
 });
 
-const { selectMock, selectDistinctMock, insertMock, updateMock, transactionMock, findManyMock } = mocks;
+const {
+  selectMock,
+  selectDistinctMock,
+  insertMock,
+  updateMock,
+  transactionMock,
+  findManyMock,
+} = mocks;
 
-vi.mock("server-only", () => ({}));
-vi.mock("@/db", () => ({
+vi.mock('server-only', () => ({}));
+vi.mock('@/db', () => ({
   db: {
     select: mocks.selectMock,
     selectDistinct: mocks.selectDistinctMock,
@@ -62,24 +83,25 @@ vi.mock("@/db", () => ({
   },
 }));
 
-vi.mock("@/lib/auth/authorize", () => ({
+vi.mock('@/lib/auth/authorize', () => ({
   AuthzError: AuthzErrorMock,
   requireSuperAdmin: mockRequireSuperAdmin,
-  authzErrorToFieldError: vi.fn((error: InstanceType<typeof AuthzErrorMock>) => ({
-    field: "auth",
-    message: error.message,
-    code: error.code,
-  })),
+  authzErrorToFieldError: vi.fn(
+    (error: InstanceType<typeof AuthzErrorMock>) => ({
+      field: 'auth',
+      message: error.message,
+      code: error.code,
+    }),
+  ),
 }));
 
-
-describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
-    beforeEach(() => {
+describe('Comprehensive QA Test Suite - EMFS Catalog', () => {
+  beforeEach(() => {
     vi.resetAllMocks();
     mockUploadToCloudinary.mockResolvedValue({
       secureUrl:
-        "https://res.cloudinary.com/demo/image/upload/v1/emfs-covers/test.webp",
-      publicId: "emfs-covers/test",
+        'https://res.cloudinary.com/demo/image/upload/v1/emfs-covers/test.webp',
+      publicId: 'emfs-covers/test',
     });
     mockDeleteFromCloudinary.mockResolvedValue(undefined);
   });
@@ -87,18 +109,17 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
   /* -------------------------------------------------------------------------- */
   /*                              1. CREATE BOOK                                */
   /* -------------------------------------------------------------------------- */
-  describe("1. CREATE BOOK", () => {
-    it("valid creation with metadata and automatic sequence_order", async () => {
+  describe('1. CREATE BOOK', () => {
+    it('valid creation with metadata and automatic sequence_order', async () => {
       selectMock.mockReturnValueOnce({
         from: vi.fn(async () => [{ maxSlot: 5 }]),
       });
-
 
       insertMock.mockReturnValueOnce({
         values: vi.fn((data) => ({
           returning: vi.fn(async () => [
             {
-              id: "book-new",
+              id: 'book-new',
               title: data.title,
               language: data.language,
               author: data.author,
@@ -110,54 +131,87 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
         })),
       });
 
-      const result = await createBookWithCover(
-        { title: "Atomic Habits", language: "en", author: "James Clear", pageCount: 200 }
-      );
+      const result = await createBookWithCover({
+        title: 'Atomic Habits',
+        language: 'en',
+        author: 'James Clear',
+        pageCount: 200,
+      });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
-        expect(result.data.id).toBe("book-new");
-        expect(result.data.title).toBe("Atomic Habits");
+        expect(result.data.id).toBe('book-new');
+        expect(result.data.title).toBe('Atomic Habits');
         expect(result.data.sequenceOrder).toBeDefined();
-
       }
     });
 
-    it("rejects missing title", () => {
-      const parsed = createBookSchema.safeParse({ language: "en" });
+    it('rejects missing title', () => {
+      const parsed = createBookSchema.safeParse({ language: 'en' });
       expect(parsed.success).toBe(false);
     });
 
-    it("rejects invalid language (uppercase / too long)", () => {
-      expect(createBookSchema.safeParse({ title: "Book", language: "EN", pageCount: 100 }).success).toBe(false);
-      expect(createBookSchema.safeParse({ title: "Book", language: "english", pageCount: 100 }).success).toBe(false);
-      expect(createBookSchema.safeParse({ title: "Book", language: "am", pageCount: 100 }).success).toBe(true);
+    it('rejects invalid language (uppercase / too long)', () => {
+      expect(
+        createBookSchema.safeParse({
+          title: 'Book',
+          language: 'EN',
+          pageCount: 100,
+        }).success,
+      ).toBe(false);
+      expect(
+        createBookSchema.safeParse({
+          title: 'Book',
+          language: 'english',
+          pageCount: 100,
+        }).success,
+      ).toBe(false);
+      expect(
+        createBookSchema.safeParse({
+          title: 'Book',
+          language: 'am',
+          pageCount: 100,
+        }).success,
+      ).toBe(true);
     });
 
-    it("supports optional author", () => {
-      const withAuthor = createBookSchema.safeParse({ title: "Book", language: "en", author: "Author", pageCount: 100 });
-      const withoutAuthor = createBookSchema.safeParse({ title: "Book", language: "en", pageCount: 100 });
+    it('supports optional author', () => {
+      const withAuthor = createBookSchema.safeParse({
+        title: 'Book',
+        language: 'en',
+        author: 'Author',
+        pageCount: 100,
+      });
+      const withoutAuthor = createBookSchema.safeParse({
+        title: 'Book',
+        language: 'en',
+        pageCount: 100,
+      });
       expect(withAuthor.success).toBe(true);
       expect(withoutAuthor.success).toBe(true);
     });
 
-    it("supports creation with cover upload and without cover", async () => {
+    it('supports creation with cover upload and without cover', async () => {
       const validPng = await sharp({
-        create: { width: 400, height: 400, channels: 3, background: { r: 255, g: 0, b: 0 } },
+        create: {
+          width: 400,
+          height: 400,
+          channels: 3,
+          background: { r: 255, g: 0, b: 0 },
+        },
       })
         .png()
         .toBuffer();
 
       selectMock.mockReturnValue({
         from: vi.fn(async () => [{ maxSlot: 0 }]),
-
       });
 
       insertMock.mockReturnValue({
         values: vi.fn((data) => ({
           returning: vi.fn(async () => [
             {
-              id: "book-1",
+              id: 'book-1',
               ...data,
             },
           ]),
@@ -165,50 +219,49 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
       });
 
       // With cover
-      const withCover = await createBookWithCover(
-        {
-          title: "Book with cover",
-          language: "en",
-          pageCount: 200,
-          cover: { body: new Uint8Array(validPng), declaredType: "image/png" },
-        }
-      );
+      const withCover = await createBookWithCover({
+        title: 'Book with cover',
+        language: 'en',
+        pageCount: 200,
+        cover: { body: new Uint8Array(validPng), declaredType: 'image/png' },
+      });
       expect(withCover.ok).toBe(true);
       if (withCover.ok) {
         expect(withCover.data.coverUrl).toBe(
-          "https://res.cloudinary.com/demo/image/upload/v1/emfs-covers/test.webp",
+          'https://res.cloudinary.com/demo/image/upload/v1/emfs-covers/test.webp',
         );
       }
 
       // Without cover
-      const withoutCover = await createBookWithCover(
-        { title: "Book without cover", language: "en", pageCount: 200 }
-      );
+      const withoutCover = await createBookWithCover({
+        title: 'Book without cover',
+        language: 'en',
+        pageCount: 200,
+      });
       expect(withoutCover.ok).toBe(true);
       if (withoutCover.ok) {
         expect(withoutCover.data.coverUrl).toBeUndefined();
       }
     });
 
-    it("strips client-provided sequence_order and auto-assigns server sequence_order", async () => {
+    it('strips client-provided sequence_order and auto-assigns server sequence_order', async () => {
       selectMock.mockReturnValueOnce({
         from: vi.fn(async () => [{ maxSlot: 10 }]),
       });
-
 
       let insertedSequenceOrder: number | undefined;
       insertMock.mockReturnValueOnce({
         values: vi.fn((data) => {
           insertedSequenceOrder = data.sequenceOrder;
           return {
-            returning: vi.fn(async () => [{ id: "b1", ...data }]),
+            returning: vi.fn(async () => [{ id: 'b1', ...data }]),
           };
         }),
       });
 
       const clientInput = {
-        title: "Malicious Book",
-        language: "en",
+        title: 'Malicious Book',
+        language: 'en',
         pageCount: 200,
         sequenceOrder: 9999, // Should be ignored
       };
@@ -219,34 +272,41 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
       expect(insertedSequenceOrder).not.toBe(9999);
     });
 
-
-    it("enforces authorization: unauthenticated, non-super-admin, super-admin", async () => {
+    it('enforces authorization: unauthenticated, non-super-admin, super-admin', async () => {
       // 1. Unauthenticated
       mockRequireSuperAdmin.mockRejectedValueOnce(
-        new AuthzErrorMock("UNAUTHENTICATED", "You must be signed in."),
+        new AuthzErrorMock('UNAUTHENTICATED', 'You must be signed in.'),
       );
-      const unauth = await createBookAction({ title: "B", language: "en", pageCount: 100 });
+      const unauth = await createBookAction({
+        title: 'B',
+        language: 'en',
+        pageCount: 100,
+      });
       expect(unauth.ok).toBe(false);
-      if (!unauth.ok) expect(unauth.errors[0].code).toBe("UNAUTHENTICATED");
+      if (!unauth.ok) expect(unauth.errors[0].code).toBe('UNAUTHENTICATED');
 
       // 2. Non-super-admin (batch_admin)
       mockRequireSuperAdmin.mockRejectedValueOnce(
-        new AuthzErrorMock("FORBIDDEN", "Role 'batch_admin' is not permitted."),
+        new AuthzErrorMock('FORBIDDEN', "Role 'batch_admin' is not permitted."),
       );
-      const forbidden = await createBookAction({ title: "B", language: "en", pageCount: 100 });
+      const forbidden = await createBookAction({
+        title: 'B',
+        language: 'en',
+        pageCount: 100,
+      });
       expect(forbidden.ok).toBe(false);
-      if (!forbidden.ok) expect(forbidden.errors[0].code).toBe("FORBIDDEN");
+      if (!forbidden.ok) expect(forbidden.errors[0].code).toBe('FORBIDDEN');
 
       // 3. Super admin
       mockRequireSuperAdmin.mockResolvedValueOnce({
-        authUserId: "sa-1",
-        email: "admin@example.com",
+        authUserId: 'sa-1',
+        email: 'admin@example.com',
         profile: {
-          id: "p-1",
-          authUserId: "sa-1",
-          role: "super_admin",
-          firstName: "Super",
-          fatherName: "Admin",
+          id: 'p-1',
+          authUserId: 'sa-1',
+          role: 'super_admin',
+          firstName: 'Super',
+          fatherName: 'Admin',
           grandfatherName: null,
           telegramUsername: null,
           phone: null,
@@ -254,14 +314,20 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
           updatedAt: new Date(),
         },
       });
-      selectMock.mockReturnValueOnce({ from: vi.fn(async () => [{ maxSlot: 1 }]) });
+      selectMock.mockReturnValueOnce({
+        from: vi.fn(async () => [{ maxSlot: 1 }]),
+      });
 
       insertMock.mockReturnValueOnce({
         values: vi.fn((data) => ({
-          returning: vi.fn(async () => [{ id: "b1", ...data }]),
+          returning: vi.fn(async () => [{ id: 'b1', ...data }]),
         })),
       });
-      const allowed = await createBookAction({ title: "B", language: "en", pageCount: 100 });
+      const allowed = await createBookAction({
+        title: 'B',
+        language: 'en',
+        pageCount: 100,
+      });
       expect(allowed.ok).toBe(true);
     });
   });
@@ -269,12 +335,12 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
   /* -------------------------------------------------------------------------- */
   /*                             2. PAIRED EDITION                              */
   /* -------------------------------------------------------------------------- */
-  describe("2. PAIRED EDITION", () => {
-    it("valid paired edition inherits existing slot and does not consume new sequence_order", async () => {
+  describe('2. PAIRED EDITION', () => {
+    it('valid paired edition inherits existing slot and does not consume new sequence_order', async () => {
       const targetBook = {
-        id: "550e8400-e29b-41d4-a716-446655440000",
-        title: "Atomic Habits",
-        language: "en",
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        title: 'Atomic Habits',
+        language: 'en',
         sequenceOrder: 4,
         pairedBookId: null,
       };
@@ -294,7 +360,7 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
           }),
         insert: vi.fn(() => ({
           values: vi.fn((data) => ({
-            returning: vi.fn(async () => [{ id: "paired-am", ...data }]),
+            returning: vi.fn(async () => [{ id: 'paired-am', ...data }]),
           })),
         })),
         update: vi.fn(() => ({
@@ -308,14 +374,12 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
         async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock),
       );
 
-      const result = await addPairedEditionWithCover(
-        {
-          pairedBookId: targetBook.id,
-          title: "አቶሚክ ልማዶች",
-          language: "am",
-          pageCount: 200,
-        }
-      );
+      const result = await addPairedEditionWithCover({
+        pairedBookId: targetBook.id,
+        title: 'አቶሚክ ልማዶች',
+        language: 'am',
+        pageCount: 200,
+      });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -325,12 +389,12 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
       expect(txMock.update).toHaveBeenCalledTimes(1);
     });
 
-    it("rejects invalid input (malformed UUID, duplicate language, missing target)", async () => {
+    it('rejects invalid input (malformed UUID, duplicate language, missing target)', async () => {
       // Malformed UUID
       const badUuid = addPairedEditionSchema.safeParse({
-        pairedBookId: "invalid",
-        title: "Title",
-        language: "am",
+        pairedBookId: 'invalid',
+        title: 'Title',
+        language: 'am',
       });
       expect(badUuid.success).toBe(false);
 
@@ -343,43 +407,45 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
         })),
       };
       transactionMock.mockImplementation(
-        async (cb: (tx: typeof txMockNotFound) => Promise<unknown>) => cb(txMockNotFound),
+        async (cb: (tx: typeof txMockNotFound) => Promise<unknown>) =>
+          cb(txMockNotFound),
       );
-      const notFound = await addPairedEditionWithCover(
-        {
-          pairedBookId: "550e8400-e29b-41d4-a716-446655440000",
-          title: "Title",
-          language: "am",
-          pageCount: 200,
-        }
-      );
+      const notFound = await addPairedEditionWithCover({
+        pairedBookId: '550e8400-e29b-41d4-a716-446655440000',
+        title: 'Title',
+        language: 'am',
+        pageCount: 200,
+      });
       expect(notFound.ok).toBe(false);
-      if (!notFound.ok) expect(notFound.errors[0].code).toBe("TARGET_BOOK_NOT_FOUND");
+      if (!notFound.ok)
+        expect(notFound.errors[0].code).toBe('TARGET_BOOK_NOT_FOUND');
     });
   });
 
   /* -------------------------------------------------------------------------- */
   /*                                3. REORDER                                  */
   /* -------------------------------------------------------------------------- */
-  describe("3. REORDER", () => {
-    it("moves slot forward (e.g. 2 -> 4) and shifts intermediate slots contiguously", async () => {
+  describe('3. REORDER', () => {
+    it('moves slot forward (e.g. 2 -> 4) and shifts intermediate slots contiguously', async () => {
       const updates: Array<{ sequenceOrder: unknown }> = [];
       const txMock = {
         select: vi.fn(),
       };
       txMock.select
         .mockReturnValueOnce({ from: vi.fn(async () => [{ maxSlot: 5 }]) })
-          .mockReturnValueOnce({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({ limit: vi.fn(async () => [{ id: "b2" }]) })),
-            })),
-          });
-      Object.assign(txMock, { update: vi.fn(() => ({
+        .mockReturnValueOnce({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({ limit: vi.fn(async () => [{ id: 'b2' }]) })),
+          })),
+        });
+      Object.assign(txMock, {
+        update: vi.fn(() => ({
           set: vi.fn((data) => {
             updates.push(data);
             return { where: vi.fn(async () => undefined) };
           }),
-        })) });
+        })),
+      });
       transactionMock.mockImplementation(
         async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock),
       );
@@ -395,7 +461,7 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
       expect(updates[2].sequenceOrder).toBe(4);
     });
 
-    it("moves first slot (1 -> 3) and last slot (5 -> 1)", async () => {
+    it('moves first slot (1 -> 3) and last slot (5 -> 1)', async () => {
       const txMock = {
         select: vi.fn(),
         update: vi.fn(() => ({
@@ -407,13 +473,13 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
         .mockReturnValueOnce({ from: vi.fn(async () => [{ maxSlot: 5 }]) })
         .mockReturnValueOnce({
           from: vi.fn(() => ({
-            where: vi.fn(() => ({ limit: vi.fn(async () => [{ id: "b1" }]) })),
+            where: vi.fn(() => ({ limit: vi.fn(async () => [{ id: 'b1' }]) })),
           })),
         })
         .mockReturnValueOnce({ from: vi.fn(async () => [{ maxSlot: 5 }]) })
         .mockReturnValueOnce({
           from: vi.fn(() => ({
-            where: vi.fn(() => ({ limit: vi.fn(async () => [{ id: "b5" }]) })),
+            where: vi.fn(() => ({ limit: vi.fn(async () => [{ id: 'b5' }]) })),
           })),
         });
 
@@ -428,20 +494,20 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
       expect(moveLast.ok).toBe(true);
     });
 
-    it("rolls back on database transaction failure", async () => {
-      transactionMock.mockRejectedValueOnce(new Error("Deadlock detected"));
+    it('rolls back on database transaction failure', async () => {
+      transactionMock.mockRejectedValueOnce(new Error('Deadlock detected'));
 
       await expect(
         reorderCatalogSlots({ fromSlot: 2, toSlot: 4 }),
-      ).rejects.toThrow("Deadlock detected");
+      ).rejects.toThrow('Deadlock detected');
     });
   });
 
   /* -------------------------------------------------------------------------- */
   /*                               4. PAGINATION                                */
   /* -------------------------------------------------------------------------- */
-  describe("4. PAGINATION", () => {
-    it("handles first page, middle page, last page, and empty catalog", async () => {
+  describe('4. PAGINATION', () => {
+    it('handles first page, middle page, last page, and empty catalog', async () => {
       // Empty catalog
       selectMock.mockReturnValueOnce({
         from: vi.fn(async () => [{ totalBooks: 0, totalSlots: 0 }]),
@@ -461,23 +527,26 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
         from: vi.fn(() => ({
           orderBy: vi.fn(() => ({
             limit: vi.fn(() => ({
-              offset: vi.fn(async () => [{ sequenceOrder: 3 }, { sequenceOrder: 4 }]),
+              offset: vi.fn(async () => [
+                { sequenceOrder: 3 },
+                { sequenceOrder: 4 },
+              ]),
             })),
           })),
         })),
       });
       findManyMock.mockResolvedValueOnce([
         {
-          id: "b3",
+          id: 'b3',
           sequenceOrder: 3,
-          language: "en",
+          language: 'en',
           pairedBookId: null,
           tasks: [],
         },
         {
-          id: "b4",
+          id: 'b4',
           sequenceOrder: 4,
-          language: "en",
+          language: 'en',
           pairedBookId: null,
           tasks: [],
         },
@@ -492,7 +561,7 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
       }
     });
 
-    it("maintains stable ordering and paired editions grouping", async () => {
+    it('maintains stable ordering and paired editions grouping', async () => {
       selectMock.mockReturnValueOnce({
         from: vi.fn(async () => [{ totalBooks: 2, totalSlots: 1 }]),
       });
@@ -506,16 +575,28 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
         })),
       });
       findManyMock.mockResolvedValueOnce([
-        { id: "b1-am", title: "Amharic", sequenceOrder: 1, language: "am", tasks: [] },
-        { id: "b1-en", title: "English", sequenceOrder: 1, language: "en", tasks: [] },
+        {
+          id: 'b1-am',
+          title: 'Amharic',
+          sequenceOrder: 1,
+          language: 'am',
+          tasks: [],
+        },
+        {
+          id: 'b1-en',
+          title: 'English',
+          sequenceOrder: 1,
+          language: 'en',
+          tasks: [],
+        },
       ]);
 
       const result = await getCatalog({ page: 1, limit: 10 });
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.data.slots[0].editions).toHaveLength(2);
-        expect(result.data.slots[0].editions[0].language).toBe("am");
-        expect(result.data.slots[0].editions[1].language).toBe("en");
+        expect(result.data.slots[0].editions[0].language).toBe('am');
+        expect(result.data.slots[0].editions[1].language).toBe('en');
       }
     });
   });
@@ -523,9 +604,8 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
   /* -------------------------------------------------------------------------- */
   /*                             5. FAILURE TESTING                             */
   /* -------------------------------------------------------------------------- */
-  describe("5. FAILURE TESTING & ORPHAN CLEANUP", () => {
-    it("cleans up orphaned Cloudinary cover when DB insert fails", async () => {
-
+  describe('5. FAILURE TESTING & ORPHAN CLEANUP', () => {
+    it('cleans up orphaned Cloudinary cover when DB insert fails', async () => {
       selectMock.mockImplementation(() => ({
         from: vi.fn(() => {
           const rows: Array<Record<string, unknown>> = [];
@@ -537,26 +617,29 @@ describe("Comprehensive QA Test Suite - EMFS Catalog", () => {
 
       insertMock.mockReturnValue({
         values: vi.fn(() => {
-          throw new Error("DB connection lost");
+          throw new Error('DB connection lost');
         }),
       });
 
       const validPng = await sharp({
-        create: { width: 300, height: 300, channels: 3, background: { r: 0, g: 255, b: 0 } },
+        create: {
+          width: 300,
+          height: 300,
+          channels: 3,
+          background: { r: 0, g: 255, b: 0 },
+        },
       })
         .png()
         .toBuffer();
 
       await expect(
-        createBookWithCover(
-          {
-            title: "Failed Book",
-            language: "en",
-            pageCount: 200,
-            cover: { body: new Uint8Array(validPng), declaredType: "image/png" },
-          }
-        ),
-      ).rejects.toThrow("DB connection lost");
+        createBookWithCover({
+          title: 'Failed Book',
+          language: 'en',
+          pageCount: 200,
+          cover: { body: new Uint8Array(validPng), declaredType: 'image/png' },
+        }),
+      ).rejects.toThrow('DB connection lost');
 
       expect(mockDeleteFromCloudinary).toHaveBeenCalledTimes(1);
     });
