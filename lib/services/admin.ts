@@ -1,9 +1,9 @@
-import "server-only";
+import 'server-only';
 
-import { and, asc, count, desc, eq, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, sql } from 'drizzle-orm';
 
-import { db } from "@/db";
-import { countOrphanedCloudinaryAssets } from "@/lib/services/catalog/cloudinary";
+import { db } from '@/db';
+import { countOrphanedCloudinaryAssets } from '@/lib/services/catalog/cloudinary';
 import {
   applications,
   batchAdmins,
@@ -15,7 +15,7 @@ import {
   profiles,
   tasks,
   user,
-} from "@/db/schema";
+} from '@/db/schema';
 
 const ADMIN_OVERVIEW_RECENT_BOOK_LIMIT = 5;
 
@@ -61,7 +61,7 @@ export type AdminApplication = {
   email: string;
   batch: string;
   appliedOn: string;
-  status: "pending" | "approved" | "handoff" | "rejected";
+  status: 'pending' | 'approved' | 'handoff' | 'rejected';
   telegramLinked: boolean;
 };
 
@@ -80,7 +80,7 @@ export type AdminStaffMember = {
   id: string;
   name: string;
   email: string;
-  role: "super_admin" | "batch_admin" | "pace_admin" | "member";
+  role: 'super_admin' | 'batch_admin' | 'pace_admin' | 'member';
   scope: string;
   lastActive: string;
 };
@@ -107,7 +107,7 @@ export async function getAdminBatches(): Promise<AdminBatch[]> {
       batchMemberships,
       and(
         eq(batchMemberships.batchId, batches.id),
-        eq(batchMemberships.status, "active"),
+        eq(batchMemberships.status, 'active'),
       ),
     )
     .groupBy(batches.id)
@@ -165,12 +165,13 @@ export async function getAdminApplications(): Promise<AdminApplication[]> {
   return rows.map((row) => {
     const membershipStatus = row.membershipStatus;
     const status =
-      membershipStatus === "rejected" ? "rejected"
-      : membershipStatus === "approved" || membershipStatus === "active" ?
-        row.telegramUsername ?
-          "handoff"
-        : "approved"
-      : "pending";
+      membershipStatus === 'rejected'
+        ? 'rejected'
+        : membershipStatus === 'approved' || membershipStatus === 'active'
+          ? row.telegramUsername
+            ? 'handoff'
+            : 'approved'
+          : 'pending';
 
     return {
       id: row.id,
@@ -180,7 +181,7 @@ export async function getAdminApplications(): Promise<AdminApplication[]> {
       name: row.name,
       email: row.email,
       batch: row.batch,
-      appliedOn: formatDate(row.appliedOn) ?? "",
+      appliedOn: formatDate(row.appliedOn) ?? '',
       status,
       telegramLinked: Boolean(row.telegramUsername),
     };
@@ -201,7 +202,7 @@ export async function getAdminPaceGroups(): Promise<AdminPaceGroup[]> {
       paceGroupMemberships,
       and(
         eq(paceGroupMemberships.paceGroupId, paceGroups.id),
-        eq(paceGroupMemberships.status, "active"),
+        eq(paceGroupMemberships.status, 'active'),
       ),
     )
     .groupBy(paceGroups.id, batches.name)
@@ -210,8 +211,8 @@ export async function getAdminPaceGroups(): Promise<AdminPaceGroup[]> {
   return rows.map((row) => ({
     ...row,
     members: Number(row.members),
-    admin: "Unassigned",
-    currentBook: "No book assigned",
+    admin: 'Unassigned',
+    currentBook: 'No book assigned',
     dayProgress: 0,
     totalDays: 0,
   }));
@@ -232,8 +233,8 @@ export async function getAdminStaff(): Promise<AdminStaffMember[]> {
 
   return rows.map((row) => ({
     ...row,
-    scope: row.role === "super_admin" ? "All batches" : "Assigned batches",
-    lastActive: formatDate(row.lastActive) ?? "Unknown",
+    scope: row.role === 'super_admin' ? 'All batches' : 'Assigned batches',
+    lastActive: formatDate(row.lastActive) ?? 'Unknown',
   }));
 }
 
@@ -247,7 +248,7 @@ export async function getAdminOverviewData() {
   const [memberCount] = await db
     .select({ count: count(profiles.id) })
     .from(profiles)
-    .where(eq(profiles.role, "member"));
+    .where(eq(profiles.role, 'member'));
   const [
     [catalogCount],
     recentAdditions,
@@ -313,7 +314,7 @@ export async function getAdminOverviewData() {
       activeBatches: adminBatches.filter((batch) => batch.registrationOpen)
         .length,
       pendingApplications: adminApplications.filter(
-        (application) => application.status === "pending",
+        (application) => application.status === 'pending',
       ).length,
       catalogSlots: Number(catalogCount?.count ?? 0),
     },

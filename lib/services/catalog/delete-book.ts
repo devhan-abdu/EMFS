@@ -1,19 +1,19 @@
-import { eq, gt, inArray, sql } from "drizzle-orm";
+import { eq, gt, inArray, sql } from 'drizzle-orm';
 
-import { db } from "@/db";
-import { books } from "@/db/schema";
-import { tasks } from "@/db/schema/tasks";
-import { requireSuperAdmin } from "@/lib/auth/authorize";
+import { db } from '@/db';
+import { books } from '@/db/schema';
+import { tasks } from '@/db/schema/tasks';
+import { requireSuperAdmin } from '@/lib/auth/authorize';
 import {
   deleteFromCloudinary,
   isCloudinaryUrl,
-} from "@/lib/services/catalog/cloudinary";
+} from '@/lib/services/catalog/cloudinary';
 import {
   deleteBookSchema,
   zodErrorToFieldErrors,
   type ActionResult,
   type DeleteBookInput,
-} from "@/lib/validations/catalog";
+} from '@/lib/validations/catalog';
 
 export type DeleteBookResult = ActionResult<{
   bookId: string;
@@ -54,9 +54,9 @@ export async function deleteBook(
         ok: false as const,
         errors: [
           {
-            field: "bookId",
-            message: "Book was not found.",
-            code: "BOOK_NOT_FOUND",
+            field: 'bookId',
+            message: 'Book was not found.',
+            code: 'BOOK_NOT_FOUND',
           },
         ],
       };

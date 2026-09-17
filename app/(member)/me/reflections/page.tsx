@@ -1,47 +1,47 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { toast } from "sonner";
+import { useState } from 'react';
+import { toast } from 'sonner';
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
 
 // Local UI Placeholders
 const sampleReflections = [
   {
-    id: "1",
+    id: '1',
     week: 4,
-    book: "The Sealed Nectar",
-    submittedOn: "Last Friday",
+    book: 'The Sealed Nectar',
+    submittedOn: 'Last Friday',
     excerpt:
-      "Reading about the early hardship in Makkah gave me a fresh perspective on patience in my daily life.",
+      'Reading about the early hardship in Makkah gave me a fresh perspective on patience in my daily life.',
     mine: true,
   },
   {
-    id: "2",
+    id: '2',
     week: 5,
-    book: "The Sealed Nectar",
-    author: "Fatima S.",
-    submittedOn: "Yesterday",
+    book: 'The Sealed Nectar',
+    author: 'Fatima S.',
+    submittedOn: 'Yesterday',
     excerpt:
-      "The unity among the Sahabah during the migration to Madinah stood out to me most this week.",
+      'The unity among the Sahabah during the migration to Madinah stood out to me most this week.',
     mine: false,
   },
   {
-    id: "3",
+    id: '3',
     week: 5,
-    book: "The Sealed Nectar",
-    author: "Aisha M.",
-    submittedOn: "2 days ago",
+    book: 'The Sealed Nectar',
+    author: 'Aisha M.',
+    submittedOn: '2 days ago',
     excerpt:
-      "Taking it slow at 5 pages a day helps me absorb the emotional depth of each event.",
+      'Taking it slow at 5 pages a day helps me absorb the emotional depth of each event.',
     mine: false,
   },
 ];
 
 export default function ReflectionsPage() {
-  const [text, setText] = useState("");
+  const [text, setText] = useState('');
   const mine = sampleReflections.filter((r) => r.mine);
   const others = sampleReflections.filter((r) => !r.mine);
 
@@ -80,14 +80,14 @@ export default function ReflectionsPage() {
               Friday
             </p>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => toast("Draft saved")}>
+              <Button variant="outline" onClick={() => toast('Draft saved')}>
                 Save draft
               </Button>
               <Button
                 disabled={text.trim().length === 0}
                 onClick={() => {
-                  toast.success("Reflection submitted");
-                  setText("");
+                  toast.success('Reflection submitted');
+                  setText('');
                 }}
               >
                 Submit

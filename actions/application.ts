@@ -1,39 +1,39 @@
-"use server";
+'use server';
 
-import { requireSession } from "@/lib/auth/authorize";
+import { requireSession } from '@/lib/auth/authorize';
 
 import {
   createApplicationSchema,
   type FormState,
-} from "@/lib/validations/application";
+} from '@/lib/validations/application';
 
 import {
   createApplication,
   ApplicationError,
-} from "@/lib/services/application/application";
+} from '@/lib/services/application/application';
 
-import { PaceGroupPreference } from "@/db/schema";
+import { PaceGroupPreference } from '@/db/schema';
 
 export async function submitApplicationAction(
   _prevState: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const rawPaceGroup = formData.get("paceGroup");
+  const rawPaceGroup = formData.get('paceGroup');
 
   const paceGroup =
-    rawPaceGroup && rawPaceGroup !== "undefined" && rawPaceGroup !== "" ?
-      (String(rawPaceGroup) as PaceGroupPreference)
-    : undefined;
+    rawPaceGroup && rawPaceGroup !== 'undefined' && rawPaceGroup !== ''
+      ? (String(rawPaceGroup) as PaceGroupPreference)
+      : undefined;
 
   const values = {
-    batchId: String(formData.get("batchId") ?? ""),
-    firstName: String(formData.get("firstName") ?? ""),
-    fatherName: String(formData.get("fatherName") ?? ""),
+    batchId: String(formData.get('batchId') ?? ''),
+    firstName: String(formData.get('firstName') ?? ''),
+    fatherName: String(formData.get('fatherName') ?? ''),
     grandfatherName:
-      String(formData.get("grandfatherName") ?? "").trim() || undefined,
-    email: String(formData.get("email") ?? ""),
-    telegramUsername: String(formData.get("telegramUsername") ?? ""),
-    phoneNumber: String(formData.get("phoneNumber") ?? ""),
+      String(formData.get('grandfatherName') ?? '').trim() || undefined,
+    email: String(formData.get('email') ?? ''),
+    telegramUsername: String(formData.get('telegramUsername') ?? ''),
+    phoneNumber: String(formData.get('phoneNumber') ?? ''),
     paceGroup,
   };
 
@@ -73,15 +73,15 @@ export async function submitApplicationAction(
       };
     }
 
-    console.error("Unhandled application error:", error);
+    console.error('Unhandled application error:', error);
 
     return {
       values,
       errors: null,
       formError:
-        error instanceof Error ?
-          error.message
-        : "Unable to submit application.",
+        error instanceof Error
+          ? error.message
+          : 'Unable to submit application.',
       success: false,
     };
   }

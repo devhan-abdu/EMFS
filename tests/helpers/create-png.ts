@@ -1,12 +1,12 @@
-import { deflateSync } from "node:zlib";
+import { deflateSync } from 'node:zlib';
 
 export function createPng(width: number, height: number): Uint8Array {
   const signature = Uint8Array.from([
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
   ]);
-  const ihdr = pngChunk("IHDR", ihdrData(width, height));
-  const idat = pngChunk("IDAT", deflateSync(rawScanlines(width, height)));
-  const iend = pngChunk("IEND", new Uint8Array());
+  const ihdr = pngChunk('IHDR', ihdrData(width, height));
+  const idat = pngChunk('IDAT', deflateSync(rawScanlines(width, height)));
+  const iend = pngChunk('IEND', new Uint8Array());
   const out = new Uint8Array(
     signature.length + ihdr.length + idat.length + iend.length,
   );

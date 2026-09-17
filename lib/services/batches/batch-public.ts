@@ -1,7 +1,7 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq, sql } from 'drizzle-orm';
 
-import { db } from "@/db";
-import { batches, batchMemberships } from "@/db/schema";
+import { db } from '@/db';
+import { batches, batchMemberships } from '@/db/schema';
 
 export type PublicBatchSummary = {
   id: string;

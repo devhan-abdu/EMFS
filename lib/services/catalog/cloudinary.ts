@@ -1,6 +1,6 @@
-import "server-only";
+import 'server-only';
 
-import crypto from "node:crypto";
+import crypto from 'node:crypto';
 
 export type CloudinaryConfig = {
   cloudName: string;
@@ -14,14 +14,14 @@ export type CloudinaryUploadResult = {
   publicId: string;
 };
 
-const CLOUDINARY_HOST = "res.cloudinary.com";
+const CLOUDINARY_HOST = 'res.cloudinary.com';
 
 export function readCloudinaryConfig(): CloudinaryConfig {
   return {
-    cloudName: requiredEnv("CLOUDINARY_CLOUD_NAME"),
-    apiKey: requiredEnv("CLOUDINARY_API_KEY"),
-    apiSecret: requiredEnv("CLOUDINARY_API_SECRET"),
-    folder: process.env.CLOUDINARY_FOLDER?.trim() || "emfs-covers",
+    cloudName: requiredEnv('CLOUDINARY_CLOUD_NAME'),
+    apiKey: requiredEnv('CLOUDINARY_API_KEY'),
+    apiSecret: requiredEnv('CLOUDINARY_API_SECRET'),
+    folder: process.env.CLOUDINARY_FOLDER?.trim() || 'emfs-covers',
   };
 }
 
@@ -38,16 +38,16 @@ export function publicIdFromCloudinaryUrl(url: string): string | null {
 
   try {
     const parsed = new URL(url);
-    const marker = "/upload/";
+    const marker = '/upload/';
     const idx = parsed.pathname.indexOf(marker);
     if (idx === -1) return null;
 
     const afterUpload = parsed.pathname.slice(idx + marker.length);
-    const segments = afterUpload.split("/").filter(Boolean);
+    const segments = afterUpload.split('/').filter(Boolean);
     const start =
-      segments[0]?.startsWith("v") && /^v\d+$/.test(segments[0]) ? 1 : 0;
-    const publicIdWithExt = segments.slice(start).join("/");
-    return publicIdWithExt.replace(/\.[^.]+$/, "") || null;
+      segments[0]?.startsWith('v') && /^v\d+$/.test(segments[0]) ? 1 : 0;
+    const publicIdWithExt = segments.slice(start).join('/');
+    return publicIdWithExt.replace(/\.[^.]+$/, '') || null;
   } catch {
     return null;
   }
@@ -72,17 +72,17 @@ export async function uploadToCloudinary(
 
   const formData = new FormData();
   formData.append(
-    "file",
+    'file',
     new Blob([Buffer.from(input.body)], { type: input.contentType }),
   );
-  formData.append("api_key", config.apiKey);
-  formData.append("timestamp", timestamp);
-  formData.append("signature", signature);
-  formData.append("folder", config.folder);
+  formData.append('api_key', config.apiKey);
+  formData.append('timestamp', timestamp);
+  formData.append('signature', signature);
+  formData.append('folder', config.folder);
 
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`,
-    { method: "POST", body: formData },
+    { method: 'POST', body: formData },
   );
 
   if (!response.ok) {
@@ -92,13 +92,13 @@ export async function uploadToCloudinary(
   const json: unknown = await response.json();
   if (
     !json ||
-    typeof json !== "object" ||
-    !("secure_url" in json) ||
-    !("public_id" in json) ||
-    typeof (json as { secure_url: unknown }).secure_url !== "string" ||
-    typeof (json as { public_id: unknown }).public_id !== "string"
+    typeof json !== 'object' ||
+    !('secure_url' in json) ||
+    !('public_id' in json) ||
+    typeof (json as { secure_url: unknown }).secure_url !== 'string' ||
+    typeof (json as { public_id: unknown }).public_id !== 'string'
   ) {
-    throw new Error("Cloudinary upload returned an unexpected payload.");
+    throw new Error('Cloudinary upload returned an unexpected payload.');
   }
 
   return {
@@ -125,14 +125,14 @@ export async function deleteFromCloudinary(
   const signature = signCloudinaryParams(params, config.apiSecret);
 
   const formData = new FormData();
-  formData.append("public_id", publicId);
-  formData.append("api_key", config.apiKey);
-  formData.append("timestamp", timestamp);
-  formData.append("signature", signature);
+  formData.append('public_id', publicId);
+  formData.append('api_key', config.apiKey);
+  formData.append('timestamp', timestamp);
+  formData.append('signature', signature);
 
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${config.cloudName}/image/destroy`,
-    { method: "POST", body: formData },
+    { method: 'POST', body: formData },
   );
 
   if (!response.ok) {
@@ -162,15 +162,15 @@ export async function countOrphanedCloudinaryAssets(
   do {
     const params = new URLSearchParams({
       prefix: resolvedConfig.folder,
-      max_results: "500",
+      max_results: '500',
     });
-    if (nextCursor) params.set("next_cursor", nextCursor);
+    if (nextCursor) params.set('next_cursor', nextCursor);
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${resolvedConfig.cloudName}/resources/image/upload?${params.toString()}`,
       {
         headers: {
-          Authorization: `Basic ${Buffer.from(`${resolvedConfig.apiKey}:${resolvedConfig.apiSecret}`).toString("base64")}`,
+          Authorization: `Basic ${Buffer.from(`${resolvedConfig.apiKey}:${resolvedConfig.apiSecret}`).toString('base64')}`,
         },
       },
     );
@@ -181,9 +181,9 @@ export async function countOrphanedCloudinaryAssets(
     }
 
     const json: unknown = await response.json();
-    if (!json || typeof json !== "object") {
+    if (!json || typeof json !== 'object') {
       throw new Error(
-        "Cloudinary resource listing returned an unexpected payload.",
+        'Cloudinary resource listing returned an unexpected payload.',
       );
     }
 
@@ -193,14 +193,14 @@ export async function countOrphanedCloudinaryAssets(
     };
     for (const resource of payload.resources ?? []) {
       if (
-        typeof resource.public_id === "string" &&
+        typeof resource.public_id === 'string' &&
         !referencedPublicIds.has(resource.public_id)
       ) {
         orphanedCount += 1;
       }
     }
     nextCursor =
-      typeof payload.next_cursor === "string" ? payload.next_cursor : undefined;
+      typeof payload.next_cursor === 'string' ? payload.next_cursor : undefined;
   } while (nextCursor);
 
   return orphanedCount;
@@ -213,11 +213,11 @@ function signCloudinaryParams(
   const payload = Object.keys(params)
     .sort()
     .map((key) => `${key}=${params[key]}`)
-    .join("&");
+    .join('&');
   return crypto
-    .createHash("sha1")
+    .createHash('sha1')
     .update(`${payload}${apiSecret}`)
-    .digest("hex");
+    .digest('hex');
 }
 
 function requiredEnv(name: string): string {

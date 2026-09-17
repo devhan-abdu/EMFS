@@ -1,47 +1,47 @@
-import Link from "next/link";
-import type { Metadata } from "next";
+import Link from 'next/link';
+import type { Metadata } from 'next';
 import {
   ArrowRight,
   BookOpen,
   HeartHandshake,
   NotebookPen,
-} from "lucide-react";
-import Image from "next/image";
+} from 'lucide-react';
+import Image from 'next/image';
 
-import { Lotus } from "@/components/brand/lotus";
-import { Button } from "@/components/ui/button";
-import { OpenBatchCard } from "@/components/batches/open-batch-card";
-import { FeaturedBatchCard } from "@/components/batches/featured-batch-card";
-import { getOpenBatchesForPublic } from "@/lib/services/batches/batch-public";
+import { Lotus } from '@/components/brand/lotus';
+import { Button } from '@/components/ui/button';
+import { OpenBatchCard } from '@/components/batches/open-batch-card';
+import { FeaturedBatchCard } from '@/components/batches/featured-batch-card';
+import { getOpenBatchesForPublic } from '@/lib/services/batches/batch-public';
 
 export const metadata: Metadata = {
-  title: "EMFSC Book Shelf — Read together, grow together",
+  title: 'EMFSC Book Shelf — Read together, grow together',
   description:
-    "The reading home of the Ethiopian Muslim Female Students Circle: shared reading batches, daily pages, weekly reflections and a circle that keeps you going.",
+    'The reading home of the Ethiopian Muslim Female Students Circle: shared reading batches, daily pages, weekly reflections and a circle that keeps you going.',
   openGraph: {
-    title: "EMFSC Book Shelf",
-    description: "Shared reading batches, daily pages and weekly reflections.",
-    type: "website",
+    title: 'EMFSC Book Shelf',
+    description: 'Shared reading batches, daily pages and weekly reflections.',
+    type: 'website',
   },
-  twitter: { card: "summary_large_image" },
-  icons: { icon: "/favicon.ico" },
+  twitter: { card: 'summary_large_image' },
+  icons: { icon: '/favicon.ico' },
 };
 
 const pillars = [
   {
     icon: BookOpen,
-    title: "Read at a shared pace",
-    body: "Every batch reads together, a few pages a day, with a pace admin adjusting the rhythm as the group moves.",
+    title: 'Read at a shared pace',
+    body: 'Every batch reads together, a few pages a day, with a pace admin adjusting the rhythm as the group moves.',
   },
   {
     icon: NotebookPen,
-    title: "Reflect each week",
-    body: "Private reflections stay yours; weekly submissions keep the circle honest and visible instead of lost in a chat.",
+    title: 'Reflect each week',
+    body: 'Private reflections stay yours; weekly submissions keep the circle honest and visible instead of lost in a chat.',
   },
   {
     icon: HeartHandshake,
-    title: "Grow with your circle",
-    body: "Attendance, streaks and gentle nudges — built for encouragement, not pressure.",
+    title: 'Grow with your circle',
+    body: 'Attendance, streaks and gentle nudges — built for encouragement, not pressure.',
   },
 ];
 
@@ -89,7 +89,7 @@ export default async function Home() {
                 go quiet.
               </p>
 
-              {visibleBatches.length === 0 ?
+              {visibleBatches.length === 0 ? (
                 <div className="mt-9 flex flex-wrap gap-3">
                   <Button size="lg" variant="outline" asChild>
                     <Link href="/signin">
@@ -98,24 +98,24 @@ export default async function Home() {
                     </Link>
                   </Button>
                 </div>
-              : null}
+              ) : null}
             </div>
           </div>
         </section>
 
-        {visibleBatches.length === 1 ?
+        {visibleBatches.length === 1 ? (
           <section className="mx-auto max-w-6xl px-6 pb-16">
             <FeaturedBatchCard batch={visibleBatches[0]!} />
           </section>
-        : null}
+        ) : null}
 
-        {visibleBatches.length > 1 ?
+        {visibleBatches.length > 1 ? (
           <section className="mx-auto max-w-6xl px-6 pb-16">
             <div className="flex items-baseline justify-between gap-4">
               <h2 className="font-display text-2xl font-semibold text-foreground">
                 Open reading batches
               </h2>
-              {hasMore ?
+              {hasMore ? (
                 <Link
                   href="/batches"
                   className="flex shrink-0 items-center gap-1 text-sm font-medium text-teal underline-offset-4 hover:underline"
@@ -123,7 +123,7 @@ export default async function Home() {
                   See all open batches
                   <ArrowRight className="size-3.5" />
                 </Link>
-              : null}
+              ) : null}
             </div>
             <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {visibleBatches.map((batch) => (
@@ -131,7 +131,7 @@ export default async function Home() {
               ))}
             </div>
           </section>
-        : null}
+        ) : null}
 
         <section className="mx-auto max-w-6xl px-6 pb-24">
           <div className="grid gap-6 md:grid-cols-3">

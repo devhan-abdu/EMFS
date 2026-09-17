@@ -1,20 +1,17 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq } from 'drizzle-orm';
 
-import { db } from "@/db";
+import { db } from '@/db';
 import {
   applications,
   batches,
   batchMemberships,
   handoffRecords,
   profiles,
-} from "@/db/schema";
-import { buildTelegramStartLink } from "@/lib/services/bot";
+} from '@/db/schema';
+import { buildTelegramStartLink } from '@/lib/services/bot';
 
 export type ApplicationHandoffStatus =
-  | "pending"
-  | "approved_pending_handoff"
-  | "active"
-  | "rejected";
+  'pending' | 'approved_pending_handoff' | 'active' | 'rejected';
 
 export type AdminApplicationWithHandoff = {
   id: string;
@@ -36,14 +33,13 @@ function deriveStatus(
   membershipStatus: string | null | undefined,
   handoffUsedAt: Date | null | undefined,
 ): ApplicationHandoffStatus {
-  if (!membershipStatus || membershipStatus === "applied") return "pending";
-  if (membershipStatus === "rejected") return "rejected";
-  if (membershipStatus === "approved") {
-    return handoffUsedAt ? "active" : "approved_pending_handoff";
+  if (!membershipStatus || membershipStatus === 'applied') return 'pending';
+  if (membershipStatus === 'rejected') return 'rejected';
+  if (membershipStatus === 'approved') {
+    return handoffUsedAt ? 'active' : 'approved_pending_handoff';
   }
-  return "active";
+  return 'active';
 }
-
 
 export async function getAdminApplicationsWithHandoff(
   batchId?: string,
@@ -79,9 +75,8 @@ export async function getAdminApplicationsWithHandoff(
 
   return rows.map((row) => {
     const status = deriveStatus(row.membershipStatus, row.handoffUsedAt);
-    const daysSinceApproved =
-      row.handoffIssuedAt ?
-        Math.floor(
+    const daysSinceApproved = row.handoffIssuedAt
+      ? Math.floor(
           (now - new Date(row.handoffIssuedAt).getTime()) /
             (1000 * 60 * 60 * 24),
         )
@@ -91,24 +86,23 @@ export async function getAdminApplicationsWithHandoff(
       id: row.id,
       profileId: row.profileId,
       batchId: row.batchId,
-      name:
-        row.firstName ?
-          `${row.firstName} ${row.fatherName ?? ""}`.trim()
+      name: row.firstName
+        ? `${row.firstName} ${row.fatherName ?? ''}`.trim()
         : `${row.firstName} ${row.fatherName}`.trim(),
       email: row.email,
-      batch: row.batchName ?? "—",
+      batch: row.batchName ?? '—',
       appliedOn: new Date(row.createdAt).toLocaleDateString(),
       status,
       handoffIssuedAt: row.handoffIssuedAt ?? null,
       handoffUsedAt: row.handoffUsedAt ?? null,
       telegramChatId:
-        row.telegramChatId === null || row.telegramChatId === undefined ?
-          null
-        : Number(row.telegramChatId),
+        row.telegramChatId === null || row.telegramChatId === undefined
+          ? null
+          : Number(row.telegramChatId),
       handoffBotLink:
-        status === "approved_pending_handoff" && row.handoffCode ?
-          buildTelegramStartLink(row.handoffCode)
-        : null,
+        status === 'approved_pending_handoff' && row.handoffCode
+          ? buildTelegramStartLink(row.handoffCode)
+          : null,
       daysSinceApproved,
     };
   });

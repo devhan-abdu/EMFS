@@ -1,18 +1,18 @@
-import Link from "next/link";
-import type { Metadata } from "next";
-import { ChevronLeft } from "lucide-react";
-import { PageHeader } from "@/components/shared/page-layout";
-import { CreateBatchForm } from "@/components/admin/create-batch-form";
-import { getEligibleBatchAdmins } from "@/lib/services/batches/batch";
+import Link from 'next/link';
+import type { Metadata } from 'next';
+import { ChevronLeft } from 'lucide-react';
+import { PageHeader } from '@/components/shared/page-layout';
+import { CreateBatchForm } from '@/components/admin/create-batch-form';
+import { getEligibleBatchAdmins } from '@/lib/services/batches/batch';
 
 export const metadata: Metadata = {
-  title: "Create a batch — EMFSC Book Shelf Admin",
+  title: 'Create a batch — EMFSC Book Shelf Admin',
   description:
-    "Create a registration-ready batch with capacity, pacing, and batch admins.",
+    'Create a registration-ready batch with capacity, pacing, and batch admins.',
   openGraph: {
-    title: "Create a batch — EMFSC Book Shelf Admin",
+    title: 'Create a batch — EMFSC Book Shelf Admin',
     description:
-      "Create a registration-ready batch with capacity, pacing, and batch admins.",
+      'Create a registration-ready batch with capacity, pacing, and batch admins.',
   },
 };
 

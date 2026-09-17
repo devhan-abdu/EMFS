@@ -1,18 +1,18 @@
-"use client";
+'use client';
 
-import { useState, useTransition } from "react";
-import { AlertCircle, Loader2 } from "lucide-react";
-import { useDebouncedCallback } from "use-debounce";
+import { useState, useTransition } from 'react';
+import { AlertCircle, Loader2 } from 'lucide-react';
+import { useDebouncedCallback } from 'use-debounce';
 
 import {
   searchGoogleBooksAction,
   type SearchGoogleBooksActionResult,
-} from "@/actions/catalog";
-import { BookCoverThumb } from "@/components/catalog/book-cover-thumb";
-import type { GoogleBookSearchResult } from "@/lib/validations/google-books";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+} from '@/actions/catalog';
+import { BookCoverThumb } from '@/components/catalog/book-cover-thumb';
+import type { GoogleBookSearchResult } from '@/lib/validations/google-books';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 const SEARCH_DEBOUNCE_MS = 400;
 
@@ -56,7 +56,7 @@ export function GoogleBooksSearch({
         setSearchError(null);
       } else {
         setSearchResults([]);
-        setSearchError(result.errors[0]?.message ?? "Search failed.");
+        setSearchError(result.errors[0]?.message ?? 'Search failed.');
       }
     });
   }, SEARCH_DEBOUNCE_MS);
@@ -148,10 +148,10 @@ export function GoogleBooksSearch({
                         {book.title}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
-                        {book.authors.length ?
-                          book.authors.join(", ")
-                        : "Unknown author"}
-                        {book.pageCount ? ` · ${book.pageCount} pages` : ""}
+                        {book.authors.length
+                          ? book.authors.join(', ')
+                          : 'Unknown author'}
+                        {book.pageCount ? ` · ${book.pageCount} pages` : ''}
                       </p>
                     </div>
                   </button>

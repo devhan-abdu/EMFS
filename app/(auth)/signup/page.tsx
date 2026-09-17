@@ -1,12 +1,12 @@
-import Link from "next/link";
-import type { Metadata } from "next";
+import Link from 'next/link';
+import type { Metadata } from 'next';
 
-import { Lotus, LotusWatermark } from "@/components/brand/lotus";
-import { SignUpForm } from "@/components/auth/signup-form";
+import { Lotus, LotusWatermark } from '@/components/brand/lotus';
+import { SignUpForm } from '@/components/auth/signup-form';
 
 export const metadata: Metadata = {
-  title: "Create an account — EMFSC Book Shelf",
-  description: "Create your EMFSC Book Shelf account with email and password.",
+  title: 'Create an account — EMFSC Book Shelf',
+  description: 'Create your EMFSC Book Shelf account with email and password.',
 };
 
 type SignUpPageProps = {

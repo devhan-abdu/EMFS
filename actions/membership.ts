@@ -1,24 +1,24 @@
-"use server";
+'use server';
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from 'next/cache';
 
 import {
   createMembershipSchema,
   transitionMembershipSchema,
   moveMembershipSchema,
   reenterMembershipSchema,
-} from "@/lib/validations/membership";
+} from '@/lib/validations/membership';
 import {
   createBatchMembership,
   transitionBatchMembership,
   moveBatchMembership,
   reenterBatchMembership,
   MembershipError,
-} from "@/lib/services/membership";
-import { requireRole } from "@/lib/auth/authorize";
+} from '@/lib/services/membership';
+import { requireRole } from '@/lib/auth/authorize';
 
 export async function createMembershipAction(input: unknown) {
-  await requireRole(["batch_admin", "super_admin"]);
+  await requireRole(['batch_admin', 'super_admin']);
 
   const parsed = createMembershipSchema.safeParse(input);
   if (!parsed.success) {
@@ -31,7 +31,7 @@ export async function createMembershipAction(input: unknown) {
       parsed.data.batchId,
       parsed.data.status,
     );
-    revalidatePath("/members");
+    revalidatePath('/members');
     return { ok: true as const, data: membership };
   } catch (e) {
     if (e instanceof MembershipError) {
@@ -48,7 +48,7 @@ export async function createMembershipAction(input: unknown) {
 }
 
 export async function transitionMembershipAction(input: unknown) {
-  const currentUser = await requireRole(["batch_admin", "super_admin"]);
+  const currentUser = await requireRole(['batch_admin', 'super_admin']);
 
   const parsed = transitionMembershipSchema.safeParse(input);
   if (!parsed.success) {
@@ -62,7 +62,7 @@ export async function transitionMembershipAction(input: unknown) {
       parsed.data.reason,
       currentUser.profile.id,
     );
-    revalidatePath("/members");
+    revalidatePath('/members');
     return { ok: true as const, data: membership };
   } catch (e) {
     if (e instanceof MembershipError) {
@@ -79,7 +79,7 @@ export async function transitionMembershipAction(input: unknown) {
 }
 
 export async function moveMembershipAction(input: unknown) {
-  const currentUser = await requireRole(["batch_admin", "super_admin"]);
+  const currentUser = await requireRole(['batch_admin', 'super_admin']);
 
   const parsed = moveMembershipSchema.safeParse(input);
   if (!parsed.success) {
@@ -109,7 +109,7 @@ export async function moveMembershipAction(input: unknown) {
 }
 
 export async function reenterMembershipAction(input: unknown) {
-  const currentUser = await requireRole(["batch_admin", "super_admin"]);
+  const currentUser = await requireRole(['batch_admin', 'super_admin']);
 
   const parsed = reenterMembershipSchema.safeParse(input);
   if (!parsed.success) {

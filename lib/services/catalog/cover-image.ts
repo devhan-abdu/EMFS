@@ -1,4 +1,4 @@
-import { imageSize } from "image-size";
+import { imageSize } from 'image-size';
 
 import {
   COVER_IMAGE_MAX_BYTES,
@@ -10,7 +10,7 @@ import {
   type ApprovedCoverImage,
   type CoverImageContentType,
   type CoverImageValidationResult,
-} from "@/lib/validations/cover-image";
+} from '@/lib/validations/cover-image';
 
 export type ValidateCoverImageInput = {
   body: Uint8Array;
@@ -23,12 +23,14 @@ export type ValidateCoverImageOptions = {
   allowOversizedDimensions?: boolean;
 };
 
-const EXTENSION_BY_TYPE: Record<CoverImageContentType, ApprovedCoverImage["extension"]> =
-  {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-  };
+const EXTENSION_BY_TYPE: Record<
+  CoverImageContentType,
+  ApprovedCoverImage['extension']
+> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
 
 /**
  * Inspect cover bytes. Never writes to object storage.
@@ -43,7 +45,7 @@ export function validateCoverImage(
   if (body.byteLength === 0) {
     return {
       ok: false,
-      errors: [coverFieldError("COVER_EMPTY", "Cover image is required.")],
+      errors: [coverFieldError('COVER_EMPTY', 'Cover image is required.')],
     };
   }
 
@@ -53,7 +55,7 @@ export function validateCoverImage(
       ok: false,
       errors: [
         coverFieldError(
-          "COVER_TOO_LARGE",
+          'COVER_TOO_LARGE',
           `Cover image must be at most ${COVER_IMAGE_MAX_BYTES} bytes (5 MiB).`,
         ),
       ],
@@ -67,8 +69,8 @@ export function validateCoverImage(
       ok: false,
       errors: [
         coverFieldError(
-          "COVER_TYPE_INVALID",
-          "Cover must be a JPEG, PNG, or WebP image (detected from file contents).",
+          'COVER_TYPE_INVALID',
+          'Cover must be a JPEG, PNG, or WebP image (detected from file contents).',
         ),
       ],
     };
@@ -80,8 +82,8 @@ export function validateCoverImage(
       ok: false,
       errors: [
         coverFieldError(
-          "COVER_TYPE_MISMATCH",
-          "Declared image type does not match the file contents.",
+          'COVER_TYPE_MISMATCH',
+          'Declared image type does not match the file contents.',
         ),
       ],
     };
@@ -100,8 +102,8 @@ export function validateCoverImage(
       ok: false,
       errors: [
         coverFieldError(
-          "COVER_UNREADABLE",
-          "Cover image could not be read. Upload a valid JPEG, PNG, or WebP file.",
+          'COVER_UNREADABLE',
+          'Cover image could not be read. Upload a valid JPEG, PNG, or WebP file.',
         ),
       ],
     };
@@ -116,8 +118,8 @@ export function validateCoverImage(
       ok: false,
       errors: [
         coverFieldError(
-          "COVER_UNREADABLE",
-          "Cover image could not be read. Upload a valid JPEG, PNG, or WebP file.",
+          'COVER_UNREADABLE',
+          'Cover image could not be read. Upload a valid JPEG, PNG, or WebP file.',
         ),
       ],
     };
@@ -131,7 +133,7 @@ export function validateCoverImage(
       ok: false,
       errors: [
         coverFieldError(
-          "COVER_DIMENSIONS_TOO_SMALL",
+          'COVER_DIMENSIONS_TOO_SMALL',
           `Cover image must be at least ${COVER_IMAGE_MIN_DIMENSION_PX}×${COVER_IMAGE_MIN_DIMENSION_PX} pixels.`,
         ),
       ],
@@ -147,7 +149,7 @@ export function validateCoverImage(
       ok: false,
       errors: [
         coverFieldError(
-          "COVER_DIMENSIONS_TOO_LARGE",
+          'COVER_DIMENSIONS_TOO_LARGE',
           `Cover image must be at most ${COVER_IMAGE_MAX_DIMENSION_PX}×${COVER_IMAGE_MAX_DIMENSION_PX} pixels.`,
         ),
       ],
@@ -168,19 +170,21 @@ export function validateCoverImage(
 
 function sniffCoverImageType(body: Uint8Array): string | undefined {
   if (isJpeg(body)) {
-    return "image/jpeg";
+    return 'image/jpeg';
   }
   if (isPng(body)) {
-    return "image/png";
+    return 'image/png';
   }
   if (isWebp(body)) {
-    return "image/webp";
+    return 'image/webp';
   }
   return undefined;
 }
 
 function isJpeg(body: Uint8Array): boolean {
-  return body.length >= 3 && body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff;
+  return (
+    body.length >= 3 && body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff
+  );
 }
 
 function isPng(body: Uint8Array): boolean {
@@ -203,19 +207,19 @@ function isWebp(body: Uint8Array): boolean {
   }
   const riff = String.fromCharCode(body[0], body[1], body[2], body[3]);
   const webp = String.fromCharCode(body[8], body[9], body[10], body[11]);
-  return riff === "RIFF" && webp === "WEBP";
+  return riff === 'RIFF' && webp === 'WEBP';
 }
 
 function normalizeDeclaredType(value: string | undefined): string | undefined {
   if (!value) {
     return undefined;
   }
-  const normalized = value.split(";")[0]?.trim().toLowerCase();
-  if (!normalized || normalized === "application/octet-stream") {
+  const normalized = value.split(';')[0]?.trim().toLowerCase();
+  if (!normalized || normalized === 'application/octet-stream') {
     return undefined;
   }
-  if (normalized === "image/jpg") {
-    return "image/jpeg";
+  if (normalized === 'image/jpg') {
+    return 'image/jpeg';
   }
   return normalized;
 }
@@ -227,11 +231,11 @@ function headerTypeMatches(
   if (!headerType) {
     return false;
   }
-  if (sniffed === "image/jpeg") {
-    return headerType === "jpg" || headerType === "jpeg";
+  if (sniffed === 'image/jpeg') {
+    return headerType === 'jpg' || headerType === 'jpeg';
   }
-  if (sniffed === "image/png") {
-    return headerType === "png";
+  if (sniffed === 'image/png') {
+    return headerType === 'png';
   }
-  return headerType === "webp";
+  return headerType === 'webp';
 }

@@ -1,19 +1,19 @@
-import Link from "next/link";
-import type { Metadata } from "next";
+import Link from 'next/link';
+import type { Metadata } from 'next';
 
-import { Lotus } from "@/components/brand/lotus";
-import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/shared/page-layout";
-import { OpenBatchCard } from "@/components/batches/open-batch-card";
-import { getOpenBatchesForPublic } from "@/lib/services/batches/batch-public";
+import { Lotus } from '@/components/brand/lotus';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/shared/page-layout';
+import { OpenBatchCard } from '@/components/batches/open-batch-card';
+import { getOpenBatchesForPublic } from '@/lib/services/batches/batch-public';
 
 export const metadata: Metadata = {
-  title: "Open reading batches — EMFSC Book Shelf",
+  title: 'Open reading batches — EMFSC Book Shelf',
   description:
-    "Browse EMFSC reading batches currently open for registration and join the circle.",
+    'Browse EMFSC reading batches currently open for registration and join the circle.',
   openGraph: {
-    title: "Open reading batches — EMFSC Book Shelf",
-    description: "Browse open reading batches and join the circle.",
+    title: 'Open reading batches — EMFSC Book Shelf',
+    description: 'Browse open reading batches and join the circle.',
   },
 };
 
@@ -51,19 +51,20 @@ export default async function PublicBatchesPage() {
           </p>
         </div>
 
-        {batches.length === 0 ?
+        {batches.length === 0 ? (
           <div className="mt-10">
             <EmptyState
               title="No open batches right now"
               description="Check back soon — new batches open for registration periodically."
             />
           </div>
-        : <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        ) : (
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {batches.map((batch) => (
               <OpenBatchCard key={batch.id} batch={batch} />
             ))}
           </div>
-        }
+        )}
       </main>
     </div>
   );

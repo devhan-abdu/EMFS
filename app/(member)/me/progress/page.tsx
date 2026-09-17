@@ -1,16 +1,16 @@
-import type { Metadata } from "next";
-import { Check, Flame, X } from "lucide-react";
+import type { Metadata } from 'next';
+import { Check, Flame, X } from 'lucide-react';
 
-import { StatCard } from "@/components/shared/page-layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { StatCard } from '@/components/shared/page-layout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 
 export const metadata: Metadata = {
-  title: "My progress — EMFSC Book Shelf",
-  description: "Pages read, reflections, attendance and streak in one place.",
+  title: 'My progress — EMFSC Book Shelf',
+  description: 'Pages read, reflections, attendance and streak in one place.',
   openGraph: {
-    title: "My progress — EMFSC Book Shelf",
-    description: "Pages read, reflections, attendance and streak in one place.",
+    title: 'My progress — EMFSC Book Shelf',
+    description: 'Pages read, reflections, attendance and streak in one place.',
   },
 };
 
@@ -25,17 +25,17 @@ const memberStats = {
 };
 
 const todayReading = {
-  batch: "Batch 4 · Seerah",
-  book: "The Sealed Nectar",
-  paceGroup: "5 pages/day",
+  batch: 'Batch 4 · Seerah',
+  book: 'The Sealed Nectar',
+  paceGroup: '5 pages/day',
 };
 
 const readingLog = [
-  { date: "Today, Oct 24", pages: "135 - 140", status: "done" },
-  { date: "Yesterday, Oct 23", pages: "130 - 134", status: "done" },
-  { date: "Oct 22", pages: "125 - 129", status: "missed" },
-  { date: "Oct 21", pages: "120 - 124", status: "done" },
-  { date: "Oct 20", pages: "115 - 119", status: "done" },
+  { date: 'Today, Oct 24', pages: '135 - 140', status: 'done' },
+  { date: 'Yesterday, Oct 23', pages: '130 - 134', status: 'done' },
+  { date: 'Oct 22', pages: '125 - 129', status: 'missed' },
+  { date: 'Oct 21', pages: '120 - 124', status: 'done' },
+  { date: 'Oct 20', pages: '115 - 119', status: 'done' },
 ];
 
 export default function ProgressPage() {
@@ -138,16 +138,17 @@ export default function ProgressPage() {
                   Pages {entry.pages}
                 </p>
               </div>
-              {entry.status === "done" ?
+              {entry.status === 'done' ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-teal/15 px-3 py-1 text-xs font-medium text-teal-foreground">
                   <Check className="size-3.5" />
                   Read
                 </span>
-              : <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
                   <X className="size-3.5" />
                   Missed
                 </span>
-              }
+              )}
             </div>
           ))}
         </Card>

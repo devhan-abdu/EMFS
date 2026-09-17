@@ -1,27 +1,26 @@
-import { eq, and, sql, asc, gt, lt } from "drizzle-orm";
-import { db } from "@/db";
-import { waitlist, batches, batchMemberships } from "@/db/schema";
+import { eq, and, sql, asc, gt, lt } from 'drizzle-orm';
+import { db } from '@/db';
+import { waitlist, batches, batchMemberships } from '@/db/schema';
 import {
   createBatchMembership,
   transitionBatchMembership,
   findActiveMembershipAnywhere,
   type DbOrTx,
-} from "@/lib/services/membership";
-
+} from '@/lib/services/membership';
 
 export type WaitlistErrorCode =
-  | "BATCH_NOT_FOUND"
-  | "ALREADY_WAITLISTED"
-  | "ALREADY_HAS_MEMBERSHIP"
-  | "NOT_FOUND"
-  | "FORBIDDEN";
+  | 'BATCH_NOT_FOUND'
+  | 'ALREADY_WAITLISTED'
+  | 'ALREADY_HAS_MEMBERSHIP'
+  | 'NOT_FOUND'
+  | 'FORBIDDEN';
 
 export class WaitlistError extends Error {
   code: WaitlistErrorCode;
   constructor(code: WaitlistErrorCode, message: string) {
     super(message);
     this.code = code;
-    this.name = "WaitlistError";
+    this.name = 'WaitlistError';
   }
 }
 
@@ -34,46 +33,45 @@ export class WaitlistError extends Error {
 export async function addToWaitlist(
   userId: string,
   batchId: string,
-  executor: DbOrTx = db
+  executor: DbOrTx = db,
 ) {
   const runAdd = async (tx: DbOrTx) => {
     const [existingBatch] = await tx
       .select({ id: batches.id })
       .from(batches)
       .where(eq(batches.id, batchId))
-      .for("update");
+      .for('update');
 
     if (!existingBatch) {
       throw new WaitlistError(
-        "BATCH_NOT_FOUND",
-        `Batch with ID '${batchId}' not found.`
+        'BATCH_NOT_FOUND',
+        `Batch with ID '${batchId}' not found.`,
       );
     }
 
-      const existingMembership = await findActiveMembershipAnywhere(userId, tx);
+    const existingMembership = await findActiveMembershipAnywhere(userId, tx);
     if (existingMembership) {
       throw new WaitlistError(
-        "ALREADY_HAS_MEMBERSHIP",
-        "You already have an active application or membership in a batch."
+        'ALREADY_HAS_MEMBERSHIP',
+        'You already have an active application or membership in a batch.',
       );
     }
 
     const existingWaitlist = await tx.query.waitlist.findFirst({
-      where: and(
-        eq(waitlist.batchId, batchId),
-        eq(waitlist.userId, userId)
-      ),
+      where: and(eq(waitlist.batchId, batchId), eq(waitlist.userId, userId)),
     });
 
     if (existingWaitlist) {
       throw new WaitlistError(
-        "ALREADY_WAITLISTED",
-        "User is already on the waitlist for this batch."
+        'ALREADY_WAITLISTED',
+        'User is already on the waitlist for this batch.',
       );
     }
 
     const maxPosResult = await tx
-      .select({ maxPos: sql<number>`COALESCE(MAX(${waitlist.queuePosition}), 0)` })
+      .select({
+        maxPos: sql<number>`COALESCE(MAX(${waitlist.queuePosition}), 0)`,
+      })
       .from(waitlist)
       .where(eq(waitlist.batchId, batchId));
 
@@ -88,7 +86,7 @@ export async function addToWaitlist(
       })
       .returning();
 
-    await createBatchMembership(userId, batchId, "waitlisted", tx);
+    await createBatchMembership(userId, batchId, 'waitlisted', tx);
 
     return inserted;
   };
@@ -109,7 +107,7 @@ export async function addToWaitlist(
 export async function removeFromWaitlist(
   waitlistId: string,
   requestingProfileId: string,
-  requestingRole?: string
+  requestingRole?: string,
 ) {
   return await db.transaction(async (tx) => {
     const existing = await tx.query.waitlist.findFirst({
@@ -118,19 +116,19 @@ export async function removeFromWaitlist(
 
     if (!existing) {
       throw new WaitlistError(
-        "NOT_FOUND",
-        `Waitlist entry with ID '${waitlistId}' not found.`
+        'NOT_FOUND',
+        `Waitlist entry with ID '${waitlistId}' not found.`,
       );
     }
 
     const isOwner = existing.userId === requestingProfileId;
     const isAdmin =
-      requestingRole === "batch_admin" || requestingRole === "super_admin";
+      requestingRole === 'batch_admin' || requestingRole === 'super_admin';
 
     if (!isOwner && !isAdmin) {
       throw new WaitlistError(
-        "FORBIDDEN",
-        "You are not authorized to remove this waitlist entry."
+        'FORBIDDEN',
+        'You are not authorized to remove this waitlist entry.',
       );
     }
 
@@ -139,24 +137,24 @@ export async function removeFromWaitlist(
       .select({ id: batches.id })
       .from(batches)
       .where(eq(batches.id, existing.batchId))
-      .for("update");
+      .for('update');
 
     // Find and update/transition the user's waitlisted batch membership
     const membership = await tx.query.batchMemberships.findFirst({
       where: and(
         eq(batchMemberships.profileId, existing.userId),
         eq(batchMemberships.batchId, existing.batchId),
-        eq(batchMemberships.status, "waitlisted")
+        eq(batchMemberships.status, 'waitlisted'),
       ),
     });
 
     if (membership) {
       await transitionBatchMembership(
         membership.id,
-        "removed",
-        "Removed from waitlist",
+        'removed',
+        'Removed from waitlist',
         undefined,
-        tx
+        tx,
       );
     }
 
@@ -171,8 +169,8 @@ export async function removeFromWaitlist(
       .where(
         and(
           eq(waitlist.batchId, existing.batchId),
-          gt(waitlist.queuePosition, existing.queuePosition)
-        )
+          gt(waitlist.queuePosition, existing.queuePosition),
+        ),
       );
 
     // Pass 2: Re-assign final compacted positive positions from negated values
@@ -184,8 +182,8 @@ export async function removeFromWaitlist(
       .where(
         and(
           eq(waitlist.batchId, existing.batchId),
-          lt(waitlist.queuePosition, 0)
-        )
+          lt(waitlist.queuePosition, 0),
+        ),
       );
 
     return existing;

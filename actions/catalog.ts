@@ -1,25 +1,28 @@
-"use server";
+'use server';
 
 import {
   AuthzError,
   authzErrorToFieldError,
   requireSuperAdmin,
-} from "@/lib/auth/authorize";
+} from '@/lib/auth/authorize';
 import {
   addPairedEditionWithCover,
   createBookWithCover,
   updateBookWithCover,
-} from "@/lib/services/catalog/create-book";
-import { deleteBook, type DeleteBookResult } from "@/lib/services/catalog/delete-book";
+} from '@/lib/services/catalog/create-book';
+import {
+  deleteBook,
+  type DeleteBookResult,
+} from '@/lib/services/catalog/delete-book';
 import {
   getCatalog,
   type PaginatedCatalogResult,
-} from "@/lib/services/catalog/get-catalog";
-import { searchGoogleBooks } from "@/lib/services/catalog/google-books";
+} from '@/lib/services/catalog/get-catalog';
+import { searchGoogleBooks } from '@/lib/services/catalog/google-books';
 import {
   reorderBooks,
   reorderCatalogSlots,
-} from "@/lib/services/catalog/reorder-catalog";
+} from '@/lib/services/catalog/reorder-catalog';
 import {
   reorderBooksSchema,
   reorderSlotsSchema,
@@ -29,23 +32,25 @@ import {
   type CreateBookWithCoverInput,
   type GetCatalogInput,
   type UpdateBookWithCoverInput,
-} from "@/lib/validations/catalog";
+} from '@/lib/validations/catalog';
 
-export type { GoogleBookSearchResult } from "@/lib/validations/google-books";
+export type { GoogleBookSearchResult } from '@/lib/validations/google-books';
 import {
   searchGoogleBooksSchema,
   type GoogleBookSearchResult,
-} from "@/lib/validations/google-books";
+} from '@/lib/validations/google-books';
 
-export type CreateBookActionResult = Awaited<ReturnType<typeof createBookWithCover>>;
+export type CreateBookActionResult = Awaited<
+  ReturnType<typeof createBookWithCover>
+>;
 
 function formString(formData: FormData, name: string): string | undefined {
   const value = formData.get(name);
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
 async function formCover(formData: FormData) {
-  const value = formData.get("cover");
+  const value = formData.get('cover');
   if (!(value instanceof File) || value.size === 0) return undefined;
   return {
     body: new Uint8Array(await value.arrayBuffer()),
@@ -68,12 +73,12 @@ export async function createBookAction(
   const parsedInput: CreateBookWithCoverInput =
     input instanceof FormData
       ? {
-          title: formString(input, "title") ?? "",
-          language: formString(input, "language"),
-          author: formString(input, "author"),
-          summary: formString(input, "summary"),
-          pageCount: formString(input, "pageCount") ?? "",
-          coverUrl: formString(input, "coverUrl"),
+          title: formString(input, 'title') ?? '',
+          language: formString(input, 'language'),
+          author: formString(input, 'author'),
+          summary: formString(input, 'summary'),
+          pageCount: formString(input, 'pageCount') ?? '',
+          coverUrl: formString(input, 'coverUrl'),
           cover: await formCover(input),
         }
       : input;
@@ -81,15 +86,23 @@ export async function createBookAction(
   try {
     return await createBookWithCover(parsedInput);
   } catch (error) {
-    console.error("createBookAction error:", error);
+    console.error('createBookAction error:', error);
     return {
       ok: false,
-      errors: [{ field: "form", message: "Failed to create book.", code: "INTERNAL_ERROR" }],
+      errors: [
+        {
+          field: 'form',
+          message: 'Failed to create book.',
+          code: 'INTERNAL_ERROR',
+        },
+      ],
     };
   }
 }
 
-export type UpdateBookActionResult = Awaited<ReturnType<typeof updateBookWithCover>>;
+export type UpdateBookActionResult = Awaited<
+  ReturnType<typeof updateBookWithCover>
+>;
 
 export async function updateBookAction(
   input: FormData | UpdateBookWithCoverInput,
@@ -108,10 +121,12 @@ export async function updateBookAction(
     const raw = (name: string) => input.get(name);
     const stringValue = (name: string) => {
       const value = raw(name);
-      return typeof value === "string" && value.trim() ? value.trim() : undefined;
+      return typeof value === 'string' && value.trim()
+        ? value.trim()
+        : undefined;
     };
-    const rawCover = raw("cover");
-    let cover: UpdateBookWithCoverInput["cover"];
+    const rawCover = raw('cover');
+    let cover: UpdateBookWithCoverInput['cover'];
     if (rawCover instanceof File && rawCover.size > 0) {
       cover = {
         body: new Uint8Array(await rawCover.arrayBuffer()),
@@ -119,13 +134,13 @@ export async function updateBookAction(
       };
     }
     parsedInput = {
-      bookId: stringValue("bookId") ?? "",
-      title: stringValue("title") ?? "",
-      language: stringValue("language"),
-      author: stringValue("author"),
-      summary: stringValue("summary"),
-      pageCount: stringValue("pageCount") ?? "",
-      coverUrl: stringValue("coverUrl"),
+      bookId: stringValue('bookId') ?? '',
+      title: stringValue('title') ?? '',
+      language: stringValue('language'),
+      author: stringValue('author'),
+      summary: stringValue('summary'),
+      pageCount: stringValue('pageCount') ?? '',
+      coverUrl: stringValue('coverUrl'),
       cover,
     };
   } else {
@@ -135,15 +150,23 @@ export async function updateBookAction(
   try {
     return await updateBookWithCover(parsedInput);
   } catch (error) {
-    console.error("updateBookAction error:", error);
+    console.error('updateBookAction error:', error);
     return {
       ok: false,
-      errors: [{ field: "form", message: "Failed to update book.", code: "INTERNAL_ERROR" }],
+      errors: [
+        {
+          field: 'form',
+          message: 'Failed to update book.',
+          code: 'INTERNAL_ERROR',
+        },
+      ],
     };
   }
 }
 
-export async function deleteBookAction(input: { bookId: string }): Promise<DeleteBookResult> {
+export async function deleteBookAction(input: {
+  bookId: string;
+}): Promise<DeleteBookResult> {
   try {
     await requireSuperAdmin();
   } catch (error) {
@@ -156,10 +179,16 @@ export async function deleteBookAction(input: { bookId: string }): Promise<Delet
   try {
     return await deleteBook(input);
   } catch (error) {
-    console.error("deleteBookAction error:", error);
+    console.error('deleteBookAction error:', error);
     return {
       ok: false,
-      errors: [{ field: "form", message: "Failed to delete book.", code: "INTERNAL_ERROR" }],
+      errors: [
+        {
+          field: 'form',
+          message: 'Failed to delete book.',
+          code: 'INTERNAL_ERROR',
+        },
+      ],
     };
   }
 }
@@ -179,10 +208,10 @@ export type AddPairedEditionActionResult =
         pairedBookId?: string | null;
       };
     }
-  | { ok: false; errors: import("@/lib/validations/cover-image").FieldError[] }
+  | { ok: false; errors: import('@/lib/validations/cover-image').FieldError[] }
   | {
       ok: false;
-      errors: import("@/lib/validations/cover-image").FieldError[];
+      errors: import('@/lib/validations/cover-image').FieldError[];
       conflict: true;
       existingEditionId: string;
       message: string;
@@ -215,46 +244,46 @@ export async function addPairedEditionAction(
   let parsedInput: AddPairedEditionWithCoverInput;
 
   if (input instanceof FormData) {
-    const rawPairedBookId = input.get("pairedBookId");
-    const rawTitle = input.get("title");
-    const rawLanguage = input.get("language");
-    const rawAuthor = input.get("author");
-    const rawSummary = input.get("summary");
-    const rawPageCount = input.get("pageCount");
-    const rawCover = input.get("cover");
-    const rawCoverUrl = input.get("coverUrl");
-    const rawEditionId = input.get("editionId");
-    const rawOverrideEditionId = input.get("overrideEditionId");
+    const rawPairedBookId = input.get('pairedBookId');
+    const rawTitle = input.get('title');
+    const rawLanguage = input.get('language');
+    const rawAuthor = input.get('author');
+    const rawSummary = input.get('summary');
+    const rawPageCount = input.get('pageCount');
+    const rawCover = input.get('cover');
+    const rawCoverUrl = input.get('coverUrl');
+    const rawEditionId = input.get('editionId');
+    const rawOverrideEditionId = input.get('overrideEditionId');
 
     const pairedBookId =
-      typeof rawPairedBookId === "string" ? rawPairedBookId.trim() : "";
-    const title = typeof rawTitle === "string" ? rawTitle.trim() : "";
+      typeof rawPairedBookId === 'string' ? rawPairedBookId.trim() : '';
+    const title = typeof rawTitle === 'string' ? rawTitle.trim() : '';
     const language =
-      typeof rawLanguage === "string" && rawLanguage.trim().length > 0
+      typeof rawLanguage === 'string' && rawLanguage.trim().length > 0
         ? rawLanguage.trim()
         : undefined;
     const author =
-      typeof rawAuthor === "string" && rawAuthor.trim().length > 0
+      typeof rawAuthor === 'string' && rawAuthor.trim().length > 0
         ? rawAuthor.trim()
         : undefined;
     const summary =
-      typeof rawSummary === "string" && rawSummary.trim().length > 0
+      typeof rawSummary === 'string' && rawSummary.trim().length > 0
         ? rawSummary.trim()
         : undefined;
     const pageCount =
-      typeof rawPageCount === "string" && rawPageCount.trim().length > 0
+      typeof rawPageCount === 'string' && rawPageCount.trim().length > 0
         ? rawPageCount.trim()
-        : "";
+        : '';
     const coverUrl =
-      typeof rawCoverUrl === "string" && rawCoverUrl.trim().length > 0
+      typeof rawCoverUrl === 'string' && rawCoverUrl.trim().length > 0
         ? rawCoverUrl.trim()
         : undefined;
     const editionId =
-      typeof rawEditionId === "string" && rawEditionId.trim().length > 0
+      typeof rawEditionId === 'string' && rawEditionId.trim().length > 0
         ? rawEditionId.trim()
         : undefined;
     const overrideEditionId =
-      typeof rawOverrideEditionId === "string" &&
+      typeof rawOverrideEditionId === 'string' &&
       rawOverrideEditionId.trim().length > 0
         ? rawOverrideEditionId.trim()
         : undefined;
@@ -288,14 +317,14 @@ export async function addPairedEditionAction(
   try {
     return await addPairedEditionWithCover(parsedInput);
   } catch (error) {
-    console.error("addPairedEditionAction error:", error);
+    console.error('addPairedEditionAction error:', error);
     return {
       ok: false,
       errors: [
         {
-          field: "form",
-          message: "Failed to add paired edition.",
-          code: "INTERNAL_ERROR",
+          field: 'form',
+          message: 'Failed to add paired edition.',
+          code: 'INTERNAL_ERROR',
         },
       ],
     };
@@ -346,14 +375,14 @@ export async function reorderCatalogSlotsAction(
   try {
     return await reorderCatalogSlots(parsed.data);
   } catch (error) {
-    console.error("reorderCatalogSlotsAction error:", error);
+    console.error('reorderCatalogSlotsAction error:', error);
     return {
       ok: false,
       errors: [
         {
-          field: "form",
-          message: "Failed to reorder catalog slots.",
-          code: "INTERNAL_ERROR",
+          field: 'form',
+          message: 'Failed to reorder catalog slots.',
+          code: 'INTERNAL_ERROR',
         },
       ],
     };
@@ -384,14 +413,14 @@ export async function reorderBooksAction(
   try {
     return await reorderBooks(parsed.data);
   } catch (error) {
-    console.error("reorderBooksAction error:", error);
+    console.error('reorderBooksAction error:', error);
     return {
       ok: false,
       errors: [
         {
-          field: "form",
-          message: "Failed to reorder books.",
-          code: "INTERNAL_ERROR",
+          field: 'form',
+          message: 'Failed to reorder books.',
+          code: 'INTERNAL_ERROR',
         },
       ],
     };
@@ -409,21 +438,23 @@ export async function getCatalogAction(
   try {
     return await getCatalog(input);
   } catch (error) {
-    console.error("getCatalogAction error:", error);
+    console.error('getCatalogAction error:', error);
     return {
       ok: false,
       errors: [
         {
-          field: "form",
-          message: "Failed to load catalog.",
-          code: "INTERNAL_ERROR",
+          field: 'form',
+          message: 'Failed to load catalog.',
+          code: 'INTERNAL_ERROR',
         },
       ],
     };
   }
 }
 
-export type SearchGoogleBooksActionResult = ActionResult<GoogleBookSearchResult[]>;
+export type SearchGoogleBooksActionResult = ActionResult<
+  GoogleBookSearchResult[]
+>;
 
 /**
  * Admin helper: search Google Books for program-book autofill.
@@ -450,50 +481,16 @@ export async function searchGoogleBooksAction(
     const results = await searchGoogleBooks(parsed.data.query);
     return { ok: true, data: results };
   } catch (error) {
-    console.error("searchGoogleBooksAction error:", error);
+    console.error('searchGoogleBooksAction error:', error);
     return {
       ok: false,
       errors: [
         {
-          field: "query",
-          message: "Failed to search Google Books.",
-          code: "INTERNAL_ERROR",
+          field: 'query',
+          message: 'Failed to search Google Books.',
+          code: 'INTERNAL_ERROR',
         },
       ],
     };
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

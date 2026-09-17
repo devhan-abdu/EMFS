@@ -1,20 +1,20 @@
-import { Minus, Plus, UserRound } from "lucide-react";
-import { toast } from "sonner";
+import { Minus, Plus, UserRound } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { PageHeader } from "@/components/shared/page-layout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { getAdminPaceGroups } from "@/lib/services/admin";
-import { Metadata } from "next";
+import { PageHeader } from '@/components/shared/page-layout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { getAdminPaceGroups } from '@/lib/services/admin';
+import { Metadata } from 'next';
 
 export const metadate: Metadata = {
-  title: "Pace groups — EMFSC Book Shelf Admin",
+  title: 'Pace groups — EMFSC Book Shelf Admin',
   description:
-    "Approve daily page targets, watch group progress and manage pace admins for each EMFSC reading group.",
+    'Approve daily page targets, watch group progress and manage pace admins for each EMFSC reading group.',
   openGraph: {
-    title: "Pace groups — EMFSC Book Shelf Admin",
-    description: "Daily page targets and progress for every reading group.",
+    title: 'Pace groups — EMFSC Book Shelf Admin',
+    description: 'Daily page targets and progress for every reading group.',
   },
 };
 

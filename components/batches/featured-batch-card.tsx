@@ -1,9 +1,9 @@
-import Link from "next/link";
-import { CalendarDays } from "lucide-react";
+import Link from 'next/link';
+import { CalendarDays } from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import type { OpenBatchCardData } from "@/components/batches/open-batch-card";
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import type { OpenBatchCardData } from '@/components/batches/open-batch-card';
 
 export function FeaturedBatchCard({ batch }: { batch: OpenBatchCardData }) {
   return (
@@ -16,7 +16,7 @@ export function FeaturedBatchCard({ batch }: { batch: OpenBatchCardData }) {
       </h2>
       <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
         <CalendarDays className="size-4" />
-        {batch.startDate ?? "Start date to be announced"}
+        {batch.startDate ?? 'Start date to be announced'}
       </p>
 
       <div className="mt-5 max-w-xs space-y-1.5">
@@ -36,7 +36,7 @@ export function FeaturedBatchCard({ batch }: { batch: OpenBatchCardData }) {
         <Link
           href={`/signin?next=${encodeURIComponent(`/batches/${batch.id}/apply`)}`}
         >
-          {batch.isFull ? "Join waitlist" : "Register now"}
+          {batch.isFull ? 'Join waitlist' : 'Register now'}
         </Link>
       </Button>
     </div>

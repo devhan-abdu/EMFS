@@ -1,5 +1,5 @@
-import { eq, and, inArray } from "drizzle-orm";
-import { db } from "@/db";
+import { eq, and, inArray } from 'drizzle-orm';
+import { db } from '@/db';
 import {
   batchMemberships,
   type BatchMembershipStatus,
@@ -7,24 +7,21 @@ import {
   membershipAuditLogs,
   handoffRecords,
   applications,
-} from "@/db/schema";
+} from '@/db/schema';
 
 export type DbClient = typeof db;
 export type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type DbOrTx = DbClient | DbTransaction;
 
 export type MembershipErrorCode =
-  | "NOT_FOUND"
-  | "INVALID_TRANSITION"
-  | "ALREADY_EXISTS"
-  | "INVALID_STATUS";
+  'NOT_FOUND' | 'INVALID_TRANSITION' | 'ALREADY_EXISTS' | 'INVALID_STATUS';
 
 export class MembershipError extends Error {
   code: MembershipErrorCode;
   constructor(code: MembershipErrorCode, message: string) {
     super(message);
     this.code = code;
-    this.name = "MembershipError";
+    this.name = 'MembershipError';
   }
 }
 
@@ -32,11 +29,11 @@ export class MembershipError extends Error {
  * Non-terminal statuses where a member is actively part of, or progressing through intake for, a batch.
  */
 export const NON_TERMINAL_STATUSES: readonly BatchMembershipStatus[] = [
-  "waitlisted",
-  "applied",
-  "approved",
-  "active",
-  "grace",
+  'waitlisted',
+  'applied',
+  'approved',
+  'active',
+  'grace',
 ] as const;
 
 /**
@@ -46,12 +43,12 @@ export const ALLOWED_TRANSITIONS: Record<
   BatchMembershipStatus,
   readonly BatchMembershipStatus[]
 > = {
-  waitlisted: ["applied", "removed"],
-  applied: ["approved", "rejected"],
-  approved: ["active"],
+  waitlisted: ['applied', 'removed'],
+  applied: ['approved', 'rejected'],
+  approved: ['active'],
   rejected: [],
-  active: ["grace", "removed"],
-  grace: ["active", "removed"],
+  active: ['grace', 'removed'],
+  grace: ['active', 'removed'],
   removed: [],
 };
 
@@ -60,7 +57,7 @@ export const ALLOWED_TRANSITIONS: Record<
  */
 export function isValidTransition(
   from: BatchMembershipStatus,
-  to: BatchMembershipStatus
+  to: BatchMembershipStatus,
 ): boolean {
   const allowed = ALLOWED_TRANSITIONS[from];
   return allowed ? allowed.includes(to) : false;
@@ -74,13 +71,13 @@ export function isValidTransition(
 export async function createBatchMembership(
   profileId: string,
   batchId: string,
-  status: BatchMembershipStatus = "applied",
-  executor: DbOrTx = db
+  status: BatchMembershipStatus = 'applied',
+  executor: DbOrTx = db,
 ) {
   if (!BATCH_MEMBERSHIP_STATUSES.includes(status)) {
     throw new MembershipError(
-      "INVALID_STATUS",
-      `Invalid membership status '${status}'.`
+      'INVALID_STATUS',
+      `Invalid membership status '${status}'.`,
     );
   }
 
@@ -89,14 +86,14 @@ export async function createBatchMembership(
     where: and(
       eq(batchMemberships.profileId, profileId),
       eq(batchMemberships.batchId, batchId),
-      inArray(batchMemberships.status, [...NON_TERMINAL_STATUSES])
+      inArray(batchMemberships.status, [...NON_TERMINAL_STATUSES]),
     ),
   });
 
   if (existingActive) {
     throw new MembershipError(
-      "ALREADY_EXISTS",
-      `Member already has an active or pending membership (status: '${existingActive.status}') in this batch.`
+      'ALREADY_EXISTS',
+      `Member already has an active or pending membership (status: '${existingActive.status}') in this batch.`,
     );
   }
 
@@ -128,12 +125,12 @@ export async function transitionBatchMembership(
   targetStatus: BatchMembershipStatus,
   reason?: string,
   actorId?: string,
-  executor: DbOrTx = db
+  executor: DbOrTx = db,
 ) {
   if (!BATCH_MEMBERSHIP_STATUSES.includes(targetStatus)) {
     throw new MembershipError(
-      "INVALID_STATUS",
-      `Invalid membership target status '${targetStatus}'.`
+      'INVALID_STATUS',
+      `Invalid membership target status '${targetStatus}'.`,
     );
   }
 
@@ -144,8 +141,8 @@ export async function transitionBatchMembership(
 
     if (!existing) {
       throw new MembershipError(
-        "NOT_FOUND",
-        `Batch membership with ID '${membershipId}' not found.`
+        'NOT_FOUND',
+        `Batch membership with ID '${membershipId}' not found.`,
       );
     }
 
@@ -153,12 +150,13 @@ export async function transitionBatchMembership(
 
     if (!isValidTransition(currentStatus, targetStatus)) {
       throw new MembershipError(
-        "INVALID_TRANSITION",
-        `Cannot transition membership status from '${currentStatus}' to '${targetStatus}'.`
+        'INVALID_TRANSITION',
+        `Cannot transition membership status from '${currentStatus}' to '${targetStatus}'.`,
       );
     }
 
-    const isTerminal = targetStatus === "removed" || targetStatus === "rejected";
+    const isTerminal =
+      targetStatus === 'removed' || targetStatus === 'rejected';
 
     const [updated] = await tx
       .update(batchMemberships)
@@ -179,7 +177,9 @@ export async function transitionBatchMembership(
         fromBatchId: existing.batchId,
         toBatchId: existing.batchId,
         actorId,
-        reason: reason || `Transitioned status from '${currentStatus}' to '${targetStatus}'.`,
+        reason:
+          reason ||
+          `Transitioned status from '${currentStatus}' to '${targetStatus}'.`,
         timestamp: new Date(),
       });
     }
@@ -204,12 +204,12 @@ export async function moveBatchMembership(
   membershipId: string,
   newBatchId: string,
   actorId: string,
-  reason: string
+  reason: string,
 ) {
   if (!reason || reason.trim().length === 0) {
     throw new MembershipError(
-      "INVALID_TRANSITION",
-      "Reason is required for batch move."
+      'INVALID_TRANSITION',
+      'Reason is required for batch move.',
     );
   }
 
@@ -220,15 +220,15 @@ export async function moveBatchMembership(
 
     if (!existing) {
       throw new MembershipError(
-        "NOT_FOUND",
-        `Batch membership with ID '${membershipId}' not found.`
+        'NOT_FOUND',
+        `Batch membership with ID '${membershipId}' not found.`,
       );
     }
 
     if (existing.batchId === newBatchId) {
       throw new MembershipError(
-        "INVALID_TRANSITION",
-        "Target batch must be different from current batch."
+        'INVALID_TRANSITION',
+        'Target batch must be different from current batch.',
       );
     }
 
@@ -267,19 +267,19 @@ export async function reenterBatchMembership(
   toBatchId: string,
   targetStatus: BatchMembershipStatus,
   actorId: string,
-  reason: string
+  reason: string,
 ) {
   if (!BATCH_MEMBERSHIP_STATUSES.includes(targetStatus)) {
     throw new MembershipError(
-      "INVALID_STATUS",
-      `Invalid membership target status '${targetStatus}'.`
+      'INVALID_STATUS',
+      `Invalid membership target status '${targetStatus}'.`,
     );
   }
 
   if (!reason || reason.trim().length === 0) {
     throw new MembershipError(
-      "INVALID_TRANSITION",
-      "Reason is required for member re-entry."
+      'INVALID_TRANSITION',
+      'Reason is required for member re-entry.',
     );
   }
 
@@ -295,7 +295,7 @@ export async function reenterBatchMembership(
 
     await tx.insert(membershipAuditLogs).values({
       memberId: profileId,
-      fromState: "removed",
+      fromState: 'removed',
       toState: targetStatus,
       fromBatchId,
       toBatchId,
@@ -307,7 +307,6 @@ export async function reenterBatchMembership(
     return inserted;
   });
 }
-
 
 export async function activateMembership(
   applicationId: string,
@@ -321,7 +320,7 @@ export async function activateMembership(
 
     if (!application) {
       throw new MembershipError(
-        "NOT_FOUND",
+        'NOT_FOUND',
         `Application '${applicationId}' not found.`,
       );
     }
@@ -330,31 +329,31 @@ export async function activateMembership(
       where: and(
         eq(batchMemberships.profileId, application.profileId),
         eq(batchMemberships.batchId, application.batchId),
-        eq(batchMemberships.status, "approved"),
+        eq(batchMemberships.status, 'approved'),
       ),
     });
 
     if (!membership) {
       throw new MembershipError(
-        "INVALID_TRANSITION",
-        "No approved membership found for this application.",
+        'INVALID_TRANSITION',
+        'No approved membership found for this application.',
       );
     }
 
     const [updated] = await tx
       .update(batchMemberships)
-      .set({ status: "active" })
+      .set({ status: 'active' })
       .where(eq(batchMemberships.id, membership.id))
       .returning();
 
     await tx.insert(membershipAuditLogs).values({
       memberId: application.profileId,
-      fromState: "approved",
-      toState: "active",
+      fromState: 'approved',
+      toState: 'active',
       fromBatchId: application.batchId,
       toBatchId: application.batchId,
       actorId,
-      reason: "Activated after Telegram bot link confirmed",
+      reason: 'Activated after Telegram bot link confirmed',
       timestamp: new Date(),
     });
 

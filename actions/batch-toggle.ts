@@ -1,22 +1,22 @@
-"use server";
+'use server';
 
-import { eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { eq } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
 
-import { db } from "@/db";
-import { batches } from "@/db/schema";
-import { requireRole } from "@/lib/auth/authorize";
+import { db } from '@/db';
+import { batches } from '@/db/schema';
+import { requireRole } from '@/lib/auth/authorize';
 
 export async function toggleRegistrationAction(input: {
   batchId: string;
   open: boolean;
 }) {
-  await requireRole(["batch_admin", "super_admin"]);
+  await requireRole(['batch_admin', 'super_admin']);
 
-  if (!input?.batchId || typeof input.open !== "boolean") {
+  if (!input?.batchId || typeof input.open !== 'boolean') {
     return {
       ok: false as const,
-      errors: { formErrors: ["Invalid request."], fieldErrors: {} },
+      errors: { formErrors: ['Invalid request.'], fieldErrors: {} },
     };
   }
 
@@ -26,6 +26,6 @@ export async function toggleRegistrationAction(input: {
     .where(eq(batches.id, input.batchId));
 
   revalidatePath(`/admin/batches/${input.batchId}`);
-  revalidatePath("/admin/batches");
+  revalidatePath('/admin/batches');
   return { ok: true as const };
 }

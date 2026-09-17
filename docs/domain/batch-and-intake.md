@@ -35,13 +35,13 @@ batch (max_members, registration_open, auto_approve, start_date, pacing)
 
 ## Who creates what
 
-| Action                                                                                                                                                                         | Role                                |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- |
-| **Book catalog** — create/reorder books, metadata, curriculum tasks                                                                                                            | `super_admin` only                  |
-| Assign **batch admins** (1–3) to a batch                                                                                                                                       | `super_admin` only                  |
-| Create batch (max members, # pace groups, `auto_approve`, start date, pacing; catalog always from sequence 1)                                                                  | `super_admin`                       |
+| Action                                                                                                                                                                                            | Role                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| **Book catalog** — create/reorder books, metadata, curriculum tasks                                                                                                                               | `super_admin` only                  |
+| Assign **batch admins** (1–3) to a batch                                                                                                                                                          | `super_admin` only                  |
+| Create batch (max members, # pace groups, `auto_approve`, start date, pacing; catalog always from sequence 1)                                                                                     | `super_admin`                       |
 | Create/edit/archive pace groups when needed; configure batch pacing; assign pace admins; open/close registration; optional manual review when `auto_approve = false`; bot-mediated intake handoff | `batch_admin` (1–3) / `super_admin` |
-| Daily ops inside pace group (approve/edit today’s page draft)                                                                                                                  | `pace_admin`                        |
+| Daily ops inside pace group (approve/edit today’s page draft)                                                                                                                                     | `pace_admin`                        |
 
 ## Pre-intake setup (super admin → batch admin)
 

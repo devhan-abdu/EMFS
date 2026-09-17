@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createBookAction } from "../actions/catalog";
-import * as createBookModule from "../lib/services/catalog/create-book";
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createBookAction } from '../actions/catalog';
+import * as createBookModule from '../lib/services/catalog/create-book';
 
 const { mockRequireSuperAdmin, AuthzErrorMock } = vi.hoisted(() => {
   class AuthzErrorMock extends Error {
-    code: "UNAUTHENTICATED" | "FORBIDDEN";
-    constructor(code: "UNAUTHENTICATED" | "FORBIDDEN", message: string) {
+    code: 'UNAUTHENTICATED' | 'FORBIDDEN';
+    constructor(code: 'UNAUTHENTICATED' | 'FORBIDDEN', message: string) {
       super(message);
       this.code = code;
     }
@@ -15,43 +15,45 @@ const { mockRequireSuperAdmin, AuthzErrorMock } = vi.hoisted(() => {
   return { mockRequireSuperAdmin, AuthzErrorMock };
 });
 
-vi.mock("server-only", () => ({}));
-vi.mock("@/db", () => ({
+vi.mock('server-only', () => ({}));
+vi.mock('@/db', () => ({
   db: {},
 }));
-vi.mock("@/lib/auth/authorize", () => ({
+vi.mock('@/lib/auth/authorize', () => ({
   AuthzError: AuthzErrorMock,
   requireSuperAdmin: mockRequireSuperAdmin,
-  authzErrorToFieldError: vi.fn((error: InstanceType<typeof AuthzErrorMock>) => ({
-    field: "auth",
-    message: error.message,
-    code: error.code,
-  })),
+  authzErrorToFieldError: vi.fn(
+    (error: InstanceType<typeof AuthzErrorMock>) => ({
+      field: 'auth',
+      message: error.message,
+      code: error.code,
+    }),
+  ),
 }));
-vi.mock("../lib/services/catalog/create-book", () => ({
+vi.mock('../lib/services/catalog/create-book', () => ({
   createBookWithCover: vi.fn(),
   addPairedEditionWithCover: vi.fn(),
 }));
-vi.mock("../lib/services/catalog/reorder-catalog", () => ({
+vi.mock('../lib/services/catalog/reorder-catalog', () => ({
   reorderCatalogSlots: vi.fn(),
 }));
-vi.mock("../lib/services/catalog/get-catalog", () => ({
+vi.mock('../lib/services/catalog/get-catalog', () => ({
   getCatalog: vi.fn(),
 }));
 
-
-describe("createBookAction", () => {
+describe('createBookAction', () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("rejects unauthenticated caller with UNAUTHENTICATED error", async () => {
+  it('rejects unauthenticated caller with UNAUTHENTICATED error', async () => {
     mockRequireSuperAdmin.mockRejectedValue(
-      new AuthzErrorMock("UNAUTHENTICATED", "You must be signed in."));
+      new AuthzErrorMock('UNAUTHENTICATED', 'You must be signed in.'),
+    );
 
     const result = await createBookAction({
-      title: "Test Book",
-      language: "en",
+      title: 'Test Book',
+      language: 'en',
       pageCount: 100,
     });
 
@@ -59,23 +61,25 @@ describe("createBookAction", () => {
     if (!result.ok) {
       expect(result.errors).toEqual([
         {
-          field: "auth",
-          code: "UNAUTHENTICATED",
-          message: "You must be signed in.",
+          field: 'auth',
+          code: 'UNAUTHENTICATED',
+          message: 'You must be signed in.',
         },
       ]);
     }
   });
 
-  it("rejects non-super-admin roles with FORBIDDEN error", async () => {
+  it('rejects non-super-admin roles with FORBIDDEN error', async () => {
     mockRequireSuperAdmin.mockRejectedValue(
       new AuthzErrorMock(
-        "FORBIDDEN",
-        "Role 'batch_admin' is not permitted. Required at least: super_admin."));
+        'FORBIDDEN',
+        "Role 'batch_admin' is not permitted. Required at least: super_admin.",
+      ),
+    );
 
     const result = await createBookAction({
-      title: "Test Book",
-      language: "en",
+      title: 'Test Book',
+      language: 'en',
       pageCount: 100,
     });
 
@@ -83,24 +87,25 @@ describe("createBookAction", () => {
     if (!result.ok) {
       expect(result.errors).toEqual([
         {
-          field: "auth",
-          code: "FORBIDDEN",
-          message: "Role 'batch_admin' is not permitted. Required at least: super_admin.",
+          field: 'auth',
+          code: 'FORBIDDEN',
+          message:
+            "Role 'batch_admin' is not permitted. Required at least: super_admin.",
         },
       ]);
     }
   });
 
-  it("successfully creates a book for super_admin with object input", async () => {
+  it('successfully creates a book for super_admin with object input', async () => {
     mockRequireSuperAdmin.mockResolvedValue({
-      authUserId: "user-1",
-      email: "admin@example.com",
+      authUserId: 'user-1',
+      email: 'admin@example.com',
       profile: {
-        id: "prof-1",
-        authUserId: "user-1",
-        role: "super_admin",
-        firstName: "Super",
-        fatherName: "Admin",
+        id: 'prof-1',
+        authUserId: 'user-1',
+        role: 'super_admin',
+        firstName: 'Super',
+        fatherName: 'Admin',
         grandfatherName: null,
         telegramUsername: null,
         phone: null,
@@ -112,52 +117,50 @@ describe("createBookAction", () => {
     vi.mocked(createBookModule.createBookWithCover).mockResolvedValue({
       ok: true,
       data: {
-        id: "book-123",
-        title: "Clean Architecture",
-        language: "en",
-        author: "Robert C. Martin",
-        coverUrl: "covers/test-uuid.webp",
+        id: 'book-123',
+        title: 'Clean Architecture',
+        language: 'en',
+        author: 'Robert C. Martin',
+        coverUrl: 'covers/test-uuid.webp',
         sequenceOrder: 1,
         pairedBookId: null,
       },
     });
 
     const result = await createBookAction({
-      title: "Clean Architecture",
-      language: "en",
-      author: "Robert C. Martin",
+      title: 'Clean Architecture',
+      language: 'en',
+      author: 'Robert C. Martin',
       pageCount: 432,
     });
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data.id).toBe("book-123");
-      expect(result.data.title).toBe("Clean Architecture");
+      expect(result.data.id).toBe('book-123');
+      expect(result.data.title).toBe('Clean Architecture');
       expect(result.data.sequenceOrder).toBe(1);
     }
-    expect(createBookModule.createBookWithCover).toHaveBeenCalledWith(
-      {
-        title: "Clean Architecture",
-        language: "en",
-        author: "Robert C. Martin",
-        summary: undefined,
-        pageCount: 432,
-        coverUrl: undefined,
-        cover: undefined,
-      }
-    );
+    expect(createBookModule.createBookWithCover).toHaveBeenCalledWith({
+      title: 'Clean Architecture',
+      language: 'en',
+      author: 'Robert C. Martin',
+      summary: undefined,
+      pageCount: 432,
+      coverUrl: undefined,
+      cover: undefined,
+    });
   });
 
-  it("handles FormData input with file upload correctly", async () => {
+  it('handles FormData input with file upload correctly', async () => {
     mockRequireSuperAdmin.mockResolvedValue({
-      authUserId: "user-1",
-      email: "admin@example.com",
+      authUserId: 'user-1',
+      email: 'admin@example.com',
       profile: {
-        id: "prof-1",
-        authUserId: "user-1",
-        role: "super_admin",
-        firstName: "Super",
-        fatherName: "Admin",
+        id: 'prof-1',
+        authUserId: 'user-1',
+        role: 'super_admin',
+        firstName: 'Super',
+        fatherName: 'Admin',
         grandfatherName: null,
         telegramUsername: null,
         phone: null,
@@ -169,52 +172,52 @@ describe("createBookAction", () => {
     vi.mocked(createBookModule.createBookWithCover).mockResolvedValue({
       ok: true,
       data: {
-        id: "book-456",
-        title: "Atomic Habits",
-        language: "am",
-        author: "James Clear",
-        coverUrl: "covers/habits.webp",
+        id: 'book-456',
+        title: 'Atomic Habits',
+        language: 'am',
+        author: 'James Clear',
+        coverUrl: 'covers/habits.webp',
         sequenceOrder: 2,
         pairedBookId: null,
       },
     });
 
     const formData = new FormData();
-    formData.append("title", "Atomic Habits");
-    formData.append("language", "am");
-    formData.append("author", "James Clear");
-    formData.append("pageCount", "320");
-    const fakeFile = new File([new Uint8Array([1, 2, 3])], "cover.png", {
-      type: "image/png",
+    formData.append('title', 'Atomic Habits');
+    formData.append('language', 'am');
+    formData.append('author', 'James Clear');
+    formData.append('pageCount', '320');
+    const fakeFile = new File([new Uint8Array([1, 2, 3])], 'cover.png', {
+      type: 'image/png',
     });
-    formData.append("cover", fakeFile);
+    formData.append('cover', fakeFile);
 
     const result = await createBookAction(formData);
 
     expect(result.ok).toBe(true);
     expect(createBookModule.createBookWithCover).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Atomic Habits",
-        language: "am",
-        author: "James Clear",
-        pageCount: "320",
+        title: 'Atomic Habits',
+        language: 'am',
+        author: 'James Clear',
+        pageCount: '320',
         cover: expect.objectContaining({
-          declaredType: "image/png",
+          declaredType: 'image/png',
         }),
-      })
+      }),
     );
   });
 
-  it("returns validation errors from service layer if validation fails", async () => {
+  it('returns validation errors from service layer if validation fails', async () => {
     mockRequireSuperAdmin.mockResolvedValue({
-      authUserId: "user-1",
-      email: "admin@example.com",
+      authUserId: 'user-1',
+      email: 'admin@example.com',
       profile: {
-        id: "prof-1",
-        authUserId: "user-1",
-        role: "super_admin",
-        firstName: "Super",
-        fatherName: "Admin",
+        id: 'prof-1',
+        authUserId: 'user-1',
+        role: 'super_admin',
+        firstName: 'Super',
+        fatherName: 'Admin',
         grandfatherName: null,
         telegramUsername: null,
         phone: null,
@@ -227,23 +230,23 @@ describe("createBookAction", () => {
       ok: false,
       errors: [
         {
-          field: "language",
-          code: "invalid_string",
-          message: "language must be en or am",
+          field: 'language',
+          code: 'invalid_string',
+          message: 'language must be en or am',
         },
       ],
     });
 
     const result = await createBookAction({
-      title: "Test Book",
-      language: "ENGLISH",
+      title: 'Test Book',
+      language: 'ENGLISH',
       pageCount: 100,
     });
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.errors[0].field).toBe("language");
-      expect(result.errors[0].code).toBe("invalid_string");
+      expect(result.errors[0].field).toBe('language');
+      expect(result.errors[0].code).toBe('invalid_string');
     }
   });
 });
