@@ -1,4 +1,4 @@
-import { asc, eq, sql } from 'drizzle-orm';
+import { asc, desc, eq, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
 import { batches, batchMemberships } from '@/db/schema';
@@ -42,7 +42,7 @@ export async function getOpenBatchesForPublic(): Promise<PublicBatchSummary[]> {
       batches.startDate,
       batches.readingDaysPerWeek,
     )
-    .orderBy(asc(batches.startDate), asc(batches.name));
+    .orderBy(desc(batches.createdAt), asc(batches.name));
 
   return rows.map((row) => {
     const enrolled = Number(row.enrolled ?? 0);
