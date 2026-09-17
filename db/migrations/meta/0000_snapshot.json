@@ -1,5 +1,5 @@
 {
-  "id": "01252b26-48b0-4052-b3f0-b73be26185a6",
+  "id": "a920fa88-e6ae-409e-a2c6-f39c3c64baf3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -388,13 +388,13 @@
           "name": "first_name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "father_name": {
           "name": "father_name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "grandfather_name": {
           "name": "grandfather_name",
@@ -495,6 +495,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "auto_approve": {
+          "name": "auto_approve",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
         },
         "start_date": {
           "name": "start_date",
@@ -691,6 +698,19 @@
           "primaryKey": false,
           "notNull": true
         },
+        "archived": {
+          "name": "archived",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
         "size": {
           "name": "size",
           "type": "integer",
@@ -712,7 +732,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "pace_groups_batch_id_idx": {
+          "name": "pace_groups_batch_id_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "pace_groups_batch_id_batches_id_fk": {
           "name": "pace_groups_batch_id_batches_id_fk",
@@ -730,6 +766,313 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pace_group_cursors": {
+      "name": "pace_group_cursors",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "pace_group_id": {
+          "name": "pace_group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "book_id": {
+          "name": "book_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_page": {
+          "name": "current_page",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "last_advanced_at": {
+          "name": "last_advanced_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "pace_group_cursors_book_id_idx": {
+          "name": "pace_group_cursors_book_id_idx",
+          "columns": [
+            {
+              "expression": "book_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pace_group_cursors_pace_group_id_idx": {
+          "name": "pace_group_cursors_pace_group_id_idx",
+          "columns": [
+            {
+              "expression": "pace_group_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pace_group_cursors_pace_group_id_pace_groups_id_fk": {
+          "name": "pace_group_cursors_pace_group_id_pace_groups_id_fk",
+          "tableFrom": "pace_group_cursors",
+          "tableTo": "pace_groups",
+          "columnsFrom": [
+            "pace_group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "pace_group_cursors_book_id_books_id_fk": {
+          "name": "pace_group_cursors_book_id_books_id_fk",
+          "tableFrom": "pace_group_cursors",
+          "tableTo": "books",
+          "columnsFrom": [
+            "book_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "pace_group_book_unique": {
+          "name": "pace_group_book_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "pace_group_id",
+            "book_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pace_admin_assignments": {
+      "name": "pace_admin_assignments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pace_group_id": {
+          "name": "pace_group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "duty": {
+          "name": "duty",
+          "type": "pace_admin_duty",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "assigned_book_id": {
+          "name": "assigned_book_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assigned_by": {
+          "name": "assigned_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "pace_admin_assignments_profile_id_idx": {
+          "name": "pace_admin_assignments_profile_id_idx",
+          "columns": [
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pace_admin_assignments_pace_group_id_idx": {
+          "name": "pace_admin_assignments_pace_group_id_idx",
+          "columns": [
+            {
+              "expression": "pace_group_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pace_admin_assignments_assigned_book_id_idx": {
+          "name": "pace_admin_assignments_assigned_book_id_idx",
+          "columns": [
+            {
+              "expression": "assigned_book_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pace_admin_assignments_profile_id_profiles_id_fk": {
+          "name": "pace_admin_assignments_profile_id_profiles_id_fk",
+          "tableFrom": "pace_admin_assignments",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "pace_admin_assignments_pace_group_id_pace_groups_id_fk": {
+          "name": "pace_admin_assignments_pace_group_id_pace_groups_id_fk",
+          "tableFrom": "pace_admin_assignments",
+          "tableTo": "pace_groups",
+          "columnsFrom": [
+            "pace_group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "pace_admin_assignments_assigned_book_id_books_id_fk": {
+          "name": "pace_admin_assignments_assigned_book_id_books_id_fk",
+          "tableFrom": "pace_admin_assignments",
+          "tableTo": "books",
+          "columnsFrom": [
+            "assigned_book_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pace_admin_assignments_assigned_by_profiles_id_fk": {
+          "name": "pace_admin_assignments_assigned_by_profiles_id_fk",
+          "tableFrom": "pace_admin_assignments",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "assigned_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "pace_admin_profile_group_duty_unique": {
+          "name": "pace_admin_profile_group_duty_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "profile_id",
+            "pace_group_id",
+            "duty"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -948,6 +1291,51 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "batch_memberships_profile_id_idx": {
+          "name": "batch_memberships_profile_id_idx",
+          "columns": [
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "batch_memberships_batch_id_idx": {
+          "name": "batch_memberships_batch_id_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "batch_memberships_status_idx": {
+          "name": "batch_memberships_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -1001,6 +1389,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "pace_group_id": {
           "name": "pace_group_id",
           "type": "uuid",
@@ -1042,7 +1436,90 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "unique_active_pace_group_membership_idx": {
+          "name": "unique_active_pace_group_membership_idx",
+          "columns": [
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "status = 'active'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pace_group_memberships_profile_id_idx": {
+          "name": "pace_group_memberships_profile_id_idx",
+          "columns": [
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pace_group_memberships_batch_id_idx": {
+          "name": "pace_group_memberships_batch_id_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pace_group_memberships_pace_group_id_idx": {
+          "name": "pace_group_memberships_pace_group_id_idx",
+          "columns": [
+            {
+              "expression": "pace_group_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pace_group_memberships_status_idx": {
+          "name": "pace_group_memberships_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "pace_group_memberships_profile_id_profiles_id_fk": {
           "name": "pace_group_memberships_profile_id_profiles_id_fk",
@@ -1050,6 +1527,19 @@
           "tableTo": "profiles",
           "columnsFrom": [
             "profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "pace_group_memberships_batch_id_batches_id_fk": {
+          "name": "pace_group_memberships_batch_id_batches_id_fk",
+          "tableFrom": "pace_group_memberships",
+          "tableTo": "batches",
+          "columnsFrom": [
+            "batch_id"
           ],
           "columnsTo": [
             "id"
@@ -1077,6 +1567,387 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.membership_move_audit": {
+      "name": "membership_move_audit",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_pace_group_id": {
+          "name": "from_pace_group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "to_pace_group_id": {
+          "name": "to_pace_group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "move_reason": {
+          "name": "move_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "moved_by": {
+          "name": "moved_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "move_date": {
+          "name": "move_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "membership_move_audit_profile_id_idx": {
+          "name": "membership_move_audit_profile_id_idx",
+          "columns": [
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "membership_move_audit_from_pace_group_id_idx": {
+          "name": "membership_move_audit_from_pace_group_id_idx",
+          "columns": [
+            {
+              "expression": "from_pace_group_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "membership_move_audit_to_pace_group_id_idx": {
+          "name": "membership_move_audit_to_pace_group_id_idx",
+          "columns": [
+            {
+              "expression": "to_pace_group_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "membership_move_audit_move_date_idx": {
+          "name": "membership_move_audit_move_date_idx",
+          "columns": [
+            {
+              "expression": "move_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "membership_move_audit_profile_id_profiles_id_fk": {
+          "name": "membership_move_audit_profile_id_profiles_id_fk",
+          "tableFrom": "membership_move_audit",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "membership_move_audit_from_pace_group_id_pace_groups_id_fk": {
+          "name": "membership_move_audit_from_pace_group_id_pace_groups_id_fk",
+          "tableFrom": "membership_move_audit",
+          "tableTo": "pace_groups",
+          "columnsFrom": [
+            "from_pace_group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "membership_move_audit_to_pace_group_id_pace_groups_id_fk": {
+          "name": "membership_move_audit_to_pace_group_id_pace_groups_id_fk",
+          "tableFrom": "membership_move_audit",
+          "tableTo": "pace_groups",
+          "columnsFrom": [
+            "to_pace_group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "membership_move_audit_moved_by_profiles_id_fk": {
+          "name": "membership_move_audit_moved_by_profiles_id_fk",
+          "tableFrom": "membership_move_audit",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "moved_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.daily_tasks": {
+      "name": "daily_tasks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "pace_group_id": {
+          "name": "pace_group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "book_id": {
+          "name": "book_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "day_number": {
+          "name": "day_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_page": {
+          "name": "start_page",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_page": {
+          "name": "end_page",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "publication_status": {
+          "name": "publication_status",
+          "type": "task_publication_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "published_by": {
+          "name": "published_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "daily_tasks_pace_group_id_idx": {
+          "name": "daily_tasks_pace_group_id_idx",
+          "columns": [
+            {
+              "expression": "pace_group_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "daily_tasks_book_id_idx": {
+          "name": "daily_tasks_book_id_idx",
+          "columns": [
+            {
+              "expression": "book_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "daily_tasks_publication_status_idx": {
+          "name": "daily_tasks_publication_status_idx",
+          "columns": [
+            {
+              "expression": "publication_status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "daily_tasks_day_number_idx": {
+          "name": "daily_tasks_day_number_idx",
+          "columns": [
+            {
+              "expression": "day_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "daily_tasks_pace_group_id_pace_groups_id_fk": {
+          "name": "daily_tasks_pace_group_id_pace_groups_id_fk",
+          "tableFrom": "daily_tasks",
+          "tableTo": "pace_groups",
+          "columnsFrom": [
+            "pace_group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "daily_tasks_book_id_books_id_fk": {
+          "name": "daily_tasks_book_id_books_id_fk",
+          "tableFrom": "daily_tasks",
+          "tableTo": "books",
+          "columnsFrom": [
+            "book_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "daily_tasks_pace_group_day_unique": {
+          "name": "daily_tasks_pace_group_day_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "pace_group_id",
+            "day_number"
+          ]
+        },
+        "daily_tasks_pace_group_book_page_unique": {
+          "name": "daily_tasks_pace_group_book_page_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "pace_group_id",
+            "book_id",
+            "start_page",
+            "end_page"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.applications": {
       "name": "applications",
       "schema": "",
@@ -1088,8 +1959,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "user_id": {
-          "name": "user_id",
+        "profile_id": {
+          "name": "profile_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -1100,11 +1971,23 @@
           "primaryKey": false,
           "notNull": true
         },
-        "registration_name": {
-          "name": "registration_name",
+        "first_name": {
+          "name": "first_name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "father_name": {
+          "name": "father_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grandfather_name": {
+          "name": "grandfather_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "email": {
           "name": "email",
@@ -1129,7 +2012,7 @@
           "type": "pace_group_preference",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -1147,11 +2030,11 @@
         }
       },
       "indexes": {
-        "unique_user_batch_application_idx": {
-          "name": "unique_user_batch_application_idx",
+        "unique_profile_batch_application_idx": {
+          "name": "unique_profile_batch_application_idx",
           "columns": [
             {
-              "expression": "user_id",
+              "expression": "profile_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1182,15 +2065,30 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "applications_profile_id_idx": {
+          "name": "applications_profile_id_idx",
+          "columns": [
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
-        "applications_user_id_profiles_id_fk": {
-          "name": "applications_user_id_profiles_id_fk",
+        "applications_profile_id_profiles_id_fk": {
+          "name": "applications_profile_id_profiles_id_fk",
           "tableFrom": "applications",
           "tableTo": "profiles",
           "columnsFrom": [
-            "user_id"
+            "profile_id"
           ],
           "columnsTo": [
             "id"
@@ -1333,6 +2231,226 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.handoff_records": {
+      "name": "handoff_records",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "application_id": {
+          "name": "application_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "used_at": {
+          "name": "used_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telegram_chat_id": {
+          "name": "telegram_chat_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "unique_handoff_code_idx": {
+          "name": "unique_handoff_code_idx",
+          "columns": [
+            {
+              "expression": "code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "unique_handoff_application_idx": {
+          "name": "unique_handoff_application_idx",
+          "columns": [
+            {
+              "expression": "application_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "handoff_records_application_id_applications_id_fk": {
+          "name": "handoff_records_application_id_applications_id_fk",
+          "tableFrom": "handoff_records",
+          "tableTo": "applications",
+          "columnsFrom": [
+            "application_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.membership_audit_logs": {
+      "name": "membership_audit_logs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "member_id": {
+          "name": "member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_state": {
+          "name": "from_state",
+          "type": "batch_membership_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "to_state": {
+          "name": "to_state",
+          "type": "batch_membership_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_batch_id": {
+          "name": "from_batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "to_batch_id": {
+          "name": "to_batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "membership_audit_logs_member_id_profiles_id_fk": {
+          "name": "membership_audit_logs_member_id_profiles_id_fk",
+          "tableFrom": "membership_audit_logs",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "membership_audit_logs_from_batch_id_batches_id_fk": {
+          "name": "membership_audit_logs_from_batch_id_batches_id_fk",
+          "tableFrom": "membership_audit_logs",
+          "tableTo": "batches",
+          "columnsFrom": [
+            "from_batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "membership_audit_logs_to_batch_id_batches_id_fk": {
+          "name": "membership_audit_logs_to_batch_id_batches_id_fk",
+          "tableFrom": "membership_audit_logs",
+          "tableTo": "batches",
+          "columnsFrom": [
+            "to_batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "membership_audit_logs_actor_id_profiles_id_fk": {
+          "name": "membership_audit_logs_actor_id_profiles_id_fk",
+          "tableFrom": "membership_audit_logs",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "actor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.books": {
       "name": "books",
       "schema": "",
@@ -1365,6 +2483,18 @@
         "cover_url": {
           "name": "cover_url",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "page_count": {
+          "name": "page_count",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -1560,6 +2690,16 @@
         "member"
       ]
     },
+    "public.pace_admin_duty": {
+      "name": "pace_admin_duty",
+      "schema": "public",
+      "values": [
+        "reflection",
+        "inspiration",
+        "attendance",
+        "daily_task"
+      ]
+    },
     "public.batch_membership_status": {
       "name": "batch_membership_status",
       "schema": "public",
@@ -1580,6 +2720,14 @@
         "active",
         "switched",
         "removed"
+      ]
+    },
+    "public.task_publication_status": {
+      "name": "task_publication_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "published"
       ]
     },
     "public.pace_group_preference": {

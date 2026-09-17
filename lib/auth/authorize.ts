@@ -1,6 +1,9 @@
 import 'server-only';
 
 import { getCurrentUser, type CurrentUser } from '@/lib/auth/session';
+import { db } from '@/db';
+import { batchAdmins } from '@/db/schema';
+import { and, eq } from 'drizzle-orm';
 
 export type Role = 'super_admin' | 'batch_admin' | 'pace_admin' | 'member';
 
@@ -62,6 +65,33 @@ export async function requireMinRole(minimum: Role): Promise<CurrentUser> {
  */
 export async function requireSuperAdmin(): Promise<CurrentUser> {
   return requireRole(['super_admin']);
+}
+
+/**
+ * Batch-scoped authorization: super_admin always passes; batch_admin only
+ * passes if assigned to THIS batch (batch_admins table). Prevents a batch
+ * admin from one batch touching another batch's pace groups.
+ */
+export async function requireBatchAccess(
+  batchId: string,
+): Promise<CurrentUser> {
+  const user = await requireRole(['batch_admin', 'super_admin']);
+  if (user.profile.role === 'super_admin') return user;
+
+  const assignment = await db.query.batchAdmins.findFirst({
+    where: and(
+      eq(batchAdmins.batchId, batchId),
+      eq(batchAdmins.profileId, user.profile.id),
+    ),
+  });
+
+  if (!assignment) {
+    throw new AuthzError(
+      'FORBIDDEN',
+      'You are not an assigned admin for this batch.',
+    );
+  }
+  return user;
 }
 
 /** Formats an AuthzError into the standard FieldError structure used across actions. */

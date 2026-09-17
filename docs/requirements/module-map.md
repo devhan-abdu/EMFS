@@ -84,9 +84,12 @@ Until placement, the member sees: **“You are accepted into this batch. Your pa
 group will be assigned soon.”** Schedule, daily Done tracking, pace-group
 attendance/reflection submission, and the pace-group feed remain unavailable.
 
-Recommended placement status on batch membership: `awaiting_placement` or
-`assigned`. Keep the batch membership `active`; do not overload `active` to mean
-that a pace-group membership exists.
+- Placement is derived, never stored: an active batch member with no active
+- pace-group membership row is "awaiting placement." Do not add a placement
+- status value to `batch_membership_status` — that enum tracks only the
+- 7 states in `lifecycles.md`. The UI-facing "awaiting placement" / "assigned"
+- labels are computed at read time from the existence of an active
+- `pace_group_memberships` row scoped to the member's batch.
 
 ### 03.1 — Pace-group data and authorization foundation
 
@@ -133,7 +136,8 @@ Stories: `US-GRP-03`, `US-GRP-04`, `US-GRP-06`.
 
 **[Assignee: group-membership]**
 
-- Support an accepted active batch member with no active pace-group membership and an explicit `awaiting_placement` status.
+-Support an accepted active batch member with no active pace-group membership; this state is derived (no stored status), matching `getMemberHomeState`.
+
 - Place a member into exactly one pace group in their active batch, individually or through a confirmed bulk action.
 - Show pace preference only when selectable groups existed at application time; preference is advisory, not automatic placement.
 - Build member requests and batch-admin approval/rejection for in-batch group changes.
