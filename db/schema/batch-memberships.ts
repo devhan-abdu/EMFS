@@ -5,6 +5,7 @@ import {
   uuid,
   pgEnum,
   uniqueIndex,
+  index,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { profiles } from './users';
@@ -49,5 +50,8 @@ export const batchMemberships = pgTable(
       .where(
         sql`status IN ('waitlisted', 'applied', 'approved', 'active', 'grace')`,
       ),
+    index('batch_memberships_profile_id_idx').on(table.profileId),
+    index('batch_memberships_batch_id_idx').on(table.batchId),
+    index('batch_memberships_status_idx').on(table.status),
   ],
 );

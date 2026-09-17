@@ -32,7 +32,7 @@ export default async function NewBatchPage() {
         title="Create a batch"
         description="Open registration once the batch settings and batch admins are ready. Pace groups and pace admins can be added later."
       />
-      <CreateBatchForm admins={admins} />;
+      <CreateBatchForm admins={admins} initialData={null} />;
     </div>
   );
 }

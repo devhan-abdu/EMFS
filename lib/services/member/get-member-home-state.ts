@@ -87,15 +87,17 @@ export async function getMemberHomeState(
     };
   }
 
-  // active | grace — check real pace-group placement via existing schema
   const placement = await db.query.paceGroupMemberships.findFirst({
     where: and(
       eq(paceGroupMemberships.profileId, profileId),
       eq(paceGroupMemberships.status, 'active'),
     ),
+    with: { paceGroup: { columns: { batchId: true } } },
   });
 
-  return placement
+  const placedInThisBatch = !!placement;
+
+  return placedInThisBatch
     ? { kind: 'active_placed', batchName }
     : { kind: 'active_awaiting_placement', batchName };
 }

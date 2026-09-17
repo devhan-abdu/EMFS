@@ -9,6 +9,9 @@ import {
 import * as sessionModule from '../lib/auth/session';
 
 vi.mock('server-only', () => ({}));
+vi.mock('@/db', () => ({
+  db: {},
+}));
 vi.mock('../lib/auth/session', () => ({
   getCurrentUser: vi.fn(),
 }));

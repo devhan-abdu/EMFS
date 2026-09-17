@@ -2,11 +2,12 @@
 
 import { useActionState, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Check, ChevronsUpDown, X } from 'lucide-react';
+import { Check, ChevronsUpDown, UserPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
   createBatchAction,
+  updateBatchAction,
   type CreateBatchActionState,
 } from '@/actions/batch';
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,7 @@ import {
 } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { BatchDetail } from '@/lib/validations/batch';
 
 export type AdminOption = {
   profileId: string;
@@ -56,29 +58,56 @@ export type AdminOption = {
 const MAX_ADMINS = 3;
 const initialState: CreateBatchActionState = null;
 
-export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
+export function CreateBatchForm({
+  admins,
+  initialData,
+}: {
+  admins: AdminOption[];
+  initialData: BatchDetail | null;
+}) {
+  const isEditing = Boolean(initialData?.id);
   const [state, formAction, isPending] = useActionState(
-    createBatchAction,
+    initialData?.id ? updateBatchAction : createBatchAction,
     initialState,
   );
 
   const router = useRouter();
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const [selectedIds, setSelectedIds] = useState<string[]>(
+    initialData?.admins?.map((a) => a.profileId) ?? [],
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState(
+    initialData?.registrationOpen ?? true,
+  );
   const fieldErrors = state?.errors?.fieldErrors ?? {};
+  const formattedDefaultDate = initialData?.startDate
+    ? new Date(initialData.startDate).toISOString().split('T')[0]
+    : undefined;
 
   useEffect(() => {
     if (state?.ok && state.data?.batch?.id) {
-      toast.success('Batch created successfully');
+      toast.success(
+        isEditing ? 'Batch updated successfully' : 'Batch created successfully',
+      );
       router.push(`/admin/batches/${state.data.batch.id}`);
     }
-  }, [state, router]);
+  }, [state, router, isEditing]);
 
   const isMaxReached = selectedIds.length >= MAX_ADMINS;
-  const selectedAdmins = admins.filter((a) =>
-    selectedIds.includes(a.profileId),
-  );
+
+  const selectedAdmins = selectedIds.map((id) => {
+    const matchedOption = admins.find((a) => a.profileId === id);
+    if (matchedOption) return matchedOption;
+
+    const matchedInitial = initialData?.admins?.find((a) => a.profileId === id);
+    return {
+      profileId: id,
+      displayName: matchedInitial?.name ?? 'Admin',
+      email: '',
+      previouslyAssigned: true,
+    };
+  });
   const suggested = admins.filter((a) => a.previouslyAssigned);
   const others = admins.filter((a) => !a.previouslyAssigned);
 
@@ -90,36 +119,36 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
     });
   }
 
+  useEffect(() => {
+    if (state?.ok && state.data?.batch?.id) {
+      toast.success('Batch created successfully');
+      router.push(`/admin/batches/${state.data.batch.id}`);
+    }
+  }, [state, router]);
+
   return (
     <form action={formAction} className="grid gap-6 lg:grid-cols-3">
       <div className="space-y-6 lg:col-span-2">
         <Card className="card-soft">
           <CardHeader>
             <CardTitle className="font-display text-xl">
-              Batch details
+              {isEditing ? 'Edit Batch' : 'Batch details'}
             </CardTitle>
-            <CardDescription>
-              Members will see the name and description.
-            </CardDescription>
+            <CardDescription>Members will see the Information</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {initialData?.id && (
+              <input type="hidden" name="id" value={initialData.id} />
+            )}
             <div className="space-y-2">
               <Label htmlFor="name">Batch name</Label>
               <Input
                 id="name"
                 name="name"
                 placeholder="Batch 05 — Spring Circle"
+                defaultValue={initialData?.name ?? state?.fields?.name ?? ''}
               />
               <FieldError message={fieldErrors.name?.[0]} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                name="description"
-                rows={3}
-                placeholder="What members can expect from this batch…"
-              />
             </div>
           </CardContent>
         </Card>
@@ -142,7 +171,9 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
                   name="maxMembers"
                   type="number"
                   min={1}
-                  defaultValue={60}
+                  defaultValue={
+                    initialData?.maxMembers ?? state?.fields?.maxMembers ?? 60
+                  }
                 />
                 <FieldError message={fieldErrors.maxMembers?.[0]} />
               </div>
@@ -153,20 +184,41 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
                   name="paceGroupCount"
                   type="number"
                   min={1}
-                  defaultValue={3}
+                  defaultValue={
+                    initialData?.paceGroupCount ??
+                    state?.fields?.paceGroupCount ??
+                    3
+                  }
                 />
                 <FieldError message={fieldErrors.paceGroupCount?.[0]} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="startDate">Reading start date</Label>
-                <Input id="startDate" name="startDate" type="date" />
+                <Input
+                  id="startDate"
+                  name="startDate"
+                  type="date"
+                  defaultValue={
+                    formattedDefaultDate ??
+                    (typeof state?.fields?.startDate === 'string'
+                      ? state.fields.startDate
+                      : undefined)
+                  }
+                />
                 <FieldError message={fieldErrors.startDate?.[0]} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="readingDaysPerWeek">
                   Reading days per week
                 </Label>
-                <Select name="readingDaysPerWeek" defaultValue="6">
+                <Select
+                  name="readingDaysPerWeek"
+                  defaultValue={String(
+                    initialData?.readingDaysPerWeek ??
+                      state?.fields?.readingDaysPerWeek ??
+                      6,
+                  )}
+                >
                   <SelectTrigger id="readingDaysPerWeek">
                     <SelectValue />
                   </SelectTrigger>
@@ -183,16 +235,6 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
             </div>
 
             <Separator />
-
-            <div className="space-y-2">
-              <Label htmlFor="note">Note for batch admins</Label>
-              <Textarea
-                id="note"
-                name="note"
-                rows={4}
-                placeholder="Anything the pace admins should know before intake opens…"
-              />
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -203,8 +245,7 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
             <CardTitle className="font-display text-xl">Registration</CardTitle>
             <CardDescription>
               Registration starts closed. When you open it, applicants are
-              approved automatically and get a Telegram bot link — no admin
-              review step.
+              approved automatically and get a Telegram bot link
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -229,9 +270,19 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
 
         <Card className="card-soft">
           <CardHeader>
-            <CardTitle className="font-display text-xl">Batch admins</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              <p className="font-display text-xl">Batch admins</p>
+
+              <Button asChild variant="ghost" size="sm" className="gap-1.5 ">
+                <Link href="/admin/roles">
+                  <UserPlus className="size-4" />
+                  Invite admin
+                </Link>
+              </Button>
+            </CardTitle>
+
             <CardDescription>
-              Pick 1&ndash;3. People previously assigned show up first.
+              Pick 1 to 3. People previously assigned show up first.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -352,7 +403,7 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
             disabled={isPending}
             aria-disabled={isPending}
           >
-            {isPending ? 'Saving…' : 'Save batch'}
+            {isPending ? 'Saving…' : isEditing ? 'Update batch' : 'Save batch'}
           </Button>
           <Button type="button" variant="outline" asChild>
             <Link href="/admin/batches">Cancel</Link>

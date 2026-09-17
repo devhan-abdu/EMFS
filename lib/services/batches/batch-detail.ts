@@ -2,19 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
 import { batchAdmins, batchMemberships, batches, profiles } from '@/db/schema';
-
-export type BatchDetail = {
-  id: string;
-  name: string;
-  maxMembers: number;
-  paceGroupCount: number;
-  registrationOpen: boolean;
-  autoApprove: boolean;
-  startDate: string | null;
-  readingDaysPerWeek: number;
-  enrolled: number;
-  admins: { profileId: string; name: string }[];
-};
+import { BatchDetail } from '@/lib/validations/batch';
 
 export async function getBatchDetail(
   batchId: string,
