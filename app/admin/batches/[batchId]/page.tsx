@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   Layers,
   MapPin,
+  Pencil,
   ShieldCheck,
   Users,
 } from 'lucide-react';
@@ -130,7 +131,12 @@ export default async function BatchDetailPage({
         actions={
           <div className="flex items-center gap-3">
             <StatusBadge status={status} />
-            <PaceGroupCreateButton batchId={batch.id} />
+            <Button asChild variant="outline" className="gap-1.5">
+              <Link href={`/admin/batches/${batch.id}/edit`}>
+                <Pencil className="size-4" />
+                Edit batch
+              </Link>
+            </Button>
           </div>
         }
       />

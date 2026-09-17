@@ -110,8 +110,7 @@ export async function getAdminBatches(): Promise<AdminBatch[]> {
         eq(batchMemberships.status, 'active'),
       ),
     )
-    .groupBy(batches.id)
-    .orderBy(desc(batches.startDate), asc(batches.name));
+    .groupBy(batches.id);
 
   const adminRows = await db
     .select({
