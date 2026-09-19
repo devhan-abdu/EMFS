@@ -1,13 +1,13 @@
-"use server";
+'use server';
 
-import { requireRole } from "@/lib/auth/authorize";
-import { searchProfilesSchema } from "@/lib/validations/user-search";
-import type { ProfileSearchResult } from "@/lib/validations/user-search";
+import { requireRole } from '@/lib/auth/authorize';
+import { searchProfilesSchema } from '@/lib/validations/user-search';
+import type { ProfileSearchResult } from '@/lib/validations/user-search';
 import {
   searchProfiles,
   getPreviouslyAssignedBatchAdmins,
   UserSearchError,
-} from "@/lib/services/user-search";
+} from '@/lib/services/user-search';
 
 type ActionResult<T> =
   | { ok: true; data: T }
@@ -20,10 +20,10 @@ export async function searchProfilesAction(
   input: unknown,
 ): Promise<ActionResult<ProfileSearchResult[]>> {
   // Enforce super_admin only access
-  await requireRole(["super_admin"]);
+  await requireRole(['super_admin']);
 
   // Support either a plain string query or an object input
-  const normalizedRaw = typeof input === "string" ? { query: input } : input;
+  const normalizedRaw = typeof input === 'string' ? { query: input } : input;
 
   const parsed = searchProfilesSchema.safeParse(normalizedRaw);
   if (!parsed.success) {
@@ -50,7 +50,7 @@ export async function searchProfilesAction(
 export async function getPreviouslyAssignedBatchAdminsAction(): Promise<
   ActionResult<ProfileSearchResult[]>
 > {
-  await requireRole(["super_admin"]);
+  await requireRole(['super_admin']);
   try {
     const data = await getPreviouslyAssignedBatchAdmins();
     return { ok: true as const, data };
@@ -62,3 +62,5 @@ export async function getPreviouslyAssignedBatchAdminsAction(): Promise<
   }
 }
 
+export const listKnownBatchAdminsAction =
+  getPreviouslyAssignedBatchAdminsAction;

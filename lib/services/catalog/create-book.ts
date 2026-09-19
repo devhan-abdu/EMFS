@@ -1,13 +1,13 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from 'drizzle-orm';
 
-import { db } from "@/db";
-import { books } from "@/db/schema";
-import { requireSuperAdmin } from "@/lib/auth/authorize";
+import { db } from '@/db';
+import { books } from '@/db/schema';
+import { requireSuperAdmin } from '@/lib/auth/authorize';
 import {
   deleteFromCloudinary,
   isCloudinaryUrl,
-} from "@/lib/services/catalog/cloudinary";
-import { uploadCoverImage } from "@/lib/services/catalog/upload-cover-image";
+} from '@/lib/services/catalog/cloudinary';
+import { uploadCoverImage } from '@/lib/services/catalog/upload-cover-image';
 import {
   addPairedEditionSchema,
   createBookSchema,
@@ -17,8 +17,8 @@ import {
   type AddPairedEditionWithCoverInput,
   type CreateBookWithCoverInput,
   type UpdateBookWithCoverInput,
-} from "@/lib/validations/catalog";
-import type { FieldError } from "@/lib/validations/cover-image";
+} from '@/lib/validations/catalog';
+import type { FieldError } from '@/lib/validations/cover-image';
 
 export type CreateBookWithCoverResult =
   | {
@@ -157,7 +157,7 @@ export async function updateBookWithCover(
 
   try {
     const [existing] = await db
-      .select({ id: books.id })
+      .select({ id: books.id, sequenceOrder: books.sequenceOrder })
       .from(books)
       .where(eq(books.id, data.bookId))
       .limit(1);
@@ -170,9 +170,36 @@ export async function updateBookWithCover(
         ok: false,
         errors: [
           {
-            field: "bookId",
-            message: "Book was not found.",
-            code: "BOOK_NOT_FOUND",
+            field: 'bookId',
+            message: 'Book was not found.',
+            code: 'BOOK_NOT_FOUND',
+          },
+        ],
+      };
+    }
+
+    const [languageClash] = await db
+      .select({ id: books.id })
+      .from(books)
+      .where(
+        and(
+          eq(books.sequenceOrder, existing.sequenceOrder),
+          eq(books.language, data.language),
+        ),
+      )
+      .limit(1);
+
+    if (languageClash && languageClash.id !== existing.id) {
+      if (uploadedCoverUrl) {
+        await cleanupOrphanedUpload(uploadedCoverUrl);
+      }
+      return {
+        ok: false,
+        errors: [
+          {
+            field: 'language',
+            message: `Slot ${existing.sequenceOrder} already has an edition for language '${data.language}'.`,
+            code: 'SLOT_LANGUAGE_EXISTS',
           },
         ],
       };
@@ -275,9 +302,9 @@ export async function addPairedEditionWithCover(
           ok: false as const,
           errors: [
             {
-              field: "pairedBookId",
-              message: "Target book to pair with was not found.",
-              code: "TARGET_BOOK_NOT_FOUND",
+              field: 'pairedBookId',
+              message: 'Target book to pair with was not found.',
+              code: 'TARGET_BOOK_NOT_FOUND',
             },
           ],
         };
@@ -295,9 +322,9 @@ export async function addPairedEditionWithCover(
             ok: false as const,
             errors: [
               {
-                field: "editionId",
-                message: "Edition to update was not found.",
-                code: "EDITION_NOT_FOUND",
+                field: 'editionId',
+                message: 'Edition to update was not found.',
+                code: 'EDITION_NOT_FOUND',
               },
             ],
           };
@@ -311,9 +338,10 @@ export async function addPairedEditionWithCover(
             ok: false as const,
             errors: [
               {
-                field: "editionId",
-                message: "Edition does not belong to the selected program book.",
-                code: "EDITION_MISMATCH",
+                field: 'editionId',
+                message:
+                  'Edition does not belong to the selected program book.',
+                code: 'EDITION_MISMATCH',
               },
             ],
           };
@@ -336,9 +364,9 @@ export async function addPairedEditionWithCover(
               ok: false as const,
               errors: [
                 {
-                  field: "language",
+                  field: 'language',
                   message: `Slot ${targetBook.sequenceOrder} already has an edition for language '${data.language}'.`,
-                  code: "SLOT_LANGUAGE_EXISTS",
+                  code: 'SLOT_LANGUAGE_EXISTS',
                 },
               ],
             };
@@ -380,9 +408,9 @@ export async function addPairedEditionWithCover(
           ok: false as const,
           errors: [
             {
-              field: "language",
+              field: 'language',
               message: `Paired edition cannot have the same language ('${data.language}') as the target book.`,
-              code: "DUPLICATE_LANGUAGE",
+              code: 'DUPLICATE_LANGUAGE',
             },
           ],
         };
@@ -395,8 +423,7 @@ export async function addPairedEditionWithCover(
           errors: [],
           conflict: true as const,
           existingEditionId: targetBook.pairedBookId,
-          message:
-            "An edition in this language already exists for this book.",
+          message: 'An edition in this language already exists for this book.',
         };
       }
 
@@ -417,8 +444,7 @@ export async function addPairedEditionWithCover(
           errors: [],
           conflict: true as const,
           existingEditionId: existingSlotLanguage.id,
-          message:
-            "An edition in this language already exists for this book.",
+          message: 'An edition in this language already exists for this book.',
         };
       }
 
@@ -495,17 +521,17 @@ export async function cleanupOrphanedUpload(
     await deleteFromCloudinary(coverReference);
   } catch (cleanupError) {
     console.error(
-      "Failed to remove orphaned cover after book creation failure",
+      'Failed to remove orphaned cover after book creation failure',
       {
         coverReference,
         cleanupError:
-          cleanupError instanceof Error ?
-            {
-              name: cleanupError.name,
-              message: cleanupError.message,
-              stack: cleanupError.stack,
-            }
-          : cleanupError,
+          cleanupError instanceof Error
+            ? {
+                name: cleanupError.name,
+                message: cleanupError.message,
+                stack: cleanupError.stack,
+              }
+            : cleanupError,
       },
     );
   }

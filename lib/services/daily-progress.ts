@@ -1,43 +1,44 @@
-import { eq, and, asc } from "drizzle-orm";
-import { db } from "@/db";
+import { eq, and, asc } from 'drizzle-orm';
+import { db } from '@/db';
 import {
   batchMemberships,
   batches,
   paceGroupMemberships,
   paceGroups,
   tasks,
+  dailyTasks,
   books,
   batchPacingOffsets,
   dailyProgress,
-} from "@/db/schema";
-import type { DbOrTx } from "@/lib/services/membership";
-import { requireSession } from "@/lib/auth/authorize";
-import type { CurrentUser } from "@/lib/auth/session";
-import { toggleDailyProgressInputSchema } from "@/lib/validations/daily-progress";
+} from '@/db/schema';
+import type { DbOrTx } from '@/lib/services/membership';
+import { requireSession } from '@/lib/auth/authorize';
+import type { CurrentUser } from '@/lib/auth/session';
+import { toggleDailyProgressInputSchema } from '@/lib/validations/daily-progress';
 
 export type ProgressErrorCode =
-  | "UNAUTHENTICATED"
-  | "FORBIDDEN"
-  | "INVALID_INPUT"
-  | "NO_ACTIVE_BATCH"
-  | "NO_ACTIVE_PACE_GROUP"
-  | "TASK_NOT_FOUND"
-  | "TASK_NOT_PUBLISHED"
-  | "BATCH_NOT_STARTED"
-  | "TASK_GROUP_MISMATCH";
+  | 'UNAUTHENTICATED'
+  | 'FORBIDDEN'
+  | 'INVALID_INPUT'
+  | 'NO_ACTIVE_BATCH'
+  | 'NO_ACTIVE_PACE_GROUP'
+  | 'TASK_NOT_FOUND'
+  | 'TASK_NOT_PUBLISHED'
+  | 'BATCH_NOT_STARTED'
+  | 'TASK_GROUP_MISMATCH';
 
 export class DailyProgressError extends Error {
   code: ProgressErrorCode;
   constructor(code: ProgressErrorCode, message: string) {
     super(message);
     this.code = code;
-    this.name = "DailyProgressError";
+    this.name = 'DailyProgressError';
   }
 }
 
 /** Formats Date or ISO string into canonical YYYY-MM-DD */
 export function formatDateKey(date: Date | string): string {
-  if (typeof date === "string") {
+  if (typeof date === 'string') {
     return date.slice(0, 10);
   }
   return date.toISOString().slice(0, 10);
@@ -45,7 +46,7 @@ export function formatDateKey(date: Date | string): string {
 
 /** Adds calendar days to a YYYY-MM-DD string without timezone or hour drift */
 export function addCalendarDays(dateStr: string, days: number): string {
-  const [year, month, day] = dateStr.split("-").map(Number);
+  const [year, month, day] = dateStr.split('-').map(Number);
   const d = new Date(Date.UTC(year, month - 1, day));
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
@@ -63,7 +64,7 @@ export function calculateTaskEffectiveDate(
 ): string {
   if (dayNumber < 1) {
     throw new DailyProgressError(
-      "INVALID_INPUT",
+      'INVALID_INPUT',
       `Day number must be positive (received ${dayNumber}).`,
     );
   }
@@ -102,14 +103,14 @@ export async function getMemberActiveBatch(
   const activeMembership = await executor.query.batchMemberships.findFirst({
     where: and(
       eq(batchMemberships.profileId, profileId),
-      eq(batchMemberships.status, "active"),
+      eq(batchMemberships.status, 'active'),
     ),
   });
 
   if (!activeMembership) {
     throw new DailyProgressError(
-      "NO_ACTIVE_BATCH",
-      "Member does not have an active batch membership.",
+      'NO_ACTIVE_BATCH',
+      'Member does not have an active batch membership.',
     );
   }
 
@@ -119,7 +120,7 @@ export async function getMemberActiveBatch(
 
   if (!batch) {
     throw new DailyProgressError(
-      "NO_ACTIVE_BATCH",
+      'NO_ACTIVE_BATCH',
       `Batch '${activeMembership.batchId}' not found.`,
     );
   }
@@ -143,14 +144,14 @@ export async function getMemberActivePaceGroup(
     await executor.query.paceGroupMemberships.findMany({
       where: and(
         eq(paceGroupMemberships.profileId, profileId),
-        eq(paceGroupMemberships.status, "active"),
+        eq(paceGroupMemberships.status, 'active'),
       ),
     });
 
   if (activeGroupMemberships.length === 0) {
     throw new DailyProgressError(
-      "NO_ACTIVE_PACE_GROUP",
-      "Member is not assigned to any active pace group.",
+      'NO_ACTIVE_PACE_GROUP',
+      'Member is not assigned to any active pace group.',
     );
   }
 
@@ -172,8 +173,8 @@ export async function getMemberActivePaceGroup(
   }
 
   throw new DailyProgressError(
-    "NO_ACTIVE_PACE_GROUP",
-    "Member does not have an active pace group assignment in their active batch.",
+    'NO_ACTIVE_PACE_GROUP',
+    'Member does not have an active pace group assignment in their active batch.',
   );
 }
 
@@ -208,13 +209,13 @@ export async function validateDailyProgressEligibility(
 ): Promise<ProgressValidationContext> {
   if (!profileId || profileId.trim().length === 0) {
     throw new DailyProgressError(
-      "UNAUTHENTICATED",
-      "Authoritative member profile ID is required.",
+      'UNAUTHENTICATED',
+      'Authoritative member profile ID is required.',
     );
   }
 
   if (!taskId || taskId.trim().length === 0) {
-    throw new DailyProgressError("INVALID_INPUT", "Task ID is required.");
+    throw new DailyProgressError('INVALID_INPUT', 'Task ID is required.');
   }
 
   const localDate = referenceLocalDate
@@ -226,7 +227,7 @@ export async function validateDailyProgressEligibility(
 
   if (!batch.startDate) {
     throw new DailyProgressError(
-      "BATCH_NOT_STARTED",
+      'BATCH_NOT_STARTED',
       `Batch '${batch.name}' has not been configured with a start date.`,
     );
   }
@@ -240,25 +241,62 @@ export async function validateDailyProgressEligibility(
     executor,
   );
 
-  // 3. Resolve master curriculum task and book
-  const task = await executor.query.tasks.findFirst({
+  // 3. Resolve curriculum task (or local daily task) and book
+  let task = await executor.query.tasks.findFirst({
     where: eq(tasks.id, taskId),
   });
 
+  let book = task
+    ? await executor.query.books.findFirst({
+        where: eq(books.id, task.bookId),
+      })
+    : null;
+
+  if (!task && executor.query.dailyTasks?.findFirst) {
+    const dailyTask = await executor.query.dailyTasks.findFirst({
+      where: eq(dailyTasks.id, taskId),
+    });
+
+    if (dailyTask) {
+      if (dailyTask.paceGroupId !== paceGroup.id) {
+        throw new DailyProgressError(
+          'TASK_GROUP_MISMATCH',
+          'This daily task belongs to another pace group.',
+        );
+      }
+
+      if (dailyTask.publicationStatus !== 'published') {
+        throw new DailyProgressError(
+          'TASK_NOT_PUBLISHED',
+          'This daily task has not been published yet.',
+        );
+      }
+
+      book = await executor.query.books.findFirst({
+        where: eq(books.id, dailyTask.bookId),
+      });
+
+      task = {
+        id: dailyTask.id,
+        bookId: dailyTask.bookId,
+        dayNumber: dailyTask.dayNumber,
+        content: dailyTask.content,
+        createdAt: dailyTask.createdAt,
+        updatedAt: dailyTask.updatedAt,
+      };
+    }
+  }
+
   if (!task) {
     throw new DailyProgressError(
-      "TASK_NOT_FOUND",
+      'TASK_NOT_FOUND',
       `Task with ID '${taskId}' was not found.`,
     );
   }
 
-  const book = await executor.query.books.findFirst({
-    where: eq(books.id, task.bookId),
-  });
-
   if (!book) {
     throw new DailyProgressError(
-      "TASK_NOT_FOUND",
+      'TASK_NOT_FOUND',
       `Book associated with task '${taskId}' was not found.`,
     );
   }
@@ -279,14 +317,14 @@ export async function validateDailyProgressEligibility(
 
   if (batchStartDate > localDate) {
     throw new DailyProgressError(
-      "BATCH_NOT_STARTED",
+      'BATCH_NOT_STARTED',
       `Batch '${batch.name}' has not started yet (scheduled to start on ${batchStartDate}, today is ${localDate}).`,
     );
   }
 
   if (effectiveDate > localDate) {
     throw new DailyProgressError(
-      "TASK_NOT_PUBLISHED",
+      'TASK_NOT_PUBLISHED',
       `Task for day ${task.dayNumber} is scheduled for ${effectiveDate}, which is unpublished for current date ${localDate}.`,
     );
   }
@@ -326,8 +364,9 @@ export async function resolveAuthoritativeProgressContext(
   const parsed = toggleDailyProgressInputSchema.safeParse(input);
   if (!parsed.success) {
     throw new DailyProgressError(
-      "INVALID_INPUT",
-      parsed.error.issues[0]?.message || "Invalid daily progress input payload.",
+      'INVALID_INPUT',
+      parsed.error.issues[0]?.message ||
+        'Invalid daily progress input payload.',
     );
   }
 
@@ -347,13 +386,13 @@ export async function resolveAuthoritativeProgressContext(
 
 export type SetDailyProgressInput = {
   taskId: string;
-  status: "done" | "not_done";
+  status: 'done' | 'not_done';
   localDate?: string;
 };
 
 export type ProgressMutationResult = {
   progress: typeof dailyProgress.$inferSelect;
-  previousStatus: "done" | "not_done" | null;
+  previousStatus: 'done' | 'not_done' | null;
   statusChanged: boolean;
 };
 
@@ -373,9 +412,9 @@ export async function recordDailyProgressForProfile(
   executor: DbOrTx = db,
 ): Promise<ProgressMutationResult> {
   const targetStatus = input.status;
-  if (targetStatus !== "done" && targetStatus !== "not_done") {
+  if (targetStatus !== 'done' && targetStatus !== 'not_done') {
     throw new DailyProgressError(
-      "INVALID_INPUT",
+      'INVALID_INPUT',
       `Invalid progress status '${targetStatus}'. Must be 'done' or 'not_done'.`,
     );
   }
@@ -397,15 +436,17 @@ export async function recordDailyProgressForProfile(
       ),
     });
 
-    const previousStatus = existing ? (existing.status as "done" | "not_done") : null;
+    const previousStatus = existing
+      ? (existing.status as 'done' | 'not_done')
+      : null;
     const statusChanged = previousStatus !== targetStatus;
     const now = new Date();
 
     // Determine completedAt timestamp
     let completedAt: Date | null = null;
-    if (targetStatus === "done") {
+    if (targetStatus === 'done') {
       completedAt =
-        previousStatus === "done" && existing?.completedAt
+        previousStatus === 'done' && existing?.completedAt
           ? existing.completedAt
           : now;
     } else {
@@ -466,8 +507,9 @@ export async function recordDailyProgress(
   const parsed = toggleDailyProgressInputSchema.safeParse(input);
   if (!parsed.success) {
     throw new DailyProgressError(
-      "INVALID_INPUT",
-      parsed.error.issues[0]?.message || "Invalid daily progress input payload.",
+      'INVALID_INPUT',
+      parsed.error.issues[0]?.message ||
+        'Invalid daily progress input payload.',
     );
   }
 

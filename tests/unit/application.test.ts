@@ -1,42 +1,40 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createApplication } from "@/lib/services/application";
-import { createApplicationSchema, paceGroupPreferenceSchema } from "@/lib/validations/application";
-import { applications } from "@/db/schema/applications";
-import { getTableConfig } from "drizzle-orm/pg-core";
-import { createBatchMembership } from "@/lib/services/membership";
-import { createHandoffRecord } from "@/lib/services/handoff";
-import { addToWaitlist } from "@/lib/services/waitlist";
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock("@/lib/services/membership", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/services/membership")>();
+import { createApplication } from '@/lib/services/application/application';
+
+import {
+  createApplicationSchema,
+  paceGroupPreferenceSchema,
+} from '@/lib/validations/application';
+
+import { applications } from '@/db/schema/applications';
+import { getTableConfig } from 'drizzle-orm/pg-core';
+
+import { createBatchMembership } from '@/lib/services/membership';
+
+import { createHandoffRecord } from '@/lib/services/application/handoff';
+
+import { addToWaitlist } from '@/lib/services/application/waitlist';
+
+import { db } from '@/db';
+
+vi.mock('@/lib/services/membership', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/lib/services/membership')>();
+
   return {
     ...actual,
     createBatchMembership: vi.fn(),
   };
 });
 
-vi.mock("@/lib/services/handoff", () => ({
+vi.mock('@/lib/services/application/handoff', () => ({
   createHandoffRecord: vi.fn(),
 }));
 
-vi.mock("@/lib/services/waitlist", () => ({
+vi.mock('@/lib/services/application/waitlist', () => ({
   addToWaitlist: vi.fn(),
 }));
-
-// Mock the db module
-vi.mock("@/db", () => {
-  return {
-    db: {
-      transaction: vi.fn((cb) => cb(dbTx)),
-      query: {
-        batchMemberships: {
-          findFirst: vi.fn(),
-        },
-      },
-      insert: vi.fn(),
-    },
-  };
-});
 
 const dbTx = {
   query: {
@@ -44,124 +42,235 @@ const dbTx = {
       findFirst: vi.fn(),
     },
   },
+
   select: vi.fn(),
+
   insert: vi.fn(),
+
+  update: vi.fn(),
 };
 
-import { db } from "@/db";
+vi.mock('@/db', () => ({
+  db: {
+    transaction: vi.fn((cb) => cb(dbTx)),
 
-describe("Application Validation Schema", () => {
+    query: {
+      batchMemberships: {
+        findFirst: vi.fn(),
+      },
+    },
+
+    insert: vi.fn(),
+  },
+}));
+
+describe('Application Validation Schema', () => {
   const validPayload = {
-    registrationName: "John Doe",
-    email: "john@example.com",
-    telegramUsername: "johndoe",
-    phoneNumber: "+1234567890",
-    batchId: "123e4567-e89b-12d3-a456-426614174000",
-    paceGroup: "10" as const,
+    firstName: 'John',
+    fatherName: 'Doe',
+    email: 'john@example.com',
+    telegramUsername: 'johndoe',
+    phoneNumber: '+251911234567',
+    batchId: '123e4567-e89b-12d3-a456-426614174000',
+    paceGroup: '10' as const,
   };
 
-  it("validates correct application input", () => {
+  it('validates correct application input', () => {
     const parsed = createApplicationSchema.safeParse(validPayload);
+
     expect(parsed.success).toBe(true);
   });
 
-  it("accepts Telegram username without @ symbol", () => {
+  it('accepts Telegram username without @ symbol', () => {
     const parsed = createApplicationSchema.safeParse({
       ...validPayload,
-      telegramUsername: "user_without_at",
+      telegramUsername: 'user_without_at',
     });
+
     expect(parsed.success).toBe(true);
   });
 
-  it("rejects invalid pace_group values", () => {
+  it('accepts optional grandfather name', () => {
     const parsed = createApplicationSchema.safeParse({
       ...validPayload,
-      paceGroup: "15", // Not in 5, 10, 20, 40
+      grandfatherName: 'Robert',
     });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it('rejects invalid pace_group values', () => {
+    const parsed = createApplicationSchema.safeParse({
+      ...validPayload,
+      paceGroup: '15',
+    });
+
     expect(parsed.success).toBe(false);
   });
 
-  it("validates exact allowed pace_group values (5, 10, 20, 40)", () => {
-    expect(paceGroupPreferenceSchema.safeParse("5").success).toBe(true);
-    expect(paceGroupPreferenceSchema.safeParse("10").success).toBe(true);
-    expect(paceGroupPreferenceSchema.safeParse("20").success).toBe(true);
-    expect(paceGroupPreferenceSchema.safeParse("40").success).toBe(true);
-    expect(paceGroupPreferenceSchema.safeParse("30").success).toBe(false);
+  it('validates exact allowed pace_group values', () => {
+    expect(paceGroupPreferenceSchema.safeParse('5').success).toBe(true);
+
+    expect(paceGroupPreferenceSchema.safeParse('10').success).toBe(true);
+
+    expect(paceGroupPreferenceSchema.safeParse('20').success).toBe(true);
+
+    expect(paceGroupPreferenceSchema.safeParse('40').success).toBe(true);
+
+    expect(paceGroupPreferenceSchema.safeParse('30').success).toBe(false);
   });
 
-  it("rejects missing required fields", () => {
+  it('rejects missing required first name', () => {
     expect(
-      createApplicationSchema.safeParse({ ...validPayload, registrationName: "" }).success
+      createApplicationSchema.safeParse({
+        ...validPayload,
+        firstName: '',
+      }).success,
     ).toBe(false);
+  });
 
+  it('rejects missing required father name', () => {
     expect(
-      createApplicationSchema.safeParse({ ...validPayload, email: "not-an-email" }).success
+      createApplicationSchema.safeParse({
+        ...validPayload,
+        fatherName: '',
+      }).success,
     ).toBe(false);
+  });
 
+  it('rejects invalid email', () => {
     expect(
-      createApplicationSchema.safeParse({ ...validPayload, phoneNumber: "" }).success
+      createApplicationSchema.safeParse({
+        ...validPayload,
+        email: 'not-an-email',
+      }).success,
     ).toBe(false);
+  });
 
+  it('rejects missing phone number', () => {
     expect(
-      createApplicationSchema.safeParse({ ...validPayload, batchId: "not-a-uuid" }).success
+      createApplicationSchema.safeParse({
+        ...validPayload,
+        phoneNumber: '',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects non-Ethiopian phone numbers', () => {
+    expect(
+      createApplicationSchema.safeParse({
+        ...validPayload,
+        phoneNumber: '+1234567890',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('accepts Ethiopian phones with +251 or leading 0', () => {
+    expect(
+      createApplicationSchema.safeParse({
+        ...validPayload,
+        phoneNumber: '+251911234567',
+      }).success,
+    ).toBe(true);
+    expect(
+      createApplicationSchema.safeParse({
+        ...validPayload,
+        phoneNumber: '0911234567',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects invalid batch UUID', () => {
+    expect(
+      createApplicationSchema.safeParse({
+        ...validPayload,
+        batchId: 'not-a-uuid',
+      }).success,
     ).toBe(false);
   });
 });
 
-describe("Application Service - createApplication", () => {
+describe('Application Service - createApplication', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(db.transaction).mockImplementation((cb: unknown) =>
-      (cb as (tx: unknown) => unknown)(dbTx) as never
+
+    vi.mocked(db.transaction).mockImplementation(
+      (cb: unknown) => (cb as (tx: unknown) => unknown)(dbTx) as never,
     );
   });
 
   const validAppInput = {
-    registrationName: "Jane Doe",
-    email: "jane@example.com",
-    telegramUsername: "janedoe",
-    phoneNumber: "+9876543210",
-    batchId: "123e4567-e89b-12d3-a456-426614174000",
-    paceGroup: "20" as const,
+    firstName: 'Jane',
+    fatherName: 'Doe',
+    email: 'jane@example.com',
+    telegramUsername: 'janedoe',
+    phoneNumber: '0911234567',
+    batchId: '123e4567-e89b-12d3-a456-426614174000',
+    paceGroup: '20' as const,
   };
 
   const mockBatch = {
     id: validAppInput.batchId,
-    name: "Batch 1",
+    name: 'Batch 1',
     maxMembers: 50,
     paceGroupCount: 4,
     registrationOpen: true,
     autoApprove: true,
-    createdBy: "admin-1",
+    createdBy: 'admin-1',
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
   function mockBatchQueries(batch: typeof mockBatch | null, activeCount = 0) {
     const forUpdateMock = vi.fn().mockResolvedValue(batch ? [batch] : []);
-    const whereBatchMock = vi.fn().mockReturnValue({ for: forUpdateMock });
-    const fromBatchMock = vi.fn().mockReturnValue({ where: whereBatchMock });
+
+    const whereBatchMock = vi.fn().mockReturnValue({
+      for: forUpdateMock,
+    });
+
+    const fromBatchMock = vi.fn().mockReturnValue({
+      where: whereBatchMock,
+    });
 
     const whereCountMock = vi.fn().mockResolvedValue([{ activeCount }]);
-    const fromCountMock = vi.fn().mockReturnValue({ where: whereCountMock });
+
+    const fromCountMock = vi.fn().mockReturnValue({
+      where: whereCountMock,
+    });
 
     let selectCallCount = 0;
+
     vi.mocked(dbTx.select).mockImplementation(() => {
       selectCallCount++;
+
       if (selectCallCount === 1) {
-        return { from: fromBatchMock } as unknown as ReturnType<typeof dbTx.select>;
+        return {
+          from: fromBatchMock,
+        } as unknown as ReturnType<typeof dbTx.select>;
       }
-      return { from: fromCountMock } as unknown as ReturnType<typeof dbTx.select>;
+
+      return {
+        from: fromCountMock,
+      } as unknown as ReturnType<typeof dbTx.select>;
     });
+
+    vi.mocked(dbTx.update).mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      }),
+    } as unknown as ReturnType<typeof dbTx.update>);
   }
 
-  it("creates an application and auto-approves when capacity is available", async () => {
+  it('creates an application and auto-approves when capacity is available', async () => {
     mockBatchQueries(mockBatch, 0);
-    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(undefined);
+
+    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(
+      undefined,
+    );
 
     const insertedRecord = {
-      id: "app-123",
-      userId: "profile-123",
+      id: 'app-123',
+      profileId: 'profile-123',
       ...validAppInput,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -173,29 +282,50 @@ describe("Application Service - createApplication", () => {
       }),
     } as unknown as ReturnType<typeof dbTx.insert>);
 
-    const result = await createApplication("profile-123", "jane@example.com", validAppInput);
-
-    expect(result).toEqual(insertedRecord);
-    expect(createBatchMembership).toHaveBeenCalledWith(
-      "profile-123",
-      validAppInput.batchId,
-      "approved",
-      dbTx
+    const result = await createApplication(
+      'profile-123',
+      'jane@example.com',
+      validAppInput,
     );
+
+    expect(result).toEqual({
+      application: insertedRecord,
+      outcome: 'approved',
+    });
+
+    expect(createBatchMembership).toHaveBeenCalledWith(
+      'profile-123',
+      validAppInput.batchId,
+      'approved',
+      dbTx,
+    );
+
     expect(createHandoffRecord).toHaveBeenCalledWith(
-      { applicationId: insertedRecord.id },
-      dbTx
+      {
+        applicationId: insertedRecord.id,
+      },
+      dbTx,
     );
+
     expect(addToWaitlist).not.toHaveBeenCalled();
   });
 
-  it("creates applied membership when auto_approve is false and capacity is available", async () => {
-    mockBatchQueries({ ...mockBatch, autoApprove: false }, 0);
-    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(undefined);
+  it('always auto-approves and issues handoff when registration is open and capacity remains', async () => {
+    mockBatchQueries(
+      {
+        ...mockBatch,
+        autoApprove: false,
+      },
+      0,
+    );
+
+    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(
+      undefined,
+    );
 
     const insertedRecord = {
-      id: "app-123",
-      userId: "profile-123",
+      id: 'app-123',
+      profileId: 'profile-123',
       ...validAppInput,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -207,44 +337,63 @@ describe("Application Service - createApplication", () => {
       }),
     } as unknown as ReturnType<typeof dbTx.insert>);
 
-    const result = await createApplication("profile-123", "jane@example.com", validAppInput);
-
-    expect(result).toEqual(insertedRecord);
-    expect(createBatchMembership).toHaveBeenCalledWith(
-      "profile-123",
-      validAppInput.batchId,
-      "applied",
-      dbTx
+    const result = await createApplication(
+      'profile-123',
+      'jane@example.com',
+      validAppInput,
     );
-    expect(createHandoffRecord).not.toHaveBeenCalled();
+
+    expect(result).toEqual({
+      application: insertedRecord,
+      outcome: 'approved',
+    });
+
+    expect(createBatchMembership).toHaveBeenCalledWith(
+      'profile-123',
+      validAppInput.batchId,
+      'approved',
+      dbTx,
+    );
+
+    expect(createHandoffRecord).toHaveBeenCalledWith(
+      {
+        applicationId: insertedRecord.id,
+      },
+      dbTx,
+    );
+
     expect(addToWaitlist).not.toHaveBeenCalled();
   });
 
-  it("REJECTS application when submitted email does not match authenticated user email", async () => {
+  it('rejects application when submitted email does not match authenticated user email', async () => {
     await expect(
-      createApplication("profile-123", "actual_user@example.com", {
+      createApplication('profile-123', 'actual_user@example.com', {
         ...validAppInput,
-        email: "spoofed@example.com",
-      })
-    ).rejects.toThrow("Submitted email does not match authenticated user email.");
+        email: 'spoofed@example.com',
+      }),
+    ).rejects.toThrow(
+      'Submitted email does not match authenticated user email.',
+    );
   });
 
-  it("throws ApplicationError if batch is not found", async () => {
+  it('throws ApplicationError if batch is not found', async () => {
     mockBatchQueries(null);
 
     await expect(
-      createApplication("profile-123", "jane@example.com", validAppInput)
-    ).rejects.toThrow("Batch '123e4567-e89b-12d3-a456-426614174000' not found.");
+      createApplication('profile-123', 'jane@example.com', validAppInput),
+    ).rejects.toThrow(
+      "Batch '123e4567-e89b-12d3-a456-426614174000' not found.",
+    );
   });
 
-  it("REJECTS duplicate application when user currently has a non-terminal membership", async () => {
+  it('rejects duplicate application when user currently has a non-terminal membership', async () => {
     mockBatchQueries(mockBatch, 0);
 
     vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue({
-      id: "mem-active",
-      profileId: "profile-123",
+      id: 'mem-active',
+      profileId: 'profile-123',
       batchId: validAppInput.batchId,
-      status: "applied",
+      status: 'applied',
       startDate: new Date(),
       endDate: null,
       removalReason: null,
@@ -252,17 +401,28 @@ describe("Application Service - createApplication", () => {
     });
 
     await expect(
-      createApplication("profile-123", "jane@example.com", validAppInput)
-    ).rejects.toThrow("You already have an application for this batch.");
+      createApplication('profile-123', 'jane@example.com', validAppInput),
+    ).rejects.toThrow(
+      'You already have an active application or membership for a batch.',
+    );
   });
 
-  it("waitlists the user when registration is closed", async () => {
-    mockBatchQueries({ ...mockBatch, registrationOpen: false }, 0);
-    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(undefined);
+  it('waitlists the user when registration is closed', async () => {
+    mockBatchQueries(
+      {
+        ...mockBatch,
+        registrationOpen: false,
+      },
+      0,
+    );
+
+    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(
+      undefined,
+    );
 
     const insertedRecord = {
-      id: "app-123",
-      userId: "profile-123",
+      id: 'app-123',
+      profileId: 'profile-123',
       ...validAppInput,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -274,25 +434,38 @@ describe("Application Service - createApplication", () => {
       }),
     } as unknown as ReturnType<typeof dbTx.insert>);
 
-    const result = await createApplication("profile-123", "jane@example.com", validAppInput);
-
-    expect(result).toEqual(insertedRecord);
-    expect(addToWaitlist).toHaveBeenCalledWith(
-      "profile-123",
-      validAppInput.batchId,
-      dbTx
+    const result = await createApplication(
+      'profile-123',
+      'jane@example.com',
+      validAppInput,
     );
+
+    expect(result).toEqual({
+      application: insertedRecord,
+      outcome: 'waitlisted',
+    });
+
+    expect(addToWaitlist).toHaveBeenCalledWith(
+      'profile-123',
+      validAppInput.batchId,
+      dbTx,
+    );
+
     expect(createBatchMembership).not.toHaveBeenCalled();
+
     expect(createHandoffRecord).not.toHaveBeenCalled();
   });
 
-  it("ALLOWS re-application when user membership is in a terminal status ('rejected')", async () => {
+  it("allows re-application when user membership is in terminal status 'rejected'", async () => {
     mockBatchQueries(mockBatch, 0);
-    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(undefined);
+
+    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(
+      undefined,
+    );
 
     const updatedAppRecord = {
-      id: "app-123",
-      userId: "profile-123",
+      id: 'app-123',
+      profileId: 'profile-123',
       ...validAppInput,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -304,19 +477,30 @@ describe("Application Service - createApplication", () => {
       }),
     } as unknown as ReturnType<typeof dbTx.insert>);
 
-    const result = await createApplication("profile-123", "jane@example.com", validAppInput);
+    const result = await createApplication(
+      'profile-123',
+      'jane@example.com',
+      validAppInput,
+    );
 
-    expect(result).toEqual(updatedAppRecord);
+    expect(result).toEqual({
+      application: updatedAppRecord,
+      outcome: 'approved',
+    });
+
     expect(createBatchMembership).toHaveBeenCalled();
   });
 
-  it("ALLOWS re-application when user membership is in a terminal status ('removed')", async () => {
+  it("allows re-application when user membership is in terminal status 'removed'", async () => {
     mockBatchQueries(mockBatch, 0);
-    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(undefined);
+
+    vi.mocked(dbTx.query.batchMemberships.findFirst).mockResolvedValue(
+      undefined,
+    );
 
     const updatedAppRecord = {
-      id: "app-123",
-      userId: "profile-123",
+      id: 'app-123',
+      profileId: 'profile-123',
       ...validAppInput,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -328,18 +512,27 @@ describe("Application Service - createApplication", () => {
       }),
     } as unknown as ReturnType<typeof dbTx.insert>);
 
-    const result = await createApplication("profile-123", "jane@example.com", validAppInput);
+    const result = await createApplication(
+      'profile-123',
+      'jane@example.com',
+      validAppInput,
+    );
 
-    expect(result).toEqual(updatedAppRecord);
+    expect(result).toEqual({
+      application: updatedAppRecord,
+      outcome: 'approved',
+    });
   });
 });
 
-describe("Applications Schema Index Verification", () => {
-  it("verifies applications.batchId index and unique_user_batch_application_idx exist", () => {
+describe('Applications Schema Index Verification', () => {
+  it('verifies applications.batchId index and unique_profile_batch_application_idx exist', () => {
     const config = getTableConfig(applications);
-    const indexNames = config.indexes.map((idx) => idx.config.name);
 
-    expect(indexNames).toContain("applications_batch_id_idx");
-    expect(indexNames).toContain("unique_user_batch_application_idx");
+    const indexNames = config.indexes.map((index) => index.config.name);
+
+    expect(indexNames).toContain('applications_batch_id_idx');
+
+    expect(indexNames).toContain('unique_profile_batch_application_idx');
   });
 });

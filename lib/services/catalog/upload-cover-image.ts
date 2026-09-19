@@ -1,6 +1,9 @@
-import { uploadToCloudinary } from "@/lib/services/catalog/cloudinary";
-import { processCoverImage } from "@/lib/services/catalog/process-cover-image";
-import { coverFieldError, type FieldError } from "@/lib/validations/cover-image";
+import { uploadToCloudinary } from '@/lib/services/catalog/cloudinary';
+import { processCoverImage } from '@/lib/services/catalog/process-cover-image';
+import {
+  coverFieldError,
+  type FieldError,
+} from '@/lib/validations/cover-image';
 
 export type UploadCoverImageInput = {
   body: Uint8Array;
@@ -57,19 +60,19 @@ export async function uploadCoverImage(
       },
     };
   } catch (error) {
-    const errorName = error instanceof Error ? error.name : "UnknownError";
-    console.error("Cover upload failed", {
-      code: "COVER_UPLOAD_FAILED",
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+    console.error('Cover upload failed', {
+      code: 'COVER_UPLOAD_FAILED',
       errorName,
-      message: "Cloudinary upload failed",
+      message: 'Cloudinary upload failed',
     });
 
     return {
       ok: false,
       errors: [
         coverFieldError(
-          "COVER_UPLOAD_FAILED",
-          "Cover image could not be uploaded. Please try again.",
+          'COVER_UPLOAD_FAILED',
+          'Cover image could not be uploaded. Please try again.',
         ),
       ],
     };

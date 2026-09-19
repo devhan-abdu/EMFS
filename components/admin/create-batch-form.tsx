@@ -1,40 +1,41 @@
-"use client";
+'use client';
 
-import { useActionState, useEffect, useState } from "react";
-import Link from "next/link";
-import { Check, ChevronsUpDown, X } from "lucide-react";
-import { toast } from "sonner";
+import { useActionState, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Check, ChevronsUpDown, UserPlus, X } from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   createBatchAction,
+  updateBatchAction,
   type CreateBatchActionState,
-} from "@/actions/batch";
-import { Button } from "@/components/ui/button";
+} from '@/actions/batch';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+} from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from '@/components/ui/popover';
 import {
   Command,
   CommandEmpty,
@@ -42,8 +43,10 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/command';
+import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+import { BatchDetail } from '@/lib/validations/batch';
 
 export type AdminOption = {
   profileId: string;
@@ -55,26 +58,56 @@ export type AdminOption = {
 const MAX_ADMINS = 3;
 const initialState: CreateBatchActionState = null;
 
-export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
+export function CreateBatchForm({
+  admins,
+  initialData,
+}: {
+  admins: AdminOption[];
+  initialData: BatchDetail | null;
+}) {
+  const isEditing = Boolean(initialData?.id);
   const [state, formAction, isPending] = useActionState(
-    createBatchAction,
+    initialData?.id ? updateBatchAction : createBatchAction,
     initialState,
   );
 
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const router = useRouter();
+
+  const [selectedIds, setSelectedIds] = useState<string[]>(
+    initialData?.admins?.map((a) => a.profileId) ?? [],
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [registrationOpen, setRegistrationOpen] = useState(false);
-  const [requireTelegramHandoff, setRequireTelegramHandoff] = useState(true);
+  const [registrationOpen, setRegistrationOpen] = useState(
+    initialData?.registrationOpen ?? true,
+  );
   const fieldErrors = state?.errors?.fieldErrors ?? {};
+  const formattedDefaultDate = initialData?.startDate
+    ? new Date(initialData.startDate).toISOString().split('T')[0]
+    : undefined;
 
   useEffect(() => {
-    if (state?.ok) toast.success("Batch created successfully");
-  }, [state]);
+    if (state?.ok && state.data?.batch?.id) {
+      toast.success(
+        isEditing ? 'Batch updated successfully' : 'Batch created successfully',
+      );
+      router.push(`/admin/batches/${state.data.batch.id}`);
+    }
+  }, [state, router, isEditing]);
 
   const isMaxReached = selectedIds.length >= MAX_ADMINS;
-  const selectedAdmins = admins.filter((a) =>
-    selectedIds.includes(a.profileId),
-  );
+
+  const selectedAdmins = selectedIds.map((id) => {
+    const matchedOption = admins.find((a) => a.profileId === id);
+    if (matchedOption) return matchedOption;
+
+    const matchedInitial = initialData?.admins?.find((a) => a.profileId === id);
+    return {
+      profileId: id,
+      displayName: matchedInitial?.name ?? 'Admin',
+      email: '',
+      previouslyAssigned: true,
+    };
+  });
   const suggested = admins.filter((a) => a.previouslyAssigned);
   const others = admins.filter((a) => !a.previouslyAssigned);
 
@@ -86,36 +119,36 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
     });
   }
 
+  useEffect(() => {
+    if (state?.ok && state.data?.batch?.id) {
+      toast.success('Batch created successfully');
+      router.push(`/admin/batches/${state.data.batch.id}`);
+    }
+  }, [state, router]);
+
   return (
     <form action={formAction} className="grid gap-6 lg:grid-cols-3">
       <div className="space-y-6 lg:col-span-2">
         <Card className="card-soft">
           <CardHeader>
             <CardTitle className="font-display text-xl">
-              Batch details
+              {isEditing ? 'Edit Batch' : 'Batch details'}
             </CardTitle>
-            <CardDescription>
-              Members will see the name and description.
-            </CardDescription>
+            <CardDescription>Members will see the Information</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {initialData?.id && (
+              <input type="hidden" name="id" value={initialData.id} />
+            )}
             <div className="space-y-2">
               <Label htmlFor="name">Batch name</Label>
               <Input
                 id="name"
                 name="name"
                 placeholder="Batch 05 — Spring Circle"
+                defaultValue={initialData?.name ?? state?.fields?.name ?? ''}
               />
               <FieldError message={fieldErrors.name?.[0]} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                name="description"
-                rows={3}
-                placeholder="What members can expect from this batch…"
-              />
             </div>
           </CardContent>
         </Card>
@@ -138,7 +171,9 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
                   name="maxMembers"
                   type="number"
                   min={1}
-                  defaultValue={60}
+                  defaultValue={
+                    initialData?.maxMembers ?? state?.fields?.maxMembers ?? 60
+                  }
                 />
                 <FieldError message={fieldErrors.maxMembers?.[0]} />
               </div>
@@ -149,20 +184,41 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
                   name="paceGroupCount"
                   type="number"
                   min={1}
-                  defaultValue={3}
+                  defaultValue={
+                    initialData?.paceGroupCount ??
+                    state?.fields?.paceGroupCount ??
+                    3
+                  }
                 />
                 <FieldError message={fieldErrors.paceGroupCount?.[0]} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="startDate">Start date</Label>
-                <Input id="startDate" name="startDate" type="date" />
+                <Label htmlFor="startDate">Reading start date</Label>
+                <Input
+                  id="startDate"
+                  name="startDate"
+                  type="date"
+                  defaultValue={
+                    formattedDefaultDate ??
+                    (typeof state?.fields?.startDate === 'string'
+                      ? state.fields.startDate
+                      : undefined)
+                  }
+                />
                 <FieldError message={fieldErrors.startDate?.[0]} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="readingDaysPerWeek">
                   Reading days per week
                 </Label>
-                <Select name="readingDaysPerWeek" defaultValue="5">
+                <Select
+                  name="readingDaysPerWeek"
+                  defaultValue={String(
+                    initialData?.readingDaysPerWeek ??
+                      state?.fields?.readingDaysPerWeek ??
+                      6,
+                  )}
+                >
                   <SelectTrigger id="readingDaysPerWeek">
                     <SelectValue />
                   </SelectTrigger>
@@ -179,16 +235,6 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
             </div>
 
             <Separator />
-
-            <div className="space-y-2">
-              <Label htmlFor="note">Note for batch admins</Label>
-              <Textarea
-                id="note"
-                name="note"
-                rows={4}
-                placeholder="Anything the pace admins should know before intake opens…"
-              />
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -198,8 +244,8 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
           <CardHeader>
             <CardTitle className="font-display text-xl">Registration</CardTitle>
             <CardDescription>
-              Defaults are closed registration with Telegram handoff required —
-              change either below.
+              Registration starts closed. When you open it, applicants are
+              approved automatically and get a Telegram bot link
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -209,7 +255,7 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
                   Open registration
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Members can apply immediately
+                  Members can apply and receive a bot link immediately
                 </p>
               </div>
               <Switch
@@ -219,28 +265,24 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
                 onCheckedChange={setRegistrationOpen}
               />
             </div>
-            <div className="flex items-center justify-between rounded-xl bg-surface-container p-4">
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  Require Telegram handoff
-                </p>
-                <p className="text-xs text-muted-foreground">After approval</p>
-              </div>
-              <Switch
-                name="requireTelegramHandoff"
-                value="true"
-                checked={requireTelegramHandoff}
-                onCheckedChange={setRequireTelegramHandoff}
-              />
-            </div>
           </CardContent>
         </Card>
 
         <Card className="card-soft">
           <CardHeader>
-            <CardTitle className="font-display text-xl">Batch admins</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              <p className="font-display text-xl">Batch admins</p>
+
+              <Button asChild variant="ghost" size="sm" className="gap-1.5 ">
+                <Link href="/admin/roles">
+                  <UserPlus className="size-4" />
+                  Invite admin
+                </Link>
+              </Button>
+            </CardTitle>
+
             <CardDescription>
-              Pick 1–3. People previously assigned show up first.
+              Pick 1 to 3. People previously assigned show up first.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -263,9 +305,9 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
                     aria-expanded={pickerOpen}
                     className="w-full justify-between font-normal"
                   >
-                    {isMaxReached ?
-                      "Maximum admins selected"
-                    : "Search admins…"}
+                    {isMaxReached
+                      ? 'Maximum admins selected'
+                      : 'Search admins…'}
                     <ChevronsUpDown className="size-4 opacity-50" />
                   </Button>
                 }
@@ -317,11 +359,12 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
             </Popover>
 
             <div className="space-y-2">
-              {selectedAdmins.length === 0 ?
+              {selectedAdmins.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
                   No admins assigned yet — defaults to you if left empty.
                 </p>
-              : <div className="flex flex-wrap gap-2">
+              ) : (
+                <div className="flex flex-wrap gap-2">
                   {selectedAdmins.map((admin) => (
                     <Badge
                       key={admin.profileId}
@@ -340,7 +383,7 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
                     </Badge>
                   ))}
                 </div>
-              }
+              )}
             </div>
 
             <FieldError message={fieldErrors.adminIds?.[0]} />
@@ -360,7 +403,7 @@ export function CreateBatchForm({ admins }: { admins: AdminOption[] }) {
             disabled={isPending}
             aria-disabled={isPending}
           >
-            {isPending ? "Saving…" : "Save batch"}
+            {isPending ? 'Saving…' : isEditing ? 'Update batch' : 'Save batch'}
           </Button>
           <Button type="button" variant="outline" asChild>
             <Link href="/admin/batches">Cancel</Link>
@@ -387,10 +430,10 @@ function AdminItem({
       value={`${admin.displayName} ${admin.email}`}
       disabled={disabled}
       onSelect={onSelect}
-      className={cn(disabled && "opacity-50")}
+      className={cn(disabled && 'opacity-50')}
     >
       <Check
-        className={cn("mr-2 size-4", isSelected ? "opacity-100" : "opacity-0")}
+        className={cn('mr-2 size-4', isSelected ? 'opacity-100' : 'opacity-0')}
       />
       <div className="flex flex-1 flex-col">
         <span>{admin.displayName}</span>

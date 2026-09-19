@@ -1,17 +1,63 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+vi.mock('server-only', () => ({}));
+
+vi.mock('@/db', () => ({
+  db: {
+    query: {
+      batchMemberships: {
+        findFirst: vi.fn(),
+      },
+    },
+  },
+}));
+
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
+}));
+
+vi.mock('@/lib/auth/authorize', () => ({
+  requireRole: vi.fn(),
+  requireBatchAccess: vi.fn(),
+  AuthzError: class AuthzError extends Error {
+    code: string;
+    constructor(code: string, message: string) {
+      super(message);
+      this.code = code;
+      this.name = 'AuthzError';
+    }
+  },
+}));
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { db } from '@/db';
 import {
   transitionMembershipAction,
   moveMembershipAction,
   reenterMembershipAction,
-} from "@/actions/membership";
-import * as authorizeModule from "@/lib/auth/authorize";
-import * as membershipService from "@/lib/services/membership";
+} from '@/actions/membership';
+import * as authorizeModule from '@/lib/auth/authorize';
+import * as membershipService from '@/lib/services/membership';
+import type { batchMemberships } from '@/db/schema';
 
-vi.mock("@/lib/auth/authorize", () => ({
-  requireRole: vi.fn(),
-}));
+type BatchMembershipRecord = typeof batchMemberships.$inferSelect;
 
-vi.mock("@/lib/services/membership", () => ({
+function createMockMembership(
+  id: string,
+  batchId: string,
+  profileId = 'p-1',
+): BatchMembershipRecord {
+  return {
+    id,
+    profileId,
+    batchId,
+    status: 'active',
+    startDate: new Date('2026-01-01'),
+    endDate: null,
+    removalReason: null,
+    createdAt: new Date('2026-01-01'),
+  };
+}
+
+vi.mock('@/lib/services/membership', () => ({
   createBatchMembership: vi.fn(),
   transitionBatchMembership: vi.fn(),
   moveBatchMembership: vi.fn(),
@@ -21,29 +67,34 @@ vi.mock("@/lib/services/membership", () => ({
     constructor(code: string, message: string) {
       super(message);
       this.code = code;
-      this.name = "MembershipError";
+      this.name = 'MembershipError';
     }
   },
 }));
 
-describe("Membership Actions - Actor Identity & Authorization", () => {
+describe('Membership Actions - Actor Identity & Authorization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("16. actor_id comes from trusted server-side session identity, not client input", async () => {
-    const trustedProfileId = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
-    const membershipId = "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22";
+  it('16. actor_id comes from trusted server-side session identity, not client input', async () => {
+    const trustedProfileId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    const membershipId = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
+    const batchId = 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44';
 
-    vi.mocked(authorizeModule.requireRole).mockResolvedValue({
-      authUserId: "auth-1",
-      email: "admin@example.com",
+    vi.mocked(db.query.batchMemberships.findFirst).mockResolvedValue(
+      createMockMembership(membershipId, batchId),
+    );
+
+    vi.mocked(authorizeModule.requireBatchAccess).mockResolvedValue({
+      authUserId: 'auth-1',
+      email: 'admin@example.com',
       profile: {
         id: trustedProfileId,
-        authUserId: "auth-1",
-        role: "batch_admin",
-        firstName: "Admin",
-        fatherName: "User",
+        authUserId: 'auth-1',
+        role: 'batch_admin',
+        firstName: 'Admin',
+        fatherName: 'User',
         grandfatherName: null,
         telegramUsername: null,
         phone: null,
@@ -54,20 +105,20 @@ describe("Membership Actions - Actor Identity & Authorization", () => {
 
     vi.mocked(membershipService.transitionBatchMembership).mockResolvedValue({
       id: membershipId,
-      profileId: "c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33",
-      batchId: "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44",
-      status: "removed",
+      profileId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
+      batchId,
+      status: 'removed',
       startDate: new Date(),
       endDate: new Date(),
-      removalReason: "Test removal",
+      removalReason: 'Test removal',
       createdAt: new Date(),
     });
 
     const clientInput = {
       membershipId,
-      targetStatus: "removed",
-      reason: "Test removal",
-      actorId: "malicious-fake-actor-id", // Client tries to spoof actorId
+      targetStatus: 'removed',
+      reason: 'Test removal',
+      actorId: 'malicious-fake-actor-id', // Client tries to spoof actorId
     };
 
     const res = await transitionMembershipAction(clientInput);
@@ -76,41 +127,51 @@ describe("Membership Actions - Actor Identity & Authorization", () => {
     // Verify service was called with the trusted profile ID, ignoring client's spoofed actorId
     expect(membershipService.transitionBatchMembership).toHaveBeenCalledWith(
       membershipId,
-      "removed",
-      "Test removal",
-      trustedProfileId
+      'removed',
+      'Test removal',
+      trustedProfileId,
     );
   });
 
-  it("17. unauthorized clients without appropriate role are rejected", async () => {
-    vi.mocked(authorizeModule.requireRole).mockRejectedValue(
-      new Error("Forbidden")
+  it('17. unauthorized clients without appropriate role are rejected', async () => {
+    const membershipId = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
+    const batchId = 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44';
+
+    vi.mocked(db.query.batchMemberships.findFirst).mockResolvedValue(
+      createMockMembership(membershipId, batchId),
     );
 
-    await expect(
-      transitionMembershipAction({
-        membershipId: "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22",
-        targetStatus: "removed",
-      })
-    ).rejects.toThrow("Forbidden");
+    vi.mocked(authorizeModule.requireBatchAccess).mockRejectedValue(
+      new authorizeModule.AuthzError('FORBIDDEN', 'Forbidden'),
+    );
 
+    const res = await transitionMembershipAction({
+      membershipId,
+      targetStatus: 'removed',
+    });
+
+    expect(res.ok).toBe(false);
     expect(membershipService.transitionBatchMembership).not.toHaveBeenCalled();
   });
 
-  it("moveMembershipAction passes trusted profile ID as actorId", async () => {
-    const trustedProfileId = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
-    const membershipId = "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22";
-    const newBatchId = "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44";
+  it('moveMembershipAction passes trusted profile ID as actorId', async () => {
+    const trustedProfileId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    const membershipId = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
+    const newBatchId = 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44';
 
-    vi.mocked(authorizeModule.requireRole).mockResolvedValue({
-      authUserId: "auth-1",
-      email: "admin@example.com",
+    vi.mocked(db.query.batchMemberships.findFirst).mockResolvedValue(
+      createMockMembership(membershipId, 'old-batch-id'),
+    );
+
+    vi.mocked(authorizeModule.requireBatchAccess).mockResolvedValue({
+      authUserId: 'auth-1',
+      email: 'admin@example.com',
       profile: {
         id: trustedProfileId,
-        authUserId: "auth-1",
-        role: "batch_admin",
-        firstName: "Admin",
-        fatherName: "User",
+        authUserId: 'auth-1',
+        role: 'batch_admin',
+        firstName: 'Admin',
+        fatherName: 'User',
         grandfatherName: null,
         telegramUsername: null,
         phone: null,
@@ -121,9 +182,9 @@ describe("Membership Actions - Actor Identity & Authorization", () => {
 
     vi.mocked(membershipService.moveBatchMembership).mockResolvedValue({
       id: membershipId,
-      profileId: "c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33",
+      profileId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
       batchId: newBatchId,
-      status: "active",
+      status: 'active',
       startDate: new Date(),
       endDate: null,
       removalReason: null,
@@ -133,7 +194,7 @@ describe("Membership Actions - Actor Identity & Authorization", () => {
     const res = await moveMembershipAction({
       membershipId,
       newBatchId,
-      reason: "Move to new batch",
+      reason: 'Move to new batch',
     });
 
     expect(res.ok).toBe(true);
@@ -141,25 +202,25 @@ describe("Membership Actions - Actor Identity & Authorization", () => {
       membershipId,
       newBatchId,
       trustedProfileId,
-      "Move to new batch"
+      'Move to new batch',
     );
   });
 
-  it("reenterMembershipAction passes trusted profile ID as actorId", async () => {
-    const trustedProfileId = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
-    const profileId = "c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33";
-    const fromBatchId = "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44";
-    const toBatchId = "e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55";
+  it('reenterMembershipAction passes trusted profile ID as actorId', async () => {
+    const trustedProfileId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    const profileId = 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33';
+    const fromBatchId = 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44';
+    const toBatchId = 'e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55';
 
-    vi.mocked(authorizeModule.requireRole).mockResolvedValue({
-      authUserId: "auth-1",
-      email: "admin@example.com",
+    vi.mocked(authorizeModule.requireBatchAccess).mockResolvedValue({
+      authUserId: 'auth-1',
+      email: 'admin@example.com',
       profile: {
         id: trustedProfileId,
-        authUserId: "auth-1",
-        role: "batch_admin",
-        firstName: "Admin",
-        fatherName: "User",
+        authUserId: 'auth-1',
+        role: 'batch_admin',
+        firstName: 'Admin',
+        fatherName: 'User',
         grandfatherName: null,
         telegramUsername: null,
         phone: null,
@@ -169,10 +230,10 @@ describe("Membership Actions - Actor Identity & Authorization", () => {
     });
 
     vi.mocked(membershipService.reenterBatchMembership).mockResolvedValue({
-      id: "f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a66",
+      id: 'f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a66',
       profileId,
       batchId: toBatchId,
-      status: "applied",
+      status: 'applied',
       startDate: new Date(),
       endDate: null,
       removalReason: null,
@@ -183,8 +244,8 @@ describe("Membership Actions - Actor Identity & Authorization", () => {
       profileId,
       fromBatchId,
       toBatchId,
-      targetStatus: "applied",
-      reason: "Re-entering applicant",
+      targetStatus: 'applied',
+      reason: 'Re-entering applicant',
     });
 
     expect(res.ok).toBe(true);
@@ -192,9 +253,9 @@ describe("Membership Actions - Actor Identity & Authorization", () => {
       profileId,
       fromBatchId,
       toBatchId,
-      "applied",
+      'applied',
       trustedProfileId,
-      "Re-entering applicant"
+      'Re-entering applicant',
     );
   });
 });

@@ -1,22 +1,22 @@
-import Image from "next/image";
-import { cn } from "@/lib/utils";
+import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 export interface LotusProps {
   className?: string;
-  variant?: "auto" | "color" | "white";
+  variant?: 'auto' | 'color' | 'white';
   alt?: string;
   priority?: boolean;
 }
 
 export function Lotus({
   className,
-  alt = "EMFS",
+  alt = 'EMFS',
   priority = false,
 }: LotusProps) {
   return (
     <span
       className={cn(
-        "relative inline-block size-6 overflow-hidden rounded-md",
+        'relative inline-block size-6 overflow-hidden rounded-md',
         className,
       )}
     >
@@ -33,7 +33,7 @@ export function Lotus({
 
 export function EMFSLogo({
   className,
-  alt = "EMFS",
+  alt = 'EMFS',
   priority = false,
 }: {
   className?: string;
@@ -43,7 +43,7 @@ export function EMFSLogo({
   return (
     <span
       className={cn(
-        "relative inline-block size-16 overflow-hidden rounded-xl",
+        'relative inline-block size-16 overflow-hidden rounded-xl',
         className,
       )}
     >
@@ -60,7 +60,7 @@ export function EMFSLogo({
 
 export function LotusWatermark({
   className,
-  alt = "EMFS",
+  alt = 'EMFS',
 }: {
   className?: string;
   alt?: string;
@@ -68,13 +68,13 @@ export function LotusWatermark({
   return (
     <span
       className={cn(
-        "pointer-events-none relative inline-block size-16 overflow-hidden rounded-2xl opacity-15",
+        'pointer-events-none relative inline-block size-16 opacity-15',
         className,
       )}
       aria-hidden="true"
     >
       <Image
-        src="/emfsc-logo.jpg"
+        src="/brand/lotus-white.png"
         alt={alt}
         fill
         className="object-contain"
@@ -83,4 +83,3 @@ export function LotusWatermark({
     </span>
   );
 }
-

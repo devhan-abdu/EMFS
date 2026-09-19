@@ -1,7 +1,7 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export const searchGoogleBooksSchema = z.object({
-  query: z.string().trim().min(2, "Enter at least 2 characters").max(200),
+  query: z.string().trim().min(2, 'Enter at least 2 characters').max(200),
 });
 
 const googleVolumeSchema = z.object({

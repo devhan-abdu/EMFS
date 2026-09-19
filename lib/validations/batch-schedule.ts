@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export const setBatchScheduleSchema = z.object({
   batchId: z.string().uuid(),
@@ -14,7 +14,7 @@ export const createPacingOffsetSchema = z.object({
   offsetDays: z
     .number()
     .int()
-    .refine((n) => n !== 0, { message: "offset_days must not be zero" }),
+    .refine((n) => n !== 0, { message: 'offset_days must not be zero' }),
   reason: z.string().min(1),
   editorId: z.string().uuid(),
 });

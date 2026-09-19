@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -9,15 +9,15 @@ import {
   type DragEndEvent,
   useSensor,
   useSensors,
-} from "@dnd-kit/core";
+} from '@dnd-kit/core';
 import {
   SortableContext,
   arrayMove,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   GripVertical,
   Languages,
@@ -25,26 +25,26 @@ import {
   MoreVertical,
   Plus,
   Trash2,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
-import { deleteBookAction, reorderBooksAction } from "@/actions/catalog";
-import { AddBookForm } from "@/components/admin/catalog/add-book-form";
+import { deleteBookAction, reorderBooksAction } from '@/actions/catalog';
+import { AddBookForm } from '@/components/admin/catalog/add-book-form';
 import {
   AddEditionForm,
   type CatalogBookOption,
-} from "@/components/admin/catalog/add-edition-form";
-import { BookCoverThumb } from "@/components/catalog/book-cover-thumb";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+} from '@/components/admin/catalog/add-edition-form';
+import { BookCoverThumb } from '@/components/catalog/book-cover-thumb';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from '@/components/ui/sheet';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,18 +54,18 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import type {
   CatalogBookItem,
   CatalogSlotGroup,
-} from "@/lib/services/catalog/get-catalog";
+} from '@/lib/services/catalog/get-catalog';
 
 type SortableSlot = CatalogSlotGroup & {
   /** Representative book id for the slot (persisted via reorderBooksAction). */
@@ -74,12 +74,12 @@ type SortableSlot = CatalogSlotGroup & {
 
 type EditionSheetState =
   | {
-      mode: "create";
+      mode: 'create';
       pairedBookId: string;
       bookOptions: CatalogBookOption[];
     }
   | {
-      mode: "edit";
+      mode: 'edit';
       edition: CatalogBookItem;
       pairedBookId: string;
       bookOptions: CatalogBookOption[];
@@ -98,7 +98,7 @@ function pickRepresentative(slot: CatalogSlotGroup): CatalogBookItem {
   const editions = slot.editions;
   return (
     editions.find((edition) => !edition.pairedBookId) ??
-    editions.find((edition) => edition.language === "en") ??
+    editions.find((edition) => edition.language === 'en') ??
     editions[0]!
   );
 }
@@ -171,13 +171,13 @@ export function CatalogSortableList({ slots }: CatalogSortableListProps) {
       const result = await reorderBooksAction(next.map((item) => item.id));
       setPendingRowId(null);
       if (result.ok) {
-        toast.success("Reading order updated.");
+        toast.success('Reading order updated.');
         router.refresh();
         return;
       }
 
       setItems(previous);
-      toast.error(result.errors[0]?.message ?? "Failed to reorder books.");
+      toast.error(result.errors[0]?.message ?? 'Failed to reorder books.');
     });
   }
 
@@ -207,7 +207,7 @@ export function CatalogSortableList({ slots }: CatalogSortableListProps) {
   function openCreateEdition(item: SortableSlot) {
     const program = pickRepresentative(item);
     setEditionSheet({
-      mode: "create",
+      mode: 'create',
       pairedBookId: program.id,
       bookOptions: [toBookOption(program)],
     });
@@ -216,7 +216,7 @@ export function CatalogSortableList({ slots }: CatalogSortableListProps) {
   function openEditEdition(item: SortableSlot, edition: CatalogBookItem) {
     const program = pickRepresentative(item);
     setEditionSheet({
-      mode: "edit",
+      mode: 'edit',
       edition,
       pairedBookId: program.id,
       bookOptions: [toBookOption(program)],
@@ -269,49 +269,49 @@ export function CatalogSortableList({ slots }: CatalogSortableListProps) {
         >
           <SheetHeader>
             <SheetTitle>
-              {editionSheet?.mode === "edit" ?
-                "Edit language edition"
-              : "Add language edition"}
+              {editionSheet?.mode === 'edit'
+                ? 'Edit language edition'
+                : 'Add language edition'}
             </SheetTitle>
             <SheetDescription>
-              {editionSheet?.mode === "edit" ?
-                "Update this paired edition. Changes save without leaving the catalog."
-              : "Attach an Amharic edition to this program book."}
+              {editionSheet?.mode === 'edit'
+                ? 'Update this paired edition. Changes save without leaving the catalog.'
+                : 'Attach an Amharic edition to this program book.'}
             </SheetDescription>
           </SheetHeader>
 
-          {editionSheet ?
+          {editionSheet ? (
             <div className="px-4 pb-8">
               <AddEditionForm
                 key={
-                  editionSheet.mode === "edit" ?
-                    editionSheet.edition.id
-                  : `create-${editionSheet.pairedBookId}`
+                  editionSheet.mode === 'edit'
+                    ? editionSheet.edition.id
+                    : `create-${editionSheet.pairedBookId}`
                 }
                 books={editionSheet.bookOptions}
                 defaultPairedBookId={editionSheet.pairedBookId}
                 editionId={
-                  editionSheet.mode === "edit" ?
-                    editionSheet.edition.id
-                  : undefined
+                  editionSheet.mode === 'edit'
+                    ? editionSheet.edition.id
+                    : undefined
                 }
                 initialValues={
-                  editionSheet.mode === "edit" ?
-                    {
-                      title: editionSheet.edition.title,
-                      language: editionSheet.edition.language,
-                      author: editionSheet.edition.author,
-                      pageCount: editionSheet.edition.pageCount,
-                      coverUrl: editionSheet.edition.coverUrl,
-                    }
-                  : undefined
+                  editionSheet.mode === 'edit'
+                    ? {
+                        title: editionSheet.edition.title,
+                        language: editionSheet.edition.language,
+                        author: editionSheet.edition.author,
+                        pageCount: editionSheet.edition.pageCount,
+                        coverUrl: editionSheet.edition.coverUrl,
+                      }
+                    : undefined
                 }
                 embedded
                 onCancel={() => setEditionSheet(null)}
                 onSuccess={() => setEditionSheet(null)}
               />
             </div>
-          : null}
+          ) : null}
         </SheetContent>
       </Sheet>
 
@@ -331,7 +331,7 @@ export function CatalogSortableList({ slots }: CatalogSortableListProps) {
               Update this program book without leaving the catalog.
             </SheetDescription>
           </SheetHeader>
-          {bookSheet ?
+          {bookSheet ? (
             <div className="px-4 pb-8">
               <AddBookForm
                 key={bookSheet.book.id}
@@ -345,7 +345,7 @@ export function CatalogSortableList({ slots }: CatalogSortableListProps) {
                 }}
               />
             </div>
-          : null}
+          ) : null}
         </SheetContent>
       </Sheet>
 
@@ -357,7 +357,7 @@ export function CatalogSortableList({ slots }: CatalogSortableListProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete book?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will also remove {deleteBook?.pairedEditionsCount ?? 0}{" "}
+              This will also remove {deleteBook?.pairedEditionsCount ?? 0}{' '}
               paired editions. This can&apos;t be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -415,9 +415,9 @@ function SortableCatalogRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "card-soft",
-        isDragging && "z-10 opacity-90 shadow-md",
-        (disabled || isRowPending) && !isDragging && "opacity-70",
+        'card-soft',
+        isDragging && 'z-10 opacity-90 shadow-md',
+        (disabled || isRowPending) && !isDragging && 'opacity-70',
       )}
     >
       <CardContent className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:gap-6 md:p-6">
@@ -435,7 +435,6 @@ function SortableCatalogRow({
             <GripVertical className="size-4 text-muted-foreground" />
           </Button>
 
-         
           <div className="relative shrink-0">
             <BookCoverThumb
               coverUrl={primary.coverUrl}
@@ -466,9 +465,11 @@ function SortableCatalogRow({
                 disabled={disabled || isRowPending}
                 aria-label={`Actions for ${primary.title}`}
               >
-                {isRowPending ?
+                {isRowPending ? (
                   <Loader2 className="size-4 animate-spin" />
-                : <MoreVertical className="size-4" />}
+                ) : (
+                  <MoreVertical className="size-4" />
+                )}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={onEditBook}>
@@ -485,11 +486,11 @@ function SortableCatalogRow({
             </DropdownMenu>
           </div>
           <p className="text-sm text-muted-foreground">
-            {primary.author ?? "Unknown author"} ·{" "}
+            {primary.author ?? 'Unknown author'} ·{' '}
             {item.editions.reduce(
               (count, edition) => count + (edition.tasksCount ?? 0),
               0,
-            )}{" "}
+            )}{' '}
             tasks
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-2">
@@ -503,15 +504,15 @@ function SortableCatalogRow({
               >
                 <Languages className="size-4 text-secondary" />
                 {ed.language}
-                {ed.pairedBookId ?
+                {ed.pairedBookId ? (
                   <span className="rounded-full bg-secondary/15 px-2 text-xs font-medium text-secondary-foreground">
                     paired
                   </span>
-                : null}
+                ) : null}
               </button>
             ))}
 
-            {languageEditions.length === 0 ?
+            {languageEditions.length === 0 ? (
               <Button
                 type="button"
                 variant="outline"
@@ -523,7 +524,7 @@ function SortableCatalogRow({
                 <Plus className="size-4" />
                 Add edition
               </Button>
-            : null}
+            ) : null}
           </div>
         </div>
       </CardContent>

@@ -1,18 +1,18 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
-import { AddBookForm } from "@/components/admin/catalog/add-book-form";
+import { AddBookForm } from '@/components/admin/catalog/add-book-form';
 import {
   AddEditionForm,
   type CatalogBookOption,
-} from "@/components/admin/catalog/add-edition-form";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+} from '@/components/admin/catalog/add-edition-form';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 export type { CatalogBookOption };
 
-type Mode = "book" | "edition";
+type Mode = 'book' | 'edition';
 
 type NewCatalogEntryFormsProps = {
   books: CatalogBookOption[];
@@ -21,7 +21,7 @@ type NewCatalogEntryFormsProps = {
 export function NewCatalogEntryForms({ books }: NewCatalogEntryFormsProps) {
   const searchParams = useSearchParams();
   const initialMode: Mode =
-    searchParams.get("mode") === "edition" ? "edition" : "book";
+    searchParams.get('mode') === 'edition' ? 'edition' : 'book';
 
   const [mode, setMode] = useState<Mode>(initialMode);
 

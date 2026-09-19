@@ -1,0 +1,1 @@
+ALTER TABLE "applications" ALTER COLUMN "pace_group" DROP NOT NULL;
