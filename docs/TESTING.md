@@ -5,11 +5,11 @@ in EMFS Book Shelf. Other docs link here instead of copying the rules.
 
 ## Repo Test Stack (planned)
 
-| Layer | Tool | Scope |
-| --- | --- | --- |
-| Unit / service | **Vitest** | Zod schemas, pure helpers, `lib/services` workflows |
-| End-to-end | **Playwright** | Register → approve → daily progress → reflection → attendance |
-| Merge gate | `pnpm verify` | typecheck + lint + Vitest + (when applicable) Playwright |
+| Layer          | Tool           | Scope                                                         |
+| -------------- | -------------- | ------------------------------------------------------------- |
+| Unit / service | **Vitest**     | Zod schemas, pure helpers, `lib/services` workflows           |
+| End-to-end     | **Playwright** | Register → approve → daily progress → reflection → attendance |
+| Merge gate     | `pnpm verify`  | typecheck + lint + Vitest + (when applicable) Playwright      |
 
 Do not introduce a second unit or e2e framework without an explicit dependency
 review.

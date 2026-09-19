@@ -1,62 +1,69 @@
-import Link from "next/link"
-import type {Metadata} from "next"
+import Link from 'next/link';
+import type { Metadata } from 'next';
 import {
   ArrowRight,
   BookOpen,
   HeartHandshake,
   NotebookPen,
-} from "lucide-react";
+} from 'lucide-react';
 
-import { Lotus } from "@/components/brand/lotus";
-import { Button } from "@/components/ui/button";
-
-
+import { Lotus } from '@/components/brand/lotus';
+import { Button } from '@/components/ui/button';
+import { OpenBatchCard } from '@/components/batches/open-batch-card';
+import { FeaturedBatchCard } from '@/components/batches/featured-batch-card';
+import { getOpenBatchesForPublic } from '@/lib/services/batches/batch-public';
 
 export const metadata: Metadata = {
-  title: "EMFSC Book Shelf — Read together, grow together",
+  title: 'EMFSC Book Shelf — Read together, grow together',
   description:
-    "The reading home of the Ethiopian Muslim Female Students Circle: shared reading batches, daily pages, weekly reflections and a circle that keeps you going.",
+    'The reading home of the Ethiopian Muslim Female Students Circle: shared reading batches, daily pages, weekly reflections and a circle that keeps you going.',
   openGraph: {
-    title: "EMFSC Book Shelf",
-    description: "Shared reading batches, daily pages and weekly reflections.",
-    type: "website",
+    title: 'EMFSC Book Shelf',
+    description: 'Shared reading batches, daily pages and weekly reflections.',
+    type: 'website',
   },
-  twitter: { card: "summary_large_image" },
-  icons: { icon: "/favicon.ico" },
-}
+  twitter: { card: 'summary_large_image' },
+  icons: { icon: '/favicon.ico' },
+};
 
 const pillars = [
   {
     icon: BookOpen,
-    title: "Read at a shared pace",
-    body: "Every batch reads together, a few pages a day, with a pace admin adjusting the rhythm as the group moves.",
+    title: 'Read at a shared pace',
+    body: 'Every batch reads together, a few pages a day, with a pace admin adjusting the rhythm as the group moves.',
   },
   {
     icon: NotebookPen,
-    title: "Reflect each week",
-    body: "Private reflections stay yours; weekly submissions keep the circle honest and visible instead of lost in a chat.",
+    title: 'Reflect each week',
+    body: 'Private reflections stay yours; weekly submissions keep the circle honest and visible instead of lost in a chat.',
   },
   {
     icon: HeartHandshake,
-    title: "Grow with your circle",
-    body: "Attendance, streaks and gentle nudges — built for encouragement, not pressure.",
+    title: 'Grow with your circle',
+    body: 'Attendance, streaks and gentle nudges — built for encouragement, not pressure.',
   },
 ];
 
-export default function Home() {
+const FEATURED_LIMIT = 3;
+
+export default async function Home() {
+  const openBatches = await getOpenBatchesForPublic();
+  const visibleBatches = openBatches.slice(0, FEATURED_LIMIT);
+  const hasMore = openBatches.length > FEATURED_LIMIT;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
-            <Lotus className="size-6" priority />
+          <span className="flex size-12 items-center justify-center rounded-xl bg-accent text-primary">
+            <Lotus className="size-10" priority />
           </span>
-          <span className="font-display text-lg font-semibold text-foreground">
+          <span className="font-display text-xl font-semibold text-foreground">
             EMFSC Book Shelf
           </span>
         </Link>
         <Button variant="outline" asChild>
-          <Link href="/admin">Admin</Link>
+          <Link href="/signin">Sign in</Link>
         </Button>
       </header>
 
@@ -79,17 +86,50 @@ export default function Home() {
                 daily pages, weekly reflections, and sisters who notice when you
                 go quiet.
               </p>
-              <div className="mt-9 flex flex-wrap gap-3">
-                <Button size="lg" asChild>
-                  <Link href="/login">
-                    Open the admin workspace
-                    <ArrowRight className="size-4" />
-                  </Link>
-                </Button>
-              </div>
+
+              {visibleBatches.length === 0 ? (
+                <div className="mt-9 flex flex-wrap gap-3">
+                  <Button size="lg" variant="outline" asChild>
+                    <Link href="/signin">
+                      Sign in
+                      <ArrowRight className="size-4" />
+                    </Link>
+                  </Button>
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
+
+        {visibleBatches.length === 1 ? (
+          <section className="mx-auto max-w-6xl px-6 pb-16">
+            <FeaturedBatchCard batch={visibleBatches[0]!} />
+          </section>
+        ) : null}
+
+        {visibleBatches.length > 1 ? (
+          <section className="mx-auto max-w-6xl px-6 pb-16">
+            <div className="flex items-baseline justify-between gap-4">
+              <h2 className="font-display text-2xl font-semibold text-foreground">
+                Open reading batches
+              </h2>
+              {hasMore ? (
+                <Link
+                  href="/batches"
+                  className="flex shrink-0 items-center gap-1 text-sm font-medium text-teal underline-offset-4 hover:underline"
+                >
+                  See all open batches
+                  <ArrowRight className="size-3.5" />
+                </Link>
+              ) : null}
+            </div>
+            <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleBatches.map((batch) => (
+                <OpenBatchCard key={batch.id} batch={batch} />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="mx-auto max-w-6xl px-6 pb-24">
           <div className="grid gap-6 md:grid-cols-3">

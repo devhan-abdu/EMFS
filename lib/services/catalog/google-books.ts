@@ -1,15 +1,15 @@
-import "server-only";
+import 'server-only';
 
 import {
   googleBooksResponseSchema,
   type GoogleBookSearchResult,
-} from "@/lib/validations/google-books";
+} from '@/lib/validations/google-books';
 
 export type { GoogleBookSearchResult };
 
 function toHttpsThumbnail(url: string | undefined): string | null {
   if (!url) return null;
-  return url.replace(/^http:\/\//i, "https://");
+  return url.replace(/^http:\/\//i, 'https://');
 }
 
 /**
@@ -26,21 +26,21 @@ export async function searchGoogleBooks(
   }
 
   const maxResults = Math.min(Math.max(options?.maxResults ?? 8, 1), 20);
-  const url = new URL("https://www.googleapis.com/books/v1/volumes");
-  url.searchParams.set("q", trimmed);
-  url.searchParams.set("maxResults", String(maxResults));
-  url.searchParams.set("printType", "books");
+  const url = new URL('https://www.googleapis.com/books/v1/volumes');
+  url.searchParams.set('q', trimmed);
+  url.searchParams.set('maxResults', String(maxResults));
+  url.searchParams.set('printType', 'books');
   // Program books are English-only; Amharic editions are entered manually.
-  url.searchParams.set("langRestrict", "en");
+  url.searchParams.set('langRestrict', 'en');
 
   const apiKey = process.env.GOOGLE_BOOKS_API_KEY?.trim();
   if (apiKey) {
-    url.searchParams.set("key", apiKey);
+    url.searchParams.set('key', apiKey);
   }
 
   const response = await fetch(url, {
-    method: "GET",
-    headers: { Accept: "application/json" },
+    method: 'GET',
+    headers: { Accept: 'application/json' },
     next: { revalidate: 0 },
   });
 

@@ -1,15 +1,15 @@
-"use server";
+'use server';
 
-import { requireSession } from "@/lib/auth/authorize";
+import { requireSession } from '@/lib/auth/authorize';
 import {
   createWaitlistSchema,
   removeWaitlistSchema,
-} from "@/lib/validations/waitlist";
+} from '@/lib/validations/waitlist';
 import {
   addToWaitlist,
   removeFromWaitlist,
   WaitlistError,
-} from "@/lib/services/waitlist";
+} from '@/lib/services/application/waitlist';
 
 export async function joinWaitlistAction(input: unknown) {
   let currentUser;
@@ -28,7 +28,10 @@ export async function joinWaitlistAction(input: unknown) {
   }
 
   try {
-    const entry = await addToWaitlist(currentUser.profile.id, parsed.data.batchId);
+    const entry = await addToWaitlist(
+      currentUser.profile.id,
+      parsed.data.batchId,
+    );
     return { ok: true as const, data: entry };
   } catch (e) {
     if (e instanceof WaitlistError) {
@@ -64,7 +67,7 @@ export async function leaveWaitlistAction(input: unknown) {
     const removed = await removeFromWaitlist(
       parsed.data.waitlistId,
       currentUser.profile.id,
-      currentUser.profile.role
+      currentUser.profile.role,
     );
     return { ok: true as const, data: removed };
   } catch (e) {

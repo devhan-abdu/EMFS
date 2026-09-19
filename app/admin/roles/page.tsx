@@ -1,9 +1,9 @@
-import { Check, Minus, ShieldCheck, UserPlus } from "lucide-react";
+import { Check, Minus, ShieldCheck, UserPlus } from 'lucide-react';
 
-import { PageHeader } from "@/components/shared/page-layout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RoleSelector } from "@/components/admin/role-selector";
+import { PageHeader } from '@/components/shared/page-layout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { RoleSelector } from '@/components/admin/role-selector';
 import {
   Table,
   TableBody,
@@ -11,39 +11,39 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
   roleBlurbs,
   roleLabels,
   rolePermissions,
   type AdminRole,
-} from "@/lib/services/constants/admin-constants";
-import { getAdminStaff } from "@/lib/services/admin";
-import { Metadata } from "next";
+} from '@/lib/services/constants/admin-constants';
+import { getAdminStaff } from '@/lib/services/admin';
+import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "Roles & access — EMFSC Book Shelf Admin",
+  title: 'Roles & access — EMFSC Book Shelf Admin',
   description:
-    "Assign super admin, batch admin and pace group admin roles, and see exactly what each level can do.",
+    'Assign super admin, batch admin and pace group admin roles, and see exactly what each level can do.',
   openGraph: {
-    title: "Roles & access — EMFSC Book Shelf Admin",
-    description: "Who can do what across batches, pace groups and the catalog.",
+    title: 'Roles & access — EMFSC Book Shelf Admin',
+    description: 'Who can do what across batches, pace groups and the catalog.',
   },
 };
 
 const roleOrder: AdminRole[] = [
-  "super_admin",
-  "batch_admin",
-  "pace_admin",
-  "member",
+  'super_admin',
+  'batch_admin',
+  'pace_admin',
+  'member',
 ];
 
 function roleClass(role: AdminRole): string {
   const roles: Record<AdminRole, string> = {
-    super_admin: "bg-gold/20 text-gold-foreground border-gold/30",
-    batch_admin: "bg-primary/10 text-primary border-primary/20",
-    pace_admin: "bg-teal/15 text-teal-foreground border-teal/30",
-    member: "bg-muted text-muted-foreground border-border",
+    super_admin: 'bg-gold/20 text-gold-foreground border-gold/30',
+    batch_admin: 'bg-primary/10 text-primary border-primary/20',
+    pace_admin: 'bg-teal/15 text-teal-foreground border-teal/30',
+    member: 'bg-muted text-muted-foreground border-border',
   };
   return roles[role];
 }
@@ -58,7 +58,19 @@ function RoleBadge({ role }: { role: AdminRole }) {
   );
 }
 
+import { redirect } from 'next/navigation';
+import { AuthzError, requireSuperAdmin } from '@/lib/auth/authorize';
+
 export default async function RolesPage() {
+  try {
+    await requireSuperAdmin();
+  } catch (e) {
+    if (e instanceof AuthzError) {
+      redirect('/admin');
+    }
+    throw e;
+  }
+
   const staff = await getAdminStaff();
   return (
     <div className="space-y-8">
@@ -117,9 +129,9 @@ export default async function RolesPage() {
                     <div className="flex items-center gap-3">
                       <span className="flex size-9 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
                         {person.name
-                          .split(" ")
+                          .split(' ')
                           .map((n) => n[0])
-                          .join("")}
+                          .join('')}
                       </span>
                       <div>
                         <p className="font-medium text-foreground">
@@ -203,16 +215,17 @@ export default async function RolesPage() {
                   </TableCell>
                   {roleOrder.map((role) => (
                     <TableCell key={role} className="text-center">
-                      {row.access[role] ?
+                      {row.access[role] ? (
                         <Check
                           className="mx-auto size-4 text-teal"
                           aria-label="Allowed"
                         />
-                      : <Minus
+                      ) : (
+                        <Minus
                           className="mx-auto size-4 text-muted-foreground/50"
                           aria-label="Not allowed"
                         />
-                      }
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>

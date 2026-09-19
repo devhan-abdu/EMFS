@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { X } from "lucide-react";
+import { X } from 'lucide-react';
 
-import { BookCoverThumb } from "@/components/catalog/book-cover-thumb";
+import { BookCoverThumb } from '@/components/catalog/book-cover-thumb';
 
 type CoverImageFieldProps = {
   coverPreview: string | null;
@@ -24,8 +24,8 @@ export function CoverImageField({
   onFileChange,
   onClear,
   onTriggerUpload,
-  description = "Pulled in automatically from Google Books, or upload your own.",
-  title = "Cover",
+  description = 'Pulled in automatically from Google Books, or upload your own.',
+  title = 'Cover',
   seed,
 }: CoverImageFieldProps) {
   return (
@@ -39,7 +39,7 @@ export function CoverImageField({
         accept="image/jpeg,image/png,image/webp"
       />
 
-      {coverPreview ?
+      {coverPreview ? (
         <div className="relative mx-auto w-full max-w-[200px]">
           <BookCoverThumb
             coverUrl={coverPreview}
@@ -65,7 +65,8 @@ export function CoverImageField({
             Click to change image
           </button>
         </div>
-      : <button
+      ) : (
+        <button
           type="button"
           onClick={onTriggerUpload}
           className="mx-auto flex aspect-[2/3] w-full max-w-[200px] flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-border bg-surface-container text-muted-foreground transition-colors hover:border-primary hover:bg-surface-container/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -82,14 +83,16 @@ export function CoverImageField({
             </p>
           </div>
         </button>
-      }
+      )}
 
       <p className="mt-4 text-center text-xs text-muted-foreground">
         {description}
       </p>
 
       {coverError && (
-        <p className="mt-2 text-center text-xs text-destructive">{coverError}</p>
+        <p className="mt-2 text-center text-xs text-destructive">
+          {coverError}
+        </p>
       )}
     </>
   );

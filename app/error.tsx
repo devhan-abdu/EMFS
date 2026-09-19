@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import Link from "next/link";
-import { Lotus } from "@/components/brand/lotus";
+import { useEffect } from 'react';
+import Link from 'next/link';
+import { Lotus } from '@/components/brand/lotus';
 
 export default function Error({
   error,

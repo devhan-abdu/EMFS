@@ -1,8 +1,9 @@
-import "server-only";
+import 'server-only';
 
-import { and, asc, count, desc, eq, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 
-import { db } from "@/db";
+import { db } from '@/db';
+import { countOrphanedCloudinaryAssets } from '@/lib/services/catalog/cloudinary';
 import {
   applications,
   batchAdmins,
@@ -12,8 +13,37 @@ import {
   paceGroupMemberships,
   paceGroups,
   profiles,
+  tasks,
   user,
-} from "@/db/schema";
+} from '@/db/schema';
+import type { CurrentUser } from '@/lib/auth/session';
+import {
+  getAuthorizedBatchIds,
+  getAuthorizedPaceGroupIds,
+} from '@/lib/auth/authorize';
+
+const ADMIN_OVERVIEW_RECENT_BOOK_LIMIT = 5;
+
+export type AdminCatalogBook = {
+  id: string;
+  title: string;
+  language: string;
+  sequenceOrder: number;
+  createdAt: Date;
+};
+
+export type AdminCatalogEditionGap = {
+  sequenceOrder: number;
+  editionCount: number;
+};
+
+export type AdminCatalogCurriculumGap = {
+  id: string;
+  title: string;
+  language: string;
+  sequenceOrder: number;
+  tasksCount: number;
+};
 
 export type AdminBatch = {
   id: string;
@@ -36,7 +66,7 @@ export type AdminApplication = {
   email: string;
   batch: string;
   appliedOn: string;
-  status: "pending" | "approved" | "handoff" | "rejected";
+  status: 'pending' | 'approved' | 'handoff' | 'rejected';
   telegramLinked: boolean;
 };
 
@@ -55,7 +85,7 @@ export type AdminStaffMember = {
   id: string;
   name: string;
   email: string;
-  role: "super_admin" | "batch_admin" | "pace_admin" | "member";
+  role: 'super_admin' | 'batch_admin' | 'pace_admin' | 'member';
   scope: string;
   lastActive: string;
 };
@@ -65,8 +95,21 @@ function formatDate(date: Date | string | null): string | null {
   return date instanceof Date ? date.toISOString().slice(0, 10) : date;
 }
 
-export async function getAdminBatches(): Promise<AdminBatch[]> {
-  const rows = await db
+export async function getAdminBatches(
+  userContext?: CurrentUser,
+): Promise<AdminBatch[]> {
+  const batchConditions: SQL[] = [];
+  if (userContext) {
+    const authBatchIds = await getAuthorizedBatchIds(userContext);
+    if (authBatchIds !== 'all') {
+      if (authBatchIds.length === 0) {
+        return [];
+      }
+      batchConditions.push(inArray(batches.id, authBatchIds));
+    }
+  }
+
+  const query = db
     .select({
       id: batches.id,
       name: batches.name,
@@ -82,11 +125,13 @@ export async function getAdminBatches(): Promise<AdminBatch[]> {
       batchMemberships,
       and(
         eq(batchMemberships.batchId, batches.id),
-        eq(batchMemberships.status, "active"),
+        eq(batchMemberships.status, 'active'),
       ),
-    )
-    .groupBy(batches.id)
-    .orderBy(desc(batches.startDate), asc(batches.name));
+    );
+
+  const rows = await (batchConditions.length > 0
+    ? query.where(and(...batchConditions)).groupBy(batches.id)
+    : query.groupBy(batches.id));
 
   const adminRows = await db
     .select({
@@ -112,17 +157,34 @@ export async function getAdminBatches(): Promise<AdminBatch[]> {
   }));
 }
 
-export async function getAdminApplications(): Promise<AdminApplication[]> {
-  const rows = await db
+export async function getAdminApplications(
+  userContext?: CurrentUser,
+): Promise<AdminApplication[]> {
+  const appConditions: SQL[] = [];
+  if (userContext) {
+    if (
+      userContext.profile.role === 'pace_admin' ||
+      userContext.profile.role === 'member'
+    ) {
+      return [];
+    }
+    const authBatchIds = await getAuthorizedBatchIds(userContext);
+    if (authBatchIds !== 'all') {
+      if (authBatchIds.length === 0) return [];
+      appConditions.push(inArray(applications.batchId, authBatchIds));
+    }
+  }
+
+  const query = db
     .select({
       id: applications.id,
-      name: applications.registrationName,
+      name: applications.firstName,
       email: applications.email,
       batch: batches.name,
       batchId: applications.batchId,
       appliedOn: applications.createdAt,
       telegramUsername: applications.telegramUsername,
-      profileId: applications.userId,
+      profileId: applications.profileId,
       membershipId: batchMemberships.id,
       membershipStatus: batchMemberships.status,
     })
@@ -131,21 +193,25 @@ export async function getAdminApplications(): Promise<AdminApplication[]> {
     .leftJoin(
       batchMemberships,
       and(
-        eq(batchMemberships.profileId, applications.userId),
+        eq(batchMemberships.profileId, applications.profileId),
         eq(batchMemberships.batchId, applications.batchId),
       ),
-    )
-    .orderBy(desc(applications.createdAt));
+    );
+
+  const rows = await (appConditions.length > 0
+    ? query.where(and(...appConditions)).orderBy(desc(applications.createdAt))
+    : query.orderBy(desc(applications.createdAt)));
 
   return rows.map((row) => {
     const membershipStatus = row.membershipStatus;
     const status =
-      membershipStatus === "rejected" ? "rejected"
-      : membershipStatus === "approved" || membershipStatus === "active" ?
-        row.telegramUsername ?
-          "handoff"
-        : "approved"
-      : "pending";
+      membershipStatus === 'rejected'
+        ? 'rejected'
+        : membershipStatus === 'approved' || membershipStatus === 'active'
+          ? row.telegramUsername
+            ? 'handoff'
+            : 'approved'
+          : 'pending';
 
     return {
       id: row.id,
@@ -155,15 +221,26 @@ export async function getAdminApplications(): Promise<AdminApplication[]> {
       name: row.name,
       email: row.email,
       batch: row.batch,
-      appliedOn: formatDate(row.appliedOn) ?? "",
+      appliedOn: formatDate(row.appliedOn) ?? '',
       status,
       telegramLinked: Boolean(row.telegramUsername),
     };
   });
 }
 
-export async function getAdminPaceGroups(): Promise<AdminPaceGroup[]> {
-  const rows = await db
+export async function getAdminPaceGroups(
+  userContext?: CurrentUser,
+): Promise<AdminPaceGroup[]> {
+  const groupConditions: SQL[] = [];
+  if (userContext) {
+    const authGroupIds = await getAuthorizedPaceGroupIds(userContext);
+    if (authGroupIds !== 'all') {
+      if (authGroupIds.length === 0) return [];
+      groupConditions.push(inArray(paceGroups.id, authGroupIds));
+    }
+  }
+
+  const query = db
     .select({
       id: paceGroups.id,
       name: paceGroups.name,
@@ -176,17 +253,24 @@ export async function getAdminPaceGroups(): Promise<AdminPaceGroup[]> {
       paceGroupMemberships,
       and(
         eq(paceGroupMemberships.paceGroupId, paceGroups.id),
-        eq(paceGroupMemberships.status, "active"),
+        eq(paceGroupMemberships.status, 'active'),
       ),
-    )
-    .groupBy(paceGroups.id, batches.name)
-    .orderBy(asc(batches.name), asc(paceGroups.name));
+    );
+
+  const rows = await (groupConditions.length > 0
+    ? query
+        .where(and(...groupConditions))
+        .groupBy(paceGroups.id, batches.name)
+        .orderBy(asc(batches.name), asc(paceGroups.name))
+    : query
+        .groupBy(paceGroups.id, batches.name)
+        .orderBy(asc(batches.name), asc(paceGroups.name)));
 
   return rows.map((row) => ({
     ...row,
     members: Number(row.members),
-    admin: "Unassigned",
-    currentBook: "No book assigned",
+    admin: 'Unassigned',
+    currentBook: 'No book assigned',
     dayProgress: 0,
     totalDays: 0,
   }));
@@ -207,25 +291,77 @@ export async function getAdminStaff(): Promise<AdminStaffMember[]> {
 
   return rows.map((row) => ({
     ...row,
-    scope: row.role === "super_admin" ? "All batches" : "Assigned batches",
-    lastActive: formatDate(row.lastActive) ?? "Unknown",
+    scope: row.role === 'super_admin' ? 'All batches' : 'Assigned batches',
+    lastActive: formatDate(row.lastActive) ?? 'Unknown',
   }));
 }
 
-export async function getAdminOverviewData() {
+export async function getAdminOverviewData(userContext?: CurrentUser) {
   const [adminBatches, adminApplications, adminPaceGroups] = await Promise.all([
-    getAdminBatches(),
-    getAdminApplications(),
-    getAdminPaceGroups(),
+    getAdminBatches(userContext),
+    getAdminApplications(userContext),
+    getAdminPaceGroups(userContext),
   ]);
 
   const [memberCount] = await db
     .select({ count: count(profiles.id) })
     .from(profiles)
-    .where(eq(profiles.role, "member"));
-  const [catalogCount] = await db
-    .select({ count: count(books.id) })
-    .from(books);
+    .where(eq(profiles.role, 'member'));
+  const [
+    [catalogCount],
+    recentAdditions,
+    editionCoverageGaps,
+    curriculumGaps,
+    referencedCoverRows,
+  ] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(distinct ${books.sequenceOrder})` })
+      .from(books),
+    db
+      .select({
+        id: books.id,
+        title: books.title,
+        language: books.language,
+        sequenceOrder: books.sequenceOrder,
+        createdAt: books.createdAt,
+      })
+      .from(books)
+      .orderBy(desc(books.createdAt))
+      .limit(ADMIN_OVERVIEW_RECENT_BOOK_LIMIT),
+    db
+      .select({
+        sequenceOrder: books.sequenceOrder,
+        editionCount: sql<number>`count(distinct ${books.language})`,
+      })
+      .from(books)
+      .groupBy(books.sequenceOrder)
+      .having(sql`count(distinct ${books.language}) = 1`)
+      .orderBy(asc(books.sequenceOrder)),
+    db
+      .select({
+        id: books.id,
+        title: books.title,
+        language: books.language,
+        sequenceOrder: books.sequenceOrder,
+        tasksCount: count(tasks.id),
+      })
+      .from(books)
+      .leftJoin(tasks, eq(tasks.bookId, books.id))
+      .groupBy(books.id)
+      .having(sql`count(${tasks.id}) = 0`)
+      .orderBy(asc(books.sequenceOrder), asc(books.language)),
+    db.select({ coverUrl: books.coverUrl }).from(books),
+  ]);
+  let orphanedUploadCount: number | null = null;
+  try {
+    orphanedUploadCount = await countOrphanedCloudinaryAssets(
+      referencedCoverRows
+        .map((row) => row.coverUrl)
+        .filter((url): url is string => Boolean(url)),
+    );
+  } catch {
+    // Cloudinary health must not prevent the admin overview from loading.
+  }
 
   return {
     batches: adminBatches,
@@ -236,9 +372,21 @@ export async function getAdminOverviewData() {
       activeBatches: adminBatches.filter((batch) => batch.registrationOpen)
         .length,
       pendingApplications: adminApplications.filter(
-        (application) => application.status === "pending",
+        (application) => application.status === 'pending',
       ).length,
       catalogSlots: Number(catalogCount?.count ?? 0),
+    },
+    catalog: {
+      recentAdditions,
+      editionCoverageGaps: editionCoverageGaps.map((gap) => ({
+        ...gap,
+        editionCount: Number(gap.editionCount),
+      })),
+      curriculumGaps: curriculumGaps.map((gap) => ({
+        ...gap,
+        tasksCount: Number(gap.tasksCount),
+      })),
+      orphanedUploadCount,
     },
   };
 }
