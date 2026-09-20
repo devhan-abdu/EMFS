@@ -1,13 +1,14 @@
 #!/bin/sh
 set -eu
 
-echo "🚀 Pre-push check..."
+echo "🚀 Running pre-push checks..."
 
 export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 if [ -s "$NVM_DIR/nvm.sh" ]; then
-  set +u; . "$NVM_DIR/nvm.sh"; if [ -f .nvmrc ]; then nvm use >/dev/null; fi; set -u
+  set +u; . "$NVM_DIR/nvm.sh"; [ -f .nvmrc ] && nvm use >/dev/null; set -u
 fi
 
-# Keep typecheck so bad code doesn't break main
-echo "Typechecking full repository..."
+echo "⚡ Fast incremental typechecking..."
 pnpm typecheck
+
+echo "✅ Typecheck passed!"
