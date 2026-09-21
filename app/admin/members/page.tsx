@@ -62,13 +62,16 @@ function statusLabel(status: ApplicationHandoffStatus): string {
   return labels[status];
 }
 
+import { requireRole } from '@/lib/auth/authorize';
+
 type MembersPageProps = {
   searchParams: Promise<{ batch?: string }>;
 };
 
 export default async function MembersPage({ searchParams }: MembersPageProps) {
+  const user = await requireRole(['batch_admin', 'super_admin']);
   const { batch: batchFilter } = await searchParams;
-  const applications = await getAdminApplicationsWithHandoff(batchFilter);
+  const applications = await getAdminApplicationsWithHandoff(batchFilter, user);
 
   return (
     <div className="space-y-8">

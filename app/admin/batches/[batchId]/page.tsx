@@ -1,34 +1,32 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import {
   BookOpen,
   ChevronLeft,
-  Layers,
   MapPin,
   Pencil,
   ShieldCheck,
   Users,
 } from 'lucide-react';
-import { buildMockRoster } from '@/components/admin/pace-groups/mock-roster';
-import { PageHeader, StatCard } from '@/components/shared/page-layout';
+import { PageHeader } from '@/components/shared/page-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { RegistrationToggle } from '@/components/admin/registration-toggle';
+import { AuthzError, requireBatchAccess } from '@/lib/auth/authorize';
 import { getBatchDetail } from '@/lib/services/batches/batch-detail';
 import { getAdminApplicationsWithHandoff } from '@/lib/services/application/admin-handoff';
 import { listPaceGroupsForBatch } from '@/lib/services/pace-groups/pace-group';
 import { listPaceAdminAssignments } from '@/lib/services/pace-groups/pace-admin-assignment';
+import { getBatchPlacementStats } from '@/lib/services/pace-groups/placement';
 import { PaceGroupTabs } from '@/components/admin/pace-groups/pace-group-tabs';
 import { PaceGroupList } from '@/components/admin/pace-groups/pace-group-list';
-import { MemberRosterTable } from '@/components/admin/pace-groups/member-roster-table';
+import { MemberPlacementPanel } from '@/components/admin/pace-groups/member-placement-panel';
 import { VolunteerRequestsPanel } from '@/components/admin/pace-groups/volunteer-requests-panel';
 import { DailyTaskPanel } from '@/components/admin/pace-groups/daily-task-panel';
-import { MembershipMoveLog } from '@/components/admin/pace-groups/membership-move-log';
 import type { PaceGroupWithAdmins } from '@/components/admin/pace-groups/types';
 import { MetricCard } from '@/components/admin/pace-groups/metric-card';
-import { PaceGroupCreateButton } from '@/components/admin/pace-groups/pace-group-create-button';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import {
   deriveBatchStatus,
@@ -39,6 +37,13 @@ export async function generateMetadata({
   params,
 }: BatchDetailPageProps): Promise<Metadata> {
   const { batchId } = await params;
+  try {
+    await requireBatchAccess(batchId);
+  } catch {
+    return {
+      title: 'Batch Not Found — EMFSC Book Shelf Admin',
+    };
+  }
   const batch = await getBatchDetail(batchId);
 
   if (!batch) {
@@ -64,25 +69,38 @@ const STALE_AFTER_DAYS = 3;
 
 type BatchDetailPageProps = {
   params: Promise<{ batchId: string }>;
+  searchParams: Promise<{
+    q?: string;
+    search?: string;
+    status?: string;
+    preference?: string;
+    pref?: string;
+  }>;
 };
 
 export default async function BatchDetailPage({
   params,
+  searchParams,
 }: BatchDetailPageProps) {
   const { batchId } = await params;
+  const rosterSearchParams = await searchParams;
+  try {
+    await requireBatchAccess(batchId);
+  } catch (e) {
+    if (e instanceof AuthzError) {
+      redirect('/admin/batches');
+    }
+    throw e;
+  }
+
   const batch = await getBatchDetail(batchId);
   if (!batch) notFound();
 
   const applications = await getAdminApplicationsWithHandoff(batchId);
-  const pendingCount = applications.filter(
-    (a) => a.status === 'pending',
-  ).length;
+
   const handoffPending = applications.filter(
     (a) => a.status === 'approved_pending_handoff',
   );
-  const staleHandoffCount = handoffPending.filter(
-    (a) => (a.daysSinceApproved ?? 0) > STALE_AFTER_DAYS,
-  ).length;
 
   const rawGroups = await listPaceGroupsForBatch({
     batchId: batch.id,
@@ -105,14 +123,10 @@ export default async function BatchDetailPage({
     g.admins.some((a) => a.duty === 'daily_task'),
   ).length;
 
-  // --- Placement metrics: no backend yet, mock roster--
-  const mockRoster = buildMockRoster(groups);
-  const awaitingCount = mockRoster.filter(
-    (m) => m.placement === 'awaiting_placement',
-  ).length;
-  const assignedCount = mockRoster.filter(
-    (m) => m.placement === 'assigned',
-  ).length;
+  // --- Live Member Placement stats (unfiltered; roster filters stream in tab) ---
+  const placementStats = await getBatchPlacementStats(batch.id);
+  const awaitingCount = placementStats.unplaced;
+  const assignedCount = placementStats.placed;
 
   return (
     <div className="space-y-8">
@@ -180,7 +194,7 @@ export default async function BatchDetailPage({
           value={`${awaitingCount} awaiting`}
           footer={
             <p className="text-xs text-muted-foreground">
-              {assignedCount} already placed · preview data
+              {assignedCount} placed in pace groups
             </p>
           }
         />
@@ -223,10 +237,6 @@ export default async function BatchDetailPage({
         <Card className="card-soft">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="font-display text-xl">Batch admins</CardTitle>
-            {/* <BatchAdminAssignButton
-              batchId={batch.id}
-              existingIds={batch.admins.map((a) => a.profileId)}
-            /> */}
           </CardHeader>
           <CardContent className="space-y-3">
             {batch.admins.length === 0 ? (
@@ -248,10 +258,6 @@ export default async function BatchDetailPage({
                   <p className="flex-1 text-sm font-medium text-foreground">
                     {admin.name}
                   </p>
-                  {/* <RemoveBatchAdminButton
-                    batchId={batch.id}
-                    profileId={admin.profileId}
-                  /> */}
                 </div>
               ))
             )}
@@ -274,11 +280,16 @@ export default async function BatchDetailPage({
             <PaceGroupList batchId={batch.id} initialGroups={groups} />
           }
           membersTab={
-            <MemberRosterTable batchName={batch.name} paceGroups={groups} />
+            <MemberPlacementPanel
+              batchId={batch.id}
+              batchName={batch.name}
+              paceGroups={groups}
+              totalMemberCount={placementStats.total}
+              searchParams={rosterSearchParams}
+            />
           }
           volunteersTab={<VolunteerRequestsPanel batchName={batch.name} />}
           tasksTab={<DailyTaskPanel groups={groups} />}
-          moveLogTab={<MembershipMoveLog batchName={batch.name} />}
         />
       </div>
     </div>

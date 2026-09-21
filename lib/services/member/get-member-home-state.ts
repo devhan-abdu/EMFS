@@ -1,14 +1,43 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gte } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   applications,
   batchMemberships,
   batches,
+  books,
+  dailyProgress,
+  dailyTasks,
   handoffRecords,
   paceGroupMemberships,
+  paceGroups,
   waitlist,
 } from '@/db/schema';
 import { buildTelegramStartLink } from '@/lib/services/bot';
+import { formatDateKey } from '@/lib/services/daily-progress';
+
+export type MemberScheduleState =
+  | {
+      status: 'before_batch_start';
+      startDate: string | null;
+    }
+  | {
+      status: 'published';
+      dayNumber: number;
+      task: typeof dailyTasks.$inferSelect;
+      book?: typeof books.$inferSelect | null;
+      isCompleted: boolean;
+      completedAt: Date | null;
+    }
+  | {
+      status: 'no_published_task';
+      dayNumber: number;
+    }
+  | {
+      status: 'rest_day';
+    }
+  | {
+      status: 'exhausted_curriculum';
+    };
 
 export type MemberHomeState =
   | { kind: 'no_batch' }
@@ -20,11 +49,25 @@ export type MemberHomeState =
       batchName: string;
       telegramStartLink: string | null;
     }
-  | { kind: 'active_awaiting_placement'; batchName: string }
-  | { kind: 'active_placed'; batchName: string };
+  | {
+      kind: 'active_awaiting_placement';
+      batchId: string;
+      batchName: string;
+      message: string;
+    }
+  | {
+      kind: 'active_placed';
+      batchId: string;
+      batchName: string;
+      paceGroupId: string;
+      paceGroupName: string;
+      paceGroupSize: number;
+      schedule: MemberScheduleState;
+    };
 
 export async function getMemberHomeState(
   profileId: string,
+  referenceDate?: string | Date,
 ): Promise<MemberHomeState> {
   const membership = await db.query.batchMemberships.findFirst({
     where: eq(batchMemberships.profileId, profileId),
@@ -87,17 +130,137 @@ export async function getMemberHomeState(
     };
   }
 
-  const placement = await db.query.paceGroupMemberships.findFirst({
+  // Active batch membership: derive active pace group in this batch
+  const activeGroupMemberships = await db.query.paceGroupMemberships.findMany({
     where: and(
       eq(paceGroupMemberships.profileId, profileId),
       eq(paceGroupMemberships.status, 'active'),
     ),
-    with: { paceGroup: { columns: { batchId: true } } },
   });
 
-  const placedInThisBatch = !!placement;
+  let activePaceGroup: typeof paceGroups.$inferSelect | null | undefined;
 
-  return placedInThisBatch
-    ? { kind: 'active_placed', batchName }
-    : { kind: 'active_awaiting_placement', batchName };
+  for (const groupMembership of activeGroupMemberships) {
+    const pg = await db.query.paceGroups.findFirst({
+      where: and(
+        eq(paceGroups.id, groupMembership.paceGroupId),
+        eq(paceGroups.batchId, membership.batchId),
+        eq(paceGroups.archived, false),
+      ),
+    });
+
+    if (pg) {
+      activePaceGroup = pg;
+      break;
+    }
+  }
+
+  if (!activePaceGroup) {
+    return {
+      kind: 'active_awaiting_placement',
+      batchId: membership.batchId,
+      batchName,
+      message:
+        'You are accepted into this batch. Your pace group will be assigned soon.',
+    };
+  }
+
+  const paceGroup = activePaceGroup;
+  const todayKey = referenceDate
+    ? formatDateKey(referenceDate)
+    : formatDateKey(new Date());
+
+  let schedule: MemberScheduleState;
+
+  if (!batch?.startDate) {
+    schedule = {
+      status: 'before_batch_start',
+      startDate: null,
+    };
+  } else {
+    const batchStartDate = formatDateKey(batch.startDate);
+
+    if (batchStartDate > todayKey) {
+      schedule = {
+        status: 'before_batch_start',
+        startDate: batchStartDate,
+      };
+    } else {
+      const [y1, m1, d1] = todayKey.split('-').map(Number);
+      const [y0, m0, d0] = batchStartDate.split('-').map(Number);
+      const calendarDays = Math.max(
+        0,
+        Math.round(
+          (Date.UTC(y1, m1 - 1, d1) - Date.UTC(y0, m0 - 1, d0)) /
+            (1000 * 60 * 60 * 24),
+        ),
+      );
+
+      const cadence = Math.max(1, Math.min(7, batch.readingDaysPerWeek || 6));
+      const dayInCycle = calendarDays % 7;
+
+      if (dayInCycle >= cadence) {
+        schedule = { status: 'rest_day' };
+      } else {
+        const dayNumber =
+          Math.floor(calendarDays / 7) * cadence + dayInCycle + 1;
+
+        const publishedTask = await db.query.dailyTasks.findFirst({
+          where: and(
+            eq(dailyTasks.paceGroupId, paceGroup.id),
+            eq(dailyTasks.dayNumber, dayNumber),
+            eq(dailyTasks.publicationStatus, 'published'),
+          ),
+          with: {
+            book: true,
+          },
+        });
+
+        if (publishedTask) {
+          const progress = await db.query.dailyProgress.findFirst({
+            where: and(
+              eq(dailyProgress.profileId, profileId),
+              eq(dailyProgress.taskId, publishedTask.id),
+            ),
+          });
+
+          schedule = {
+            status: 'published',
+            dayNumber,
+            task: publishedTask,
+            book: publishedTask.book,
+            isCompleted: progress?.status === 'done',
+            completedAt: progress?.completedAt ?? null,
+          };
+        } else {
+          const futureTasks = await db.query.dailyTasks.findFirst({
+            where: and(
+              eq(dailyTasks.paceGroupId, paceGroup.id),
+              gte(dailyTasks.dayNumber, dayNumber),
+            ),
+          });
+
+          const anyGroupTasks = await db.query.dailyTasks.findFirst({
+            where: eq(dailyTasks.paceGroupId, paceGroup.id),
+          });
+
+          if (anyGroupTasks && !futureTasks) {
+            schedule = { status: 'exhausted_curriculum' };
+          } else {
+            schedule = { status: 'no_published_task', dayNumber };
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    kind: 'active_placed',
+    batchId: membership.batchId,
+    batchName,
+    paceGroupId: paceGroup.id,
+    paceGroupName: paceGroup.name,
+    paceGroupSize: paceGroup.size,
+    schedule,
+  };
 }

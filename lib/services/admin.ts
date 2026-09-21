@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, asc, count, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 
 import { db } from '@/db';
 import { countOrphanedCloudinaryAssets } from '@/lib/services/catalog/cloudinary';
@@ -16,6 +16,11 @@ import {
   tasks,
   user,
 } from '@/db/schema';
+import type { CurrentUser } from '@/lib/auth/session';
+import {
+  getAuthorizedBatchIds,
+  getAuthorizedPaceGroupIds,
+} from '@/lib/auth/authorize';
 
 const ADMIN_OVERVIEW_RECENT_BOOK_LIMIT = 5;
 
@@ -90,8 +95,21 @@ function formatDate(date: Date | string | null): string | null {
   return date instanceof Date ? date.toISOString().slice(0, 10) : date;
 }
 
-export async function getAdminBatches(): Promise<AdminBatch[]> {
-  const rows = await db
+export async function getAdminBatches(
+  userContext?: CurrentUser,
+): Promise<AdminBatch[]> {
+  const batchConditions: SQL[] = [];
+  if (userContext) {
+    const authBatchIds = await getAuthorizedBatchIds(userContext);
+    if (authBatchIds !== 'all') {
+      if (authBatchIds.length === 0) {
+        return [];
+      }
+      batchConditions.push(inArray(batches.id, authBatchIds));
+    }
+  }
+
+  const query = db
     .select({
       id: batches.id,
       name: batches.name,
@@ -109,8 +127,11 @@ export async function getAdminBatches(): Promise<AdminBatch[]> {
         eq(batchMemberships.batchId, batches.id),
         eq(batchMemberships.status, 'active'),
       ),
-    )
-    .groupBy(batches.id);
+    );
+
+  const rows = await (batchConditions.length > 0
+    ? query.where(and(...batchConditions)).groupBy(batches.id)
+    : query.groupBy(batches.id));
 
   const adminRows = await db
     .select({
@@ -136,8 +157,25 @@ export async function getAdminBatches(): Promise<AdminBatch[]> {
   }));
 }
 
-export async function getAdminApplications(): Promise<AdminApplication[]> {
-  const rows = await db
+export async function getAdminApplications(
+  userContext?: CurrentUser,
+): Promise<AdminApplication[]> {
+  const appConditions: SQL[] = [];
+  if (userContext) {
+    if (
+      userContext.profile.role === 'pace_admin' ||
+      userContext.profile.role === 'member'
+    ) {
+      return [];
+    }
+    const authBatchIds = await getAuthorizedBatchIds(userContext);
+    if (authBatchIds !== 'all') {
+      if (authBatchIds.length === 0) return [];
+      appConditions.push(inArray(applications.batchId, authBatchIds));
+    }
+  }
+
+  const query = db
     .select({
       id: applications.id,
       name: applications.firstName,
@@ -158,8 +196,11 @@ export async function getAdminApplications(): Promise<AdminApplication[]> {
         eq(batchMemberships.profileId, applications.profileId),
         eq(batchMemberships.batchId, applications.batchId),
       ),
-    )
-    .orderBy(desc(applications.createdAt));
+    );
+
+  const rows = await (appConditions.length > 0
+    ? query.where(and(...appConditions)).orderBy(desc(applications.createdAt))
+    : query.orderBy(desc(applications.createdAt)));
 
   return rows.map((row) => {
     const membershipStatus = row.membershipStatus;
@@ -187,8 +228,19 @@ export async function getAdminApplications(): Promise<AdminApplication[]> {
   });
 }
 
-export async function getAdminPaceGroups(): Promise<AdminPaceGroup[]> {
-  const rows = await db
+export async function getAdminPaceGroups(
+  userContext?: CurrentUser,
+): Promise<AdminPaceGroup[]> {
+  const groupConditions: SQL[] = [];
+  if (userContext) {
+    const authGroupIds = await getAuthorizedPaceGroupIds(userContext);
+    if (authGroupIds !== 'all') {
+      if (authGroupIds.length === 0) return [];
+      groupConditions.push(inArray(paceGroups.id, authGroupIds));
+    }
+  }
+
+  const query = db
     .select({
       id: paceGroups.id,
       name: paceGroups.name,
@@ -203,9 +255,16 @@ export async function getAdminPaceGroups(): Promise<AdminPaceGroup[]> {
         eq(paceGroupMemberships.paceGroupId, paceGroups.id),
         eq(paceGroupMemberships.status, 'active'),
       ),
-    )
-    .groupBy(paceGroups.id, batches.name)
-    .orderBy(asc(batches.name), asc(paceGroups.name));
+    );
+
+  const rows = await (groupConditions.length > 0
+    ? query
+        .where(and(...groupConditions))
+        .groupBy(paceGroups.id, batches.name)
+        .orderBy(asc(batches.name), asc(paceGroups.name))
+    : query
+        .groupBy(paceGroups.id, batches.name)
+        .orderBy(asc(batches.name), asc(paceGroups.name)));
 
   return rows.map((row) => ({
     ...row,
@@ -237,11 +296,11 @@ export async function getAdminStaff(): Promise<AdminStaffMember[]> {
   }));
 }
 
-export async function getAdminOverviewData() {
+export async function getAdminOverviewData(userContext?: CurrentUser) {
   const [adminBatches, adminApplications, adminPaceGroups] = await Promise.all([
-    getAdminBatches(),
-    getAdminApplications(),
-    getAdminPaceGroups(),
+    getAdminBatches(userContext),
+    getAdminApplications(userContext),
+    getAdminPaceGroups(userContext),
   ]);
 
   const [memberCount] = await db

@@ -1,9 +1,11 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { ChevronLeft } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-layout';
 import { CreateBatchForm } from '@/components/admin/create-batch-form';
 import { getEligibleBatchAdmins } from '@/lib/services/batches/batch';
+import { AuthzError, requireRole } from '@/lib/auth/authorize';
 
 export const metadata: Metadata = {
   title: 'Create a batch — EMFSC Book Shelf Admin',
@@ -17,6 +19,15 @@ export const metadata: Metadata = {
 };
 
 export default async function NewBatchPage() {
+  try {
+    await requireRole(['super_admin']);
+  } catch (e) {
+    if (e instanceof AuthzError) {
+      redirect('/admin/batches');
+    }
+    throw e;
+  }
+
   const admins = await getEligibleBatchAdmins();
   return (
     <div className="space-y-8">
@@ -32,7 +43,7 @@ export default async function NewBatchPage() {
         title="Create a batch"
         description="Open registration once the batch settings and batch admins are ready. Pace groups and pace admins can be added later."
       />
-      <CreateBatchForm admins={admins} initialData={null} />;
+      <CreateBatchForm admins={admins} initialData={null} />
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation';
+import { AuthzError, requireRole } from '@/lib/auth/authorize';
 import { getEligibleBatchAdmins } from '@/lib/services/batches/batch';
 import { CreateBatchForm } from '@/components/admin/create-batch-form';
 import { PageHeader } from '@/components/shared/page-layout';
@@ -8,6 +10,15 @@ type Props = {
 };
 
 export default async function EditBatchPage({ params }: Props) {
+  try {
+    await requireRole(['super_admin']);
+  } catch (e) {
+    if (e instanceof AuthzError) {
+      redirect('/admin/batches');
+    }
+    throw e;
+  }
+
   const { batchId } = await params;
 
   const [admins, existingBatch] = await Promise.all([

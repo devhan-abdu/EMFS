@@ -50,6 +50,13 @@
       "when": 1789246102573,
       "tag": "0006_condemned_eternals",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789936441961,
+      "tag": "0007_dry_tempest",
+      "breakpoints": true
     }
   ]
 }

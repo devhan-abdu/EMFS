@@ -28,10 +28,10 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
       <aside className="relative hidden overflow-hidden bg-primary px-12 py-16 text-primary-foreground lg:flex lg:w-[46%] lg:flex-col lg:justify-between">
         <LotusWatermark className="pointer-events-none absolute -bottom-24 -right-20 h-96 w-96 text-primary-foreground/10" />
         <Link href="/" className="relative flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-primary-foreground/10">
-            <Lotus className="h-6 w-6" />
+          <span className="flex size-12 items-center justify-center rounded-xl bg-primary-foreground/10">
+            <Lotus className="size-10" />
           </span>
-          <span className="font-display text-lg font-semibold">
+          <span className="font-display text-xl font-semibold">
             EMFSC Book Shelf
           </span>
         </Link>
@@ -54,14 +54,14 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
       <main className="flex flex-1 items-center justify-center px-5 py-14 md:px-10">
         <div className="w-full max-w-sm rise-in">
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
-              <Lotus className="h-6 w-6" />
+          <Link href="/" className="mb-8 flex items-center gap-3 lg:hidden">
+            <span className="flex size-12 items-center justify-center rounded-xl bg-accent text-primary">
+              <Lotus className="size-10" />
             </span>
-            <span className="font-display text-lg font-semibold text-foreground">
+            <span className="font-display text-xl font-semibold text-foreground">
               EMFSC Book Shelf
             </span>
-          </div>
+          </Link>
 
           <h1 className="font-display text-3xl font-semibold text-foreground">
             Welcome back

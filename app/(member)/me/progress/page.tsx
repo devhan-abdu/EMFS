@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { Check, Flame, X } from 'lucide-react';
 
-import { StatCard } from '@/components/shared/page-layout';
+import { requireSession } from '@/lib/auth/authorize';
+import { getMemberHomeState } from '@/lib/services/member/get-member-home-state';
+import { PageHeader, StatCard } from '@/components/shared/page-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 
@@ -38,7 +41,37 @@ const readingLog = [
   { date: 'Oct 20', pages: '115 - 119', status: 'done' },
 ];
 
-export default function ProgressPage() {
+export default async function ProgressPage() {
+  let currentUser;
+  try {
+    currentUser = await requireSession();
+  } catch {
+    redirect('/signin?next=/me/progress');
+  }
+
+  const state = await getMemberHomeState(currentUser.profile.id);
+
+  if (state.kind === 'active_awaiting_placement') {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow={state.batchName}
+          title="You are accepted into this batch. Your pace group will be assigned soon."
+        />
+        <Card className="card-soft">
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            You are accepted into this batch. Your pace group will be assigned
+            soon.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (state.kind !== 'active_placed') {
+    redirect('/me');
+  }
+
   const pagePct = Math.round(
     (memberStats.pagesRead / memberStats.totalPages) * 100,
   );
@@ -47,7 +80,7 @@ export default function ProgressPage() {
     <div className="space-y-8">
       <div className="rise-in space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal">
-          {todayReading.batch}
+          {state.batchName} · {state.paceGroupName}
         </p>
         <h1 className="font-display text-3xl font-semibold text-foreground md:text-[2.5rem] md:leading-tight">
           My progress
@@ -95,7 +128,7 @@ export default function ProgressPage() {
             </div>
             <Progress value={pagePct} className="h-2" />
             <p className="text-sm text-muted-foreground">
-              At today's pace you'll finish with your group.
+              At today&apos;s pace you&apos;ll finish with your group.
             </p>
           </CardContent>
         </Card>

@@ -1,13 +1,22 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { Send } from 'lucide-react';
+import {
+  BookOpen,
+  Calendar,
+  Clock,
+  Coffee,
+  Send,
+  Sparkles,
+} from 'lucide-react';
 
 import { requireSession } from '@/lib/auth/authorize';
 import { getMemberHomeState } from '@/lib/services/member/get-member-home-state';
 import { PageHeader } from '@/components/shared/page-layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { TodayTaskCompleteButton } from '@/components/member/today-task-complete-button';
 
 export const metadata: Metadata = {
   title: "Today's reading — EMFSC Book Shelf",
@@ -128,9 +137,14 @@ export default async function MeHomePage() {
         <div className="space-y-6">
           <PageHeader
             eyebrow={state.batchName}
-            title="You're in!"
-            description="Your pace group will be assigned soon — daily pages and attendance unlock once you're placed."
+            title="You are accepted into this batch. Your pace group will be assigned soon."
           />
+          <Card className="card-soft">
+            <CardContent className="p-6 text-sm text-muted-foreground">
+              You are accepted into this batch. Your pace group will be assigned
+              soon.
+            </CardContent>
+          </Card>
         </div>
       );
 
@@ -138,10 +152,168 @@ export default async function MeHomePage() {
       return (
         <div className="space-y-6">
           <PageHeader
-            eyebrow={state.batchName}
-            title="Today's reading"
-            description="Daily reading tools are on the way."
+            eyebrow={`${state.batchName} · ${state.paceGroupName}`}
+            title={
+              state.schedule.status === 'published'
+                ? "Today's reading"
+                : state.schedule.status === 'before_batch_start'
+                  ? 'Batch starts soon'
+                  : state.schedule.status === 'rest_day'
+                    ? 'Rest day'
+                    : state.schedule.status === 'no_published_task'
+                      ? 'No task published yet'
+                      : 'Curriculum complete'
+            }
+            description={
+              state.schedule.status === 'published'
+                ? `Day ${state.schedule.dayNumber} · ${state.paceGroupSize} pages/day`
+                : state.schedule.status === 'before_batch_start'
+                  ? `Reading begins on ${state.schedule.startDate ?? 'the announced start date'}.`
+                  : state.schedule.status === 'rest_day'
+                    ? 'Take time to catch up, reflect, or rest before the next reading day.'
+                    : state.schedule.status === 'no_published_task'
+                      ? "Your pace admin has not published today's reading assignment yet."
+                      : 'You have completed all reading tasks for this book.'
+            }
           />
+
+          {state.schedule.status === 'published' && (
+            <Card className="card-soft">
+              <CardContent className="space-y-4 p-6">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="size-4 text-primary" />
+                      <p className="font-semibold text-foreground">
+                        {state.schedule.book?.title ?? 'Curriculum Reading'}
+                      </p>
+                    </div>
+                    {state.schedule.book?.author && (
+                      <p className="text-xs text-muted-foreground">
+                        by {state.schedule.book.author}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Pages</p>
+                    <p className="font-display text-lg font-bold text-primary">
+                      {state.schedule.task.startPage} –{' '}
+                      {state.schedule.task.endPage}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {state.schedule.task.endPage -
+                        state.schedule.task.startPage +
+                        1}{' '}
+                      pages
+                    </p>
+                  </div>
+                </div>
+
+                {state.schedule.task.content && (
+                  <div className="rounded-xl bg-surface-container p-4 text-sm leading-relaxed text-foreground">
+                    <p className="whitespace-pre-line">
+                      {state.schedule.task.content}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center gap-2">
+                    {state.schedule.isCompleted && (
+                      <Badge
+                        variant="outline"
+                        className="text-xs font-normal border-teal/40 bg-teal/10 text-teal-foreground"
+                      >
+                        Completed today
+                      </Badge>
+                    )}
+                  </div>
+                  <TodayTaskCompleteButton
+                    taskId={state.schedule.task.id}
+                    initialCompleted={state.schedule.isCompleted}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {state.schedule.status === 'before_batch_start' && (
+            <Card className="card-soft">
+              <CardContent className="flex items-start gap-4 p-6">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-surface-container text-foreground">
+                  <Calendar className="size-5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">
+                    You are placed in {state.paceGroupName} (
+                    {state.paceGroupSize} pages/day).
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    The reading curriculum will unlock automatically on{' '}
+                    {state.schedule.startDate ?? 'the start date'}.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {state.schedule.status === 'rest_day' && (
+            <Card className="card-soft">
+              <CardContent className="flex items-start gap-4 p-6">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-surface-container text-foreground">
+                  <Coffee className="size-5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">
+                    Today is a scheduled rest day for your {state.paceGroupName}{' '}
+                    group.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Use this day to catch up on any missed pages or write your
+                    weekly reflection.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {state.schedule.status === 'no_published_task' && (
+            <Card className="card-soft">
+              <CardContent className="flex items-start gap-4 p-6">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-surface-container text-foreground">
+                  <Clock className="size-5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">
+                    No reading task published for today yet.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Your pace group admin will publish the daily reading pages
+                    soon. Please check back later today.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {state.schedule.status === 'exhausted_curriculum' && (
+            <Card className="card-soft">
+              <CardContent className="flex items-start gap-4 p-6">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-teal/15 text-teal-foreground">
+                  <Sparkles className="size-5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">
+                    Curriculum complete!
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    All assigned reading tasks have been completed. Check with
+                    your batch admin for upcoming books.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       );
   }

@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
-import { Search, X } from 'lucide-react';
+import { Check, ChevronsUpDown, UserPlus, X } from 'lucide-react';
 
 import {
   Dialog,
@@ -12,7 +13,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Field,
@@ -27,7 +27,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { searchProfilesAction } from '@/actions/user-search';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { cn } from '@/lib/utils';
+import {
+  searchProfilesAction,
+  getPreviouslyAssignedPaceAdminsAction,
+} from '@/actions/user-search';
 import {
   assignPaceAdminAction,
   removePaceAdminAssignmentAction,
@@ -36,6 +53,8 @@ import { PACE_ADMIN_DUTIES } from '@/db/schema/pace-admin-assignments';
 import { dutyLabels } from './duty-labels';
 import type { PaceGroupWithAdmins } from './types';
 import type { ProfileSearchResult } from '@/lib/validations/user-search';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 export function PaceAdminAssignDialog({
   open,
@@ -48,7 +67,9 @@ export function PaceAdminAssignDialog({
   group: PaceGroupWithAdmins | null;
   onChanged: () => void;
 }) {
+  const [pickerOpen, setPickerOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
+  const [suggested, setSuggested] = React.useState<ProfileSearchResult[]>([]);
   const [results, setResults] = React.useState<ProfileSearchResult[]>([]);
   const [selected, setSelected] = React.useState<ProfileSearchResult | null>(
     null,
@@ -56,38 +77,65 @@ export function PaceAdminAssignDialog({
   const [duty, setDuty] =
     React.useState<(typeof PACE_ADMIN_DUTIES)[number]>('daily_task');
   const [formError, setFormError] = React.useState<string | null>(null);
+  const [dutyError, setDutyError] = React.useState<string | null>(null);
 
+  const [isLoadingSuggested, startLoadSuggested] = React.useTransition();
   const [isSearching, startSearch] = React.useTransition();
   const [isSubmitting, startSubmit] = React.useTransition();
   const [removingId, setRemovingId] = React.useState<string | null>(null);
 
-  // Clear component state when dialog toggles closed
-  React.useEffect(() => {
-    if (!open) {
-      setQuery('');
-      setResults([]);
-      setSelected(null);
-      setDuty('daily_task');
-      setFormError(null);
+  function resetForm() {
+    setQuery('');
+    setResults([]);
+    setSelected(null);
+    setDuty('daily_task');
+    setFormError(null);
+    setDutyError(null);
+    setPickerOpen(false);
+  }
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      resetForm();
     }
+    onOpenChange(nextOpen);
+  }
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    startLoadSuggested(async () => {
+      const result = await getPreviouslyAssignedPaceAdminsAction();
+      setSuggested(result.ok ? result.data : []);
+    });
   }, [open]);
 
-  function runSearch(value: string) {
-    setQuery(value);
-    setSelected(null);
-    if (value.trim().length < 2) {
-      setResults([]);
+  React.useEffect(() => {
+    if (!open) return;
+
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
       return;
     }
-    startSearch(async () => {
-      const result = await searchProfilesAction(value);
-      setResults(result.ok ? result.data : []);
-    });
-  }
+
+    const handle = window.setTimeout(() => {
+      startSearch(async () => {
+        const result = await searchProfilesAction(trimmed);
+        setResults(result.ok ? result.data : []);
+      });
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(handle);
+  }, [query, open]);
+
+  const suggestedIds = new Set(suggested.map((s) => s.profileId));
+  const searchOnly = results.filter((r) => !suggestedIds.has(r.profileId));
+  const assignedIds = new Set(group?.admins.map((a) => a.profile.id) ?? []);
 
   function handleAssign() {
     if (!group || !selected) return;
     setFormError(null);
+    setDutyError(null);
 
     startSubmit(async () => {
       const result = await assignPaceAdminAction({
@@ -100,14 +148,16 @@ export function PaceAdminAssignDialog({
         toast.success(
           `${selected.displayName} assigned as ${dutyLabels[duty]}`,
         );
-        setSelected(null);
-        setQuery('');
-        setResults([]);
+        resetForm();
         onChanged();
         onOpenChange(false);
       } else {
+        const fieldDuty = result.errors?.fieldErrors?.duty?.[0];
+        if (fieldDuty) setDutyError(fieldDuty);
         const errorMsg =
-          result.errors?.formErrors?.[0] ?? 'Could not assign pace admin';
+          result.errors?.formErrors?.[0] ??
+          fieldDuty ??
+          'Could not assign pace admin';
         setFormError(errorMsg);
         toast.error(errorMsg);
       }
@@ -137,12 +187,20 @@ export function PaceAdminAssignDialog({
   if (!group) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Pace admins — {group.name}</DialogTitle>
+          <DialogTitle className="flex items-center justify-between gap-2 pr-8">
+            <span>Pace admins — {group.name}</span>
+            <Button asChild variant="ghost" size="sm" className="gap-2">
+              <Link href="/admin/roles">
+                <UserPlus className="size-4" />
+                Invite admin
+              </Link>
+            </Button>
+          </DialogTitle>
           <DialogDescription>
-            Search an existing account and assign a duty.
+            Pick a previously assigned pace admin or search by name or email.
           </DialogDescription>
         </DialogHeader>
 
@@ -151,13 +209,12 @@ export function PaceAdminAssignDialog({
             <p className="text-xs font-medium text-destructive">{formError}</p>
           )}
 
-          {/* Current Assigned Admins Roster */}
           {group.admins.length > 0 && (
             <div className="space-y-2">
               {group.admins.map((admin) => (
                 <div
                   key={admin.id}
-                  className="flex items-center justify-between rounded-lg bg-surface-container px-3 py-2 text-sm"
+                  className="flex items-center justify-between rounded-lg bg-surface-container px-4 py-2 text-sm"
                 >
                   <div>
                     <span className="font-medium text-foreground">
@@ -182,60 +239,108 @@ export function PaceAdminAssignDialog({
           )}
 
           <FieldGroup>
-            {/* Person Search Field */}
             <Field>
-              <FieldLabel htmlFor="admin-search">Find a person</FieldLabel>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="admin-search"
-                  value={query}
-                  onChange={(e) => runSearch(e.target.value)}
-                  placeholder="Search by name or email…"
-                  className="pl-9"
-                  disabled={isSubmitting}
-                />
-              </div>
-              {isSearching && (
-                <p className="mt-1 text-xs text-muted-foreground">Searching…</p>
-              )}
-              {results.length > 0 && (
-                <div className="mt-1 max-h-40 space-y-1 overflow-auto rounded-lg border border-border p-1">
-                  {results.map((r) => (
-                    <button
-                      key={r.profileId}
+              <FieldLabel>Find a person</FieldLabel>
+              <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+                <PopoverTrigger
+                  render={
+                    <Button
                       type="button"
-                      onClick={() => {
-                        setSelected(r);
-                        setResults([]);
-                        setQuery(r.displayName);
-                      }}
-                      className="flex w-full flex-col rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={pickerOpen}
+                      className="w-full justify-between font-normal"
+                      disabled={isSubmitting}
                     >
-                      <span className="font-medium text-foreground">
-                        {r.displayName}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {r.email}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+                      {selected ? selected.displayName : 'Search admins…'}
+                      <ChevronsUpDown className="size-4 opacity-50" />
+                    </Button>
+                  }
+                />
+                <PopoverContent
+                  className="w-[--radix-popover-trigger-width] p-0"
+                  align="start"
+                >
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Type a name or email…"
+                      value={query}
+                      onValueChange={(value) => {
+                        setQuery(value);
+                        setSelected(null);
+                        if (value.trim().length < 2) {
+                          setResults([]);
+                        }
+                      }}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        {isSearching || isLoadingSuggested
+                          ? 'Searching…'
+                          : query.trim().length < 2
+                            ? 'Type at least 2 characters to search.'
+                            : 'No people found.'}
+                      </CommandEmpty>
+
+                      {suggested.length > 0 && (
+                        <CommandGroup heading="Previously assigned">
+                          {suggested.map((admin) => (
+                            <AdminPickerItem
+                              key={admin.profileId}
+                              admin={admin}
+                              isSelected={
+                                selected?.profileId === admin.profileId
+                              }
+                              disabled={assignedIds.has(admin.profileId)}
+                              onSelect={() => {
+                                setSelected(admin);
+                                setQuery(admin.displayName);
+                                setResults([]);
+                                setPickerOpen(false);
+                              }}
+                            />
+                          ))}
+                        </CommandGroup>
+                      )}
+
+                      {searchOnly.length > 0 && (
+                        <CommandGroup heading="Search results">
+                          {searchOnly.map((admin) => (
+                            <AdminPickerItem
+                              key={admin.profileId}
+                              admin={admin}
+                              isSelected={
+                                selected?.profileId === admin.profileId
+                              }
+                              disabled={assignedIds.has(admin.profileId)}
+                              onSelect={() => {
+                                setSelected(admin);
+                                setQuery(admin.displayName);
+                                setResults([]);
+                                setPickerOpen(false);
+                              }}
+                            />
+                          ))}
+                        </CommandGroup>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </Field>
 
-            {/* Admin Duty Selector */}
-            <Field>
+            <Field data-invalid={!!dutyError}>
               <FieldLabel htmlFor="admin-duty">Duty</FieldLabel>
               <Select
                 value={duty}
-                onValueChange={(v) =>
-                  setDuty((v as typeof duty) ?? 'daily_task')
-                }
+                onValueChange={(v) => {
+                  setDuty((v as typeof duty) ?? 'daily_task');
+                  setDutyError(null);
+                }}
                 disabled={isSubmitting}
               >
                 <SelectTrigger id="admin-duty" className="w-full">
-                  <SelectValue />
+                  <SelectValue>{dutyLabels[duty]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {PACE_ADMIN_DUTIES.map((d) => (
@@ -245,6 +350,7 @@ export function PaceAdminAssignDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {dutyError && <FieldError>{dutyError}</FieldError>}
             </Field>
           </FieldGroup>
 
@@ -258,5 +364,34 @@ export function PaceAdminAssignDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function AdminPickerItem({
+  admin,
+  isSelected,
+  disabled,
+  onSelect,
+}: {
+  admin: ProfileSearchResult;
+  isSelected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <CommandItem
+      value={`${admin.displayName} ${admin.email}`}
+      disabled={disabled}
+      onSelect={onSelect}
+      className={cn(disabled && 'opacity-50')}
+    >
+      <Check
+        className={cn('mr-2 size-4', isSelected ? 'opacity-100' : 'opacity-0')}
+      />
+      <div className="flex flex-1 flex-col">
+        <span>{admin.displayName}</span>
+        <span className="text-xs text-muted-foreground">{admin.email}</span>
+      </div>
+    </CommandItem>
   );
 }
