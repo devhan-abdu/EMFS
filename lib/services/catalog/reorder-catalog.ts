@@ -1,8 +1,8 @@
-import { and, eq, gte, gt, inArray, lte, lt, sql } from "drizzle-orm";
+import { and, eq, gte, gt, inArray, lte, lt, sql } from 'drizzle-orm';
 
-import { db } from "@/db";
-import { books } from "@/db/schema";
-import { requireSuperAdmin } from "@/lib/auth/authorize";
+import { db } from '@/db';
+import { books } from '@/db/schema';
+import { requireSuperAdmin } from '@/lib/auth/authorize';
 import {
   reorderBooksSchema,
   reorderSlotsSchema,
@@ -10,7 +10,7 @@ import {
   type ActionResult,
   type ReorderBooksInput,
   type ReorderSlotsInput,
-} from "@/lib/validations/catalog";
+} from '@/lib/validations/catalog';
 
 export type ReorderCatalogSlotsResult = ActionResult<{
   fromSlot: number;
@@ -22,7 +22,6 @@ export type ReorderBooksResult = ActionResult<{
   orderedIds: string[];
   sequenceOrders: number[];
 }>;
-
 
 /**
  * Reorders catalog slots atomically within a PostgreSQL transaction.
@@ -62,7 +61,7 @@ export async function reorderCatalogSlots(
     // Determine maximum slot currently in the catalog
     const [stats] = await tx
       .select({
-        maxSlot: sql<number>`max(${books.sequenceOrder})`.as("max_slot"),
+        maxSlot: sql<number>`max(${books.sequenceOrder})`.as('max_slot'),
       })
       .from(books);
 
@@ -73,9 +72,9 @@ export async function reorderCatalogSlots(
         ok: false,
         errors: [
           {
-            field: "fromSlot",
-            message: "Cannot reorder an empty catalog.",
-            code: "CATALOG_EMPTY",
+            field: 'fromSlot',
+            message: 'Cannot reorder an empty catalog.',
+            code: 'CATALOG_EMPTY',
           },
         ],
       };
@@ -86,9 +85,9 @@ export async function reorderCatalogSlots(
         ok: false,
         errors: [
           {
-            field: "fromSlot",
+            field: 'fromSlot',
             message: `Source slot ${fromSlot} does not exist. Maximum slot is ${maxSlot}.`,
-            code: "SLOT_NOT_FOUND",
+            code: 'SLOT_NOT_FOUND',
           },
         ],
       };
@@ -99,9 +98,9 @@ export async function reorderCatalogSlots(
         ok: false,
         errors: [
           {
-            field: "toSlot",
+            field: 'toSlot',
             message: `Destination slot ${toSlot} is out of bounds. Maximum slot is ${maxSlot}.`,
-            code: "SLOT_OUT_OF_BOUNDS",
+            code: 'SLOT_OUT_OF_BOUNDS',
           },
         ],
       };
@@ -119,9 +118,9 @@ export async function reorderCatalogSlots(
         ok: false,
         errors: [
           {
-            field: "fromSlot",
+            field: 'fromSlot',
             message: `Source slot ${fromSlot} contains no books.`,
-            code: "SLOT_EMPTY",
+            code: 'SLOT_EMPTY',
           },
         ],
       };
@@ -213,9 +212,9 @@ export async function reorderBooks(
       ok: false,
       errors: [
         {
-          field: "orderedIds",
-          message: "orderedIds must not contain duplicates.",
-          code: "DUPLICATE_IDS",
+          field: 'orderedIds',
+          message: 'orderedIds must not contain duplicates.',
+          code: 'DUPLICATE_IDS',
         },
       ],
     };
@@ -235,9 +234,9 @@ export async function reorderBooks(
         ok: false,
         errors: [
           {
-            field: "orderedIds",
-            message: "One or more books were not found.",
-            code: "BOOK_NOT_FOUND",
+            field: 'orderedIds',
+            message: 'One or more books were not found.',
+            code: 'BOOK_NOT_FOUND',
           },
         ],
       };
@@ -253,9 +252,9 @@ export async function reorderBooks(
         ok: false,
         errors: [
           {
-            field: "orderedIds",
-            message: "Each id must represent a distinct curriculum slot.",
-            code: "DUPLICATE_SLOTS",
+            field: 'orderedIds',
+            message: 'Each id must represent a distinct curriculum slot.',
+            code: 'DUPLICATE_SLOTS',
           },
         ],
       };

@@ -1,21 +1,21 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import type { Metadata } from "next";
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
 
-import { requireSession } from "@/lib/auth/authorize";
-import { getBatchForApplication } from "@/lib/services/batches/get-batch-for-application";
-import { PageHeader } from "@/components/shared/page-layout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ApplicationForm } from "@/components/member/application-form";
-import { JoinWaitlistButton } from "@/components/member/join-waitlist-button";
+import { requireSession } from '@/lib/auth/authorize';
+import { getBatchForApplication } from '@/lib/services/batches/get-batch-for-application';
+import { PageHeader } from '@/components/shared/page-layout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { ApplicationForm } from '@/components/member/application-form';
+import { JoinWaitlistButton } from '@/components/member/join-waitlist-button';
 
 export const metadata: Metadata = {
-  title: "Apply — EMFSC Book Shelf",
-  description: "Apply to an EMFSC reading batch and join the circle.",
+  title: 'Apply — EMFSC Book Shelf',
+  description: 'Apply to an EMFSC reading batch and join the circle.',
   openGraph: {
-    title: "Apply — EMFSC Book Shelf",
-    description: "Apply to join an EMFSC reading batch.",
+    title: 'Apply — EMFSC Book Shelf',
+    description: 'Apply to join an EMFSC reading batch.',
   },
 };
 
@@ -55,9 +55,9 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
             sameBatch ? "You've already applied" : "You're already in a batch"
           }
           description={
-            sameBatch ?
-              "You already have an application or membership for this batch."
-            : "You can only be part of one batch at a time. Check your current batch status first."
+            sameBatch
+              ? 'You already have an application or membership for this batch.'
+              : 'You can only be part of one batch at a time. Check your current batch status first.'
           }
         />
         <Button asChild>

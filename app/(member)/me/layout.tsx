@@ -1,14 +1,14 @@
-import { MemberNav } from "@/components/member/member-shell";
-import { redirect } from "next/navigation";
-import { headers } from "next/headers";
-import { requireSession } from "@/lib/auth/authorize";
+import { MemberNav } from '@/components/member/member-shell';
+import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
+import { requireSession } from '@/lib/auth/authorize';
 async function MemberLayout({ children }: { children: React.ReactNode }) {
-    try {
-      await requireSession();
-    } catch {
-      const path = (await headers()).get("x-pathname") ?? "/me";
-      redirect(`/signin?next=${encodeURIComponent(path)}`);
-    }
+  try {
+    await requireSession();
+  } catch {
+    const path = (await headers()).get('x-pathname') ?? '/me';
+    redirect(`/signin?next=${encodeURIComponent(path)}`);
+  }
   return (
     <div className="min-h-screen bg-background">
       <MemberNav />

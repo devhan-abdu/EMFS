@@ -12,18 +12,18 @@ reflections; admins approve joins and track attendance. Cite scope with stable
 
 ## Where things live
 
-| Need | Go here |
-| --- | --- |
-| Product brief (narrative) | [PRD.md](./PRD.md) |
-| **Citable stories / modules** | [requirements/module-map.md](./requirements/module-map.md) |
-| Open admin/member questions | [domain/open-decisions.md](./domain/open-decisions.md) |
-| Glossary / roles / lifecycles / journeys | [domain/](./domain/) |
-| Stack choices | [TECH_STACK.md](./TECH_STACK.md) |
-| System design | [ARCHITECTURE.md](./ARCHITECTURE.md) |
-| Folder ownership | [FOLDER_STRUCTURE.md](./FOLDER_STRUCTURE.md) |
-| Merge gates / review checklist | [DEVELOPMENT_RULES.md](./DEVELOPMENT_RULES.md) |
-| How we test | [TESTING.md](./TESTING.md) |
-| Docs index | [README.md](./README.md) |
+| Need                                     | Go here                                                    |
+| ---------------------------------------- | ---------------------------------------------------------- |
+| Product brief (narrative)                | [PRD.md](./PRD.md)                                         |
+| **Citable stories / modules**            | [requirements/module-map.md](./requirements/module-map.md) |
+| Open admin/member questions              | [domain/open-decisions.md](./domain/open-decisions.md)     |
+| Glossary / roles / lifecycles / journeys | [domain/](./domain/)                                       |
+| Stack choices                            | [TECH_STACK.md](./TECH_STACK.md)                           |
+| System design                            | [ARCHITECTURE.md](./ARCHITECTURE.md)                       |
+| Folder ownership                         | [FOLDER_STRUCTURE.md](./FOLDER_STRUCTURE.md)               |
+| Merge gates / review checklist           | [DEVELOPMENT_RULES.md](./DEVELOPMENT_RULES.md)             |
+| How we test                              | [TESTING.md](./TESTING.md)                                 |
+| Docs index                               | [README.md](./README.md)                                   |
 
 ## Get the repo running locally
 

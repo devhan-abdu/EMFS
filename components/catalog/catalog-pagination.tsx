@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   Pagination,
@@ -8,7 +8,7 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-} from "@/components/ui/pagination";
+} from '@/components/ui/pagination';
 
 interface CatalogPaginationProps {
   currentPage: number;
@@ -29,9 +29,9 @@ export default function CatalogPagination({
 
   const createPageUrl = (page: number) => {
     const params = new URLSearchParams();
-    params.set("page", String(page));
+    params.set('page', String(page));
     if (pageSize !== DEFAULT_PAGE_SIZE) {
-      params.set("pageSize", String(pageSize));
+      params.set('pageSize', String(pageSize));
     }
     return `${baseUrl}?${params.toString()}`;
   };
@@ -59,7 +59,7 @@ export default function CatalogPagination({
             href={atFirst ? undefined : createPageUrl(currentPage - 1)}
             aria-disabled={atFirst}
             tabIndex={atFirst ? -1 : undefined}
-            className={atFirst ? "pointer-events-none opacity-50" : ""}
+            className={atFirst ? 'pointer-events-none opacity-50' : ''}
           />
         </PaginationItem>
         {pageItems[0]! > 1 && (
@@ -103,7 +103,7 @@ export default function CatalogPagination({
             href={atLast ? undefined : createPageUrl(currentPage + 1)}
             aria-disabled={atLast}
             tabIndex={atLast ? -1 : undefined}
-            className={atLast ? "pointer-events-none opacity-50" : ""}
+            className={atLast ? 'pointer-events-none opacity-50' : ''}
           />
         </PaginationItem>
       </PaginationContent>

@@ -1,17 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   reorderBooks,
   reorderCatalogSlots,
-} from "../lib/services/catalog/reorder-catalog";
+} from '../lib/services/catalog/reorder-catalog';
 import {
   reorderBooksAction,
   reorderCatalogSlotsAction,
-} from "../actions/catalog";
+} from '../actions/catalog';
 
 const { mockRequireSuperAdmin, AuthzErrorMock } = vi.hoisted(() => {
   class AuthzErrorMock extends Error {
-    code: "UNAUTHENTICATED" | "FORBIDDEN";
-    constructor(code: "UNAUTHENTICATED" | "FORBIDDEN", message: string) {
+    code: 'UNAUTHENTICATED' | 'FORBIDDEN';
+    constructor(code: 'UNAUTHENTICATED' | 'FORBIDDEN', message: string) {
       super(message);
       this.code = code;
     }
@@ -32,18 +32,20 @@ const mocks = vi.hoisted(() => {
 
 const { selectMock, updateMock, transactionMock, findManyMock } = mocks;
 
-vi.mock("server-only", () => ({}));
-vi.mock("@/lib/auth/authorize", () => ({
+vi.mock('server-only', () => ({}));
+vi.mock('@/lib/auth/authorize', () => ({
   AuthzError: AuthzErrorMock,
   requireSuperAdmin: mockRequireSuperAdmin,
-  authzErrorToFieldError: vi.fn((error: InstanceType<typeof AuthzErrorMock>) => ({
-    field: "auth",
-    message: error.message,
-    code: error.code,
-  })),
+  authzErrorToFieldError: vi.fn(
+    (error: InstanceType<typeof AuthzErrorMock>) => ({
+      field: 'auth',
+      message: error.message,
+      code: error.code,
+    }),
+  ),
 }));
 
-vi.mock("@/db", () => ({
+vi.mock('@/db', () => ({
   db: {
     select: mocks.selectMock,
     update: mocks.updateMock,
@@ -56,27 +58,31 @@ vi.mock("@/db", () => ({
   },
 }));
 
-describe("reorderCatalogSlots Service", () => {
+describe('reorderCatalogSlots Service', () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it.each([
-    ["UNAUTHENTICATED", "You must be signed in."],
-    ["FORBIDDEN", "Role 'member' is not permitted."],
-    ["FORBIDDEN", "Role 'pace_admin' is not permitted."],
-    ["FORBIDDEN", "Role 'batch_admin' is not permitted."],
-  ] as const)("rejects direct calls for %s callers", async (code, message) => {
-    mockRequireSuperAdmin.mockRejectedValueOnce(new AuthzErrorMock(code, message));
+    ['UNAUTHENTICATED', 'You must be signed in.'],
+    ['FORBIDDEN', "Role 'member' is not permitted."],
+    ['FORBIDDEN', "Role 'pace_admin' is not permitted."],
+    ['FORBIDDEN', "Role 'batch_admin' is not permitted."],
+  ] as const)('rejects direct calls for %s callers', async (code, message) => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(
+      new AuthzErrorMock(code, message),
+    );
 
-    await expect(reorderCatalogSlots({ fromSlot: 2, toSlot: 1 })).rejects.toMatchObject({
+    await expect(
+      reorderCatalogSlots({ fromSlot: 2, toSlot: 1 }),
+    ).rejects.toMatchObject({
       code,
       message,
     });
     expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("handles identical source and destination as a no-op", async () => {
+  it('handles identical source and destination as a no-op', async () => {
     const result = await reorderCatalogSlots({ fromSlot: 3, toSlot: 3 });
 
     expect(result.ok).toBe(true);
@@ -90,7 +96,7 @@ describe("reorderCatalogSlots Service", () => {
     expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("reorders downwards (e.g. moving slot 4 to slot 2)", async () => {
+  it('reorders downwards (e.g. moving slot 4 to slot 2)', async () => {
     const updates: Array<{ sequenceOrder: unknown }> = [];
 
     const txMock = {
@@ -104,7 +110,7 @@ describe("reorderCatalogSlots Service", () => {
         .mockReturnValueOnce({
           from: vi.fn(() => ({
             where: vi.fn(() => ({
-              limit: vi.fn(async () => [{ id: "book-4" }]),
+              limit: vi.fn(async () => [{ id: 'book-4' }]),
             })),
           })),
         }),
@@ -118,9 +124,11 @@ describe("reorderCatalogSlots Service", () => {
       })),
     };
 
-    transactionMock.mockImplementation(async (cb: (tx: typeof txMock) => Promise<unknown>) => {
-      return cb(txMock);
-    });
+    transactionMock.mockImplementation(
+      async (cb: (tx: typeof txMock) => Promise<unknown>) => {
+        return cb(txMock);
+      },
+    );
 
     const result = await reorderCatalogSlots({ fromSlot: 4, toSlot: 2 });
 
@@ -142,7 +150,7 @@ describe("reorderCatalogSlots Service", () => {
     expect(updates[2].sequenceOrder).toBe(2);
   });
 
-  it("reorders upwards (e.g. moving slot 2 to slot 4)", async () => {
+  it('reorders upwards (e.g. moving slot 2 to slot 4)', async () => {
     const updates: Array<{ sequenceOrder: unknown }> = [];
 
     const txMock = {
@@ -156,7 +164,7 @@ describe("reorderCatalogSlots Service", () => {
         .mockReturnValueOnce({
           from: vi.fn(() => ({
             where: vi.fn(() => ({
-              limit: vi.fn(async () => [{ id: "book-2" }]),
+              limit: vi.fn(async () => [{ id: 'book-2' }]),
             })),
           })),
         }),
@@ -170,9 +178,11 @@ describe("reorderCatalogSlots Service", () => {
       })),
     };
 
-    transactionMock.mockImplementation(async (cb: (tx: typeof txMock) => Promise<unknown>) => {
-      return cb(txMock);
-    });
+    transactionMock.mockImplementation(
+      async (cb: (tx: typeof txMock) => Promise<unknown>) => {
+        return cb(txMock);
+      },
+    );
 
     const result = await reorderCatalogSlots({ fromSlot: 2, toSlot: 4 });
 
@@ -189,59 +199,66 @@ describe("reorderCatalogSlots Service", () => {
     expect(updates[2].sequenceOrder).toBe(4);
   });
 
-  it("rejects out of bounds fromSlot", async () => {
+  it('rejects out of bounds fromSlot', async () => {
     const txMock = {
       select: vi.fn().mockReturnValueOnce({
         from: vi.fn(async () => [{ maxSlot: 3 }]),
       }),
     };
 
-    transactionMock.mockImplementation(async (cb: (tx: typeof txMock) => Promise<unknown>) => {
-      return cb(txMock);
-    });
+    transactionMock.mockImplementation(
+      async (cb: (tx: typeof txMock) => Promise<unknown>) => {
+        return cb(txMock);
+      },
+    );
 
     const result = await reorderCatalogSlots({ fromSlot: 10, toSlot: 2 });
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.errors[0]).toMatchObject({
-        field: "fromSlot",
-        code: "SLOT_NOT_FOUND",
+        field: 'fromSlot',
+        code: 'SLOT_NOT_FOUND',
       });
     }
   });
 
-  it("rejects out of bounds toSlot", async () => {
+  it('rejects out of bounds toSlot', async () => {
     const txMock = {
       select: vi.fn().mockReturnValueOnce({
         from: vi.fn(async () => [{ maxSlot: 3 }]),
       }),
     };
 
-    transactionMock.mockImplementation(async (cb: (tx: typeof txMock) => Promise<unknown>) => {
-      return cb(txMock);
-    });
+    transactionMock.mockImplementation(
+      async (cb: (tx: typeof txMock) => Promise<unknown>) => {
+        return cb(txMock);
+      },
+    );
 
     const result = await reorderCatalogSlots({ fromSlot: 2, toSlot: 99 });
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.errors[0]).toMatchObject({
-        field: "toSlot",
-        code: "SLOT_OUT_OF_BOUNDS",
+        field: 'toSlot',
+        code: 'SLOT_OUT_OF_BOUNDS',
       });
     }
   });
 });
 
-describe("reorderCatalogSlotsAction Server Action", () => {
+describe('reorderCatalogSlotsAction Server Action', () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("rejects unauthenticated and non-super-admin caller", async () => {
+  it('rejects unauthenticated and non-super-admin caller', async () => {
     mockRequireSuperAdmin.mockRejectedValue(
-      new AuthzErrorMock("FORBIDDEN", "Role 'member' is not permitted. Required at least: super_admin."),
+      new AuthzErrorMock(
+        'FORBIDDEN',
+        "Role 'member' is not permitted. Required at least: super_admin.",
+      ),
     );
 
     const result = await reorderCatalogSlotsAction({ fromSlot: 2, toSlot: 1 });
@@ -249,21 +266,25 @@ describe("reorderCatalogSlotsAction Server Action", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.errors[0]).toEqual({
-        field: "auth",
-        code: "FORBIDDEN",
-        message: "Role 'member' is not permitted. Required at least: super_admin.",
+        field: 'auth',
+        code: 'FORBIDDEN',
+        message:
+          "Role 'member' is not permitted. Required at least: super_admin.",
       });
     }
   });
 
-  it("rejects invalid input schemas", async () => {
+  it('rejects invalid input schemas', async () => {
     mockRequireSuperAdmin.mockResolvedValue({
-      authUserId: "admin-1",
-      email: "admin@example.com",
-      profile: { role: "super_admin" },
+      authUserId: 'admin-1',
+      email: 'admin@example.com',
+      profile: { role: 'super_admin' },
     });
 
-    const result = await reorderCatalogSlotsAction({ fromSlot: -1, toSlot: "abc" });
+    const result = await reorderCatalogSlotsAction({
+      fromSlot: -1,
+      toSlot: 'abc',
+    });
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -272,20 +293,20 @@ describe("reorderCatalogSlotsAction Server Action", () => {
   });
 });
 
-describe("reorderBooks Service", () => {
+describe('reorderBooks Service', () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("no-ops when ids are already in ascending slot order", async () => {
+  it('no-ops when ids are already in ascending slot order', async () => {
     mockRequireSuperAdmin.mockResolvedValue({
-      authUserId: "admin-1",
-      email: "admin@example.com",
-      profile: { role: "super_admin" },
+      authUserId: 'admin-1',
+      email: 'admin@example.com',
+      profile: { role: 'super_admin' },
     });
 
-    const idA = "11111111-1111-4111-8111-111111111111";
-    const idB = "22222222-2222-4222-8222-222222222222";
+    const idA = '11111111-1111-4111-8111-111111111111';
+    const idB = '22222222-2222-4222-8222-222222222222';
 
     transactionMock.mockImplementation(async (fn) =>
       fn({
@@ -312,16 +333,16 @@ describe("reorderBooks Service", () => {
     expect(updateMock).not.toHaveBeenCalled();
   });
 
-  it("reassigns preserved page slot numbers to the new order", async () => {
+  it('reassigns preserved page slot numbers to the new order', async () => {
     mockRequireSuperAdmin.mockResolvedValue({
-      authUserId: "admin-1",
-      email: "admin@example.com",
-      profile: { role: "super_admin" },
+      authUserId: 'admin-1',
+      email: 'admin@example.com',
+      profile: { role: 'super_admin' },
     });
 
-    const idA = "11111111-1111-4111-8111-111111111111";
-    const idB = "22222222-2222-4222-8222-222222222222";
-    const idC = "33333333-3333-4333-8333-333333333333";
+    const idA = '11111111-1111-4111-8111-111111111111';
+    const idB = '22222222-2222-4222-8222-222222222222';
+    const idC = '33333333-3333-4333-8333-333333333333';
 
     const whereMock = vi.fn(() => Promise.resolve());
     updateMock.mockReturnValue({
@@ -357,19 +378,19 @@ describe("reorderBooks Service", () => {
   });
 });
 
-describe("reorderBooksAction Server Action", () => {
+describe('reorderBooksAction Server Action', () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("rejects invalid uuid lists", async () => {
+  it('rejects invalid uuid lists', async () => {
     mockRequireSuperAdmin.mockResolvedValue({
-      authUserId: "admin-1",
-      email: "admin@example.com",
-      profile: { role: "super_admin" },
+      authUserId: 'admin-1',
+      email: 'admin@example.com',
+      profile: { role: 'super_admin' },
     });
 
-    const result = await reorderBooksAction(["not-a-uuid"]);
+    const result = await reorderBooksAction(['not-a-uuid']);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {

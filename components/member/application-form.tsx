@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import Form from "next/form";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import * as React from 'react';
+import Form from 'next/form';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
-import { submitApplicationAction } from "@/actions/application";
-import { type FormState } from "@/lib/validations/application";
+import { submitApplicationAction } from '@/actions/application';
+import { type FormState } from '@/lib/validations/application';
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 import {
   Field,
@@ -17,7 +17,7 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-} from "@/components/ui/field";
+} from '@/components/ui/field';
 
 import {
   Select,
@@ -25,9 +25,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 
-import { PACE_GROUP_PREFERENCES } from "@/db/schema/applications";
+import { PACE_GROUP_PREFERENCES } from '@/db/schema/applications';
 
 export function ApplicationForm({
   batchId,
@@ -43,12 +43,12 @@ export function ApplicationForm({
   const initialState: FormState = {
     values: {
       batchId,
-      firstName: "",
-      fatherName: "",
-      grandfatherName: "",
-      email: defaultEmail ?? "",
-      telegramUsername: "",
-      phoneNumber: "",
+      firstName: '',
+      fatherName: '',
+      grandfatherName: '',
+      email: defaultEmail ?? '',
+      telegramUsername: '',
+      phoneNumber: '',
       paceGroup: showPacePreference ? PACE_GROUP_PREFERENCES[0] : undefined,
     },
     errors: null,
@@ -63,9 +63,9 @@ export function ApplicationForm({
 
   React.useEffect(() => {
     if (formState.success) {
-      toast.success("Application submitted successfully!");
+      toast.success('Application submitted successfully!');
 
-      router.push("/me");
+      router.push('/me');
       router.refresh();
     }
 
@@ -147,7 +147,6 @@ export function ApplicationForm({
             autoComplete="email"
             defaultValue={formState.values?.email}
             readOnly
-            
           />
 
           {formState.errors?.email && (
@@ -228,7 +227,7 @@ export function ApplicationForm({
       </FieldGroup>
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Submitting..." : "Submit application"}
+        {pending ? 'Submitting...' : 'Submit application'}
       </Button>
     </Form>
   );

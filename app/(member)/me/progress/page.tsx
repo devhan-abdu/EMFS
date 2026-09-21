@@ -1,16 +1,19 @@
-import type { Metadata } from "next";
-import { Check, Flame, X } from "lucide-react";
+import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { Check, Flame, X } from 'lucide-react';
 
-import { StatCard } from "@/components/shared/page-layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { requireSession } from '@/lib/auth/authorize';
+import { getMemberHomeState } from '@/lib/services/member/get-member-home-state';
+import { PageHeader, StatCard } from '@/components/shared/page-layout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 
 export const metadata: Metadata = {
-  title: "My progress — EMFSC Book Shelf",
-  description: "Pages read, reflections, attendance and streak in one place.",
+  title: 'My progress — EMFSC Book Shelf',
+  description: 'Pages read, reflections, attendance and streak in one place.',
   openGraph: {
-    title: "My progress — EMFSC Book Shelf",
-    description: "Pages read, reflections, attendance and streak in one place.",
+    title: 'My progress — EMFSC Book Shelf',
+    description: 'Pages read, reflections, attendance and streak in one place.',
   },
 };
 
@@ -25,20 +28,50 @@ const memberStats = {
 };
 
 const todayReading = {
-  batch: "Batch 4 · Seerah",
-  book: "The Sealed Nectar",
-  paceGroup: "5 pages/day",
+  batch: 'Batch 4 · Seerah',
+  book: 'The Sealed Nectar',
+  paceGroup: '5 pages/day',
 };
 
 const readingLog = [
-  { date: "Today, Oct 24", pages: "135 - 140", status: "done" },
-  { date: "Yesterday, Oct 23", pages: "130 - 134", status: "done" },
-  { date: "Oct 22", pages: "125 - 129", status: "missed" },
-  { date: "Oct 21", pages: "120 - 124", status: "done" },
-  { date: "Oct 20", pages: "115 - 119", status: "done" },
+  { date: 'Today, Oct 24', pages: '135 - 140', status: 'done' },
+  { date: 'Yesterday, Oct 23', pages: '130 - 134', status: 'done' },
+  { date: 'Oct 22', pages: '125 - 129', status: 'missed' },
+  { date: 'Oct 21', pages: '120 - 124', status: 'done' },
+  { date: 'Oct 20', pages: '115 - 119', status: 'done' },
 ];
 
-export default function ProgressPage() {
+export default async function ProgressPage() {
+  let currentUser;
+  try {
+    currentUser = await requireSession();
+  } catch {
+    redirect('/signin?next=/me/progress');
+  }
+
+  const state = await getMemberHomeState(currentUser.profile.id);
+
+  if (state.kind === 'active_awaiting_placement') {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow={state.batchName}
+          title="You are accepted into this batch. Your pace group will be assigned soon."
+        />
+        <Card className="card-soft">
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            You are accepted into this batch. Your pace group will be assigned
+            soon.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (state.kind !== 'active_placed') {
+    redirect('/me');
+  }
+
   const pagePct = Math.round(
     (memberStats.pagesRead / memberStats.totalPages) * 100,
   );
@@ -47,7 +80,7 @@ export default function ProgressPage() {
     <div className="space-y-8">
       <div className="rise-in space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal">
-          {todayReading.batch}
+          {state.batchName} · {state.paceGroupName}
         </p>
         <h1 className="font-display text-3xl font-semibold text-foreground md:text-[2.5rem] md:leading-tight">
           My progress
@@ -95,7 +128,7 @@ export default function ProgressPage() {
             </div>
             <Progress value={pagePct} className="h-2" />
             <p className="text-sm text-muted-foreground">
-              At today's pace you'll finish with your group.
+              At today&apos;s pace you&apos;ll finish with your group.
             </p>
           </CardContent>
         </Card>
@@ -138,16 +171,17 @@ export default function ProgressPage() {
                   Pages {entry.pages}
                 </p>
               </div>
-              {entry.status === "done" ?
+              {entry.status === 'done' ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-teal/15 px-3 py-1 text-xs font-medium text-teal-foreground">
                   <Check className="size-3.5" />
                   Read
                 </span>
-              : <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
                   <X className="size-3.5" />
                   Missed
                 </span>
-              }
+              )}
             </div>
           ))}
         </Card>

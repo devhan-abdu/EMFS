@@ -12,11 +12,11 @@ Read with:
 
 ## Roles (confirmed)
 
-| Role                       | Cardinality                                                               | Scope                                                                                                                                                                                                                          |
-| -------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `super_admin`              | System-wide                                                               | **Book catalog** + master curriculum; assign batch admins; create batches (capacity, pace-group count, start/pacing); **superset** of batch + pace admin powers                                                                |
+| Role                       | Cardinality                                                               | Scope                                                                                                                                                                                                                                                             |
+| -------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `super_admin`              | System-wide                                                               | **Book catalog** + master curriculum; assign batch admins; create batches (capacity, pace-group count, start/pacing); **superset** of batch + pace admin powers                                                                                                   |
 | `batch_admin`              | **1–3 per batch**                                                         | Open registration; create pace groups when needed (batch may have **zero, one, or many**); place members; appoint pace admins; batch pacing setup; optional manual review queue when `auto_approve = false`; oversee intake via the bot-mediated approval handoff |
-| `pace_admin` (group admin) | **One or more per pace group**; same person may admin **multiple** groups | Daily task (approve/adjust pages); reflection / inspiration / attendance (+ more duties later); review attendance; group dashboard                                                                                             |
+| `pace_admin` (group admin) | **One or more per pace group**; same person may admin **multiple** groups | Daily task (approve/adjust pages); reflection / inspiration / attendance (+ more duties later); review attendance; group dashboard                                                                                                                                |
 
 ```text
 super_admin
@@ -139,13 +139,13 @@ If capacity is full or registration is closed, both modes route to the **waiting
 
 ## Registration fields (required)
 
-| Field                 | Notes                                     |
-| --------------------- | ----------------------------------------- |
-| Registration name     | Display / legal name for ops              |
-| Email                 | Account + contact                         |
-| Telegram username     | Identity for Telegram ops                 |
-| Phone number          | Reachability                              |
-| Pace preference | Collected only when selectable groups already exist; final placement is made later by an authorized admin |
+| Field             | Notes                                                                                                     |
+| ----------------- | --------------------------------------------------------------------------------------------------------- |
+| Registration name | Display / legal name for ops                                                                              |
+| Email             | Account + contact                                                                                         |
+| Telegram username | Identity for Telegram ops                                                                                 |
+| Phone number      | Reachability                                                                                              |
+| Pace preference   | Collected only when selectable groups already exist; final placement is made later by an authorized admin |
 
 ## Intake handoff after approval (`OD-005`)
 

@@ -1,15 +1,15 @@
-import Image from "next/image";
+import Image from 'next/image';
 
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 
 const FALLBACK_BG = [
-  "bg-chart-1",
-  "bg-chart-2",
-  "bg-chart-3",
-  "bg-chart-4",
-  "bg-chart-5",
-  "bg-primary",
-  "bg-secondary",
+  'bg-chart-1',
+  'bg-chart-2',
+  'bg-chart-3',
+  'bg-chart-4',
+  'bg-chart-5',
+  'bg-primary',
+  'bg-secondary',
 ] as const;
 
 type BookCoverThumbProps = {
@@ -33,7 +33,7 @@ function hashToIndex(value: string, modulo: number): number {
 
 function fallbackInitial(title: string): string {
   const trimmed = title.trim();
-  if (!trimmed) return "?";
+  if (!trimmed) return '?';
   return trimmed.charAt(0).toUpperCase();
 }
 
@@ -43,7 +43,7 @@ export function BookCoverThumb({
   seed,
   alt,
   className,
-  sizes = "44px",
+  sizes = '44px',
   unoptimized,
 }: BookCoverThumbProps) {
   const colorSeed = seed ?? title;
@@ -51,16 +51,16 @@ export function BookCoverThumb({
   const initial = fallbackInitial(title);
   const resolvedUnoptimized =
     unoptimized ??
-    Boolean(coverUrl?.startsWith("data:") || coverUrl?.startsWith("blob:"));
+    Boolean(coverUrl?.startsWith('data:') || coverUrl?.startsWith('blob:'));
 
   return (
     <div
       className={cn(
-        "relative h-[60px] w-[44px] shrink-0 overflow-hidden rounded-md border border-border bg-surface-container",
+        'relative h-[60px] w-[44px] shrink-0 overflow-hidden rounded-md border border-border bg-surface-container',
         className,
       )}
     >
-      {coverUrl ?
+      {coverUrl ? (
         <Image
           src={coverUrl}
           alt={alt ?? title}
@@ -69,18 +69,19 @@ export function BookCoverThumb({
           sizes={sizes}
           unoptimized={resolvedUnoptimized}
         />
-      : <div
+      ) : (
+        <div
           className={cn(
-            "flex h-full w-full items-center justify-center font-medium text-primary-foreground",
+            'flex h-full w-full items-center justify-center font-medium text-primary-foreground',
             bgClass,
           )}
           aria-hidden={alt ? undefined : true}
-          role={alt ? "img" : undefined}
+          role={alt ? 'img' : undefined}
           aria-label={alt}
         >
           <span className="text-lg leading-none">{initial}</span>
         </div>
-      }
+      )}
     </div>
   );
 }

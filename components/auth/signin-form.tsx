@@ -1,34 +1,34 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import Form from "next/form";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
-import { toast } from "sonner";
+import * as React from 'react';
+import Form from 'next/form';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { signInAction } from "@/actions/auth";
-import { type SignInFormState } from "@/lib/validations/auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { signInAction } from '@/actions/auth';
+import { type SignInFormState } from '@/lib/validations/auth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Field,
   FieldError,
   FieldGroup,
   FieldLabel,
-} from "@/components/ui/field";
+} from '@/components/ui/field';
 
 export function SignInForm({ next }: { next?: string | null }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTarget = next ?? searchParams.get("next");
+  const redirectTarget = next ?? searchParams.get('next');
 
   const [showPassword, setShowPassword] = React.useState(false);
 
   const initialState: SignInFormState = {
     values: {
-      email: "",
-      password: "",
+      email: '',
+      password: '',
     },
     errors: null,
     formError: null,
@@ -42,8 +42,8 @@ export function SignInForm({ next }: { next?: string | null }) {
 
   React.useEffect(() => {
     if (formState.success) {
-      toast.success("Signed in successfully!");
-      const destination = formState.redirectTo ?? redirectTarget ?? "/";
+      toast.success('Signed in successfully!');
+      const destination = formState.redirectTo ?? redirectTarget ?? '/';
       router.push(destination);
       router.refresh();
     } else if (formState.formError) {
@@ -59,9 +59,9 @@ export function SignInForm({ next }: { next?: string | null }) {
 
   return (
     <Form action={formAction} className="mt-8 space-y-5">
-      {redirectTarget ?
+      {redirectTarget ? (
         <input type="hidden" name="next" value={redirectTarget} />
-      : null}
+      ) : null}
 
       <FieldGroup>
         {/* Email */}
@@ -89,7 +89,7 @@ export function SignInForm({ next }: { next?: string | null }) {
             <Input
               id="password"
               name="password"
-              type={showPassword ? "text" : "password"}
+              type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               placeholder="Enter your password"
               className="pr-10"
@@ -99,13 +99,15 @@ export function SignInForm({ next }: { next?: string | null }) {
             />
             <button
               type="button"
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
               onClick={() => setShowPassword((visible) => !visible)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
             >
-              {showPassword ?
+              {showPassword ? (
                 <EyeOff className="size-4" />
-              : <Eye className="size-4" />}
+              ) : (
+                <Eye className="size-4" />
+              )}
             </button>
           </div>
           {formState.errors?.password && (
@@ -115,16 +117,16 @@ export function SignInForm({ next }: { next?: string | null }) {
       </FieldGroup>
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Signing in..." : "Sign in"}
+        {pending ? 'Signing in...' : 'Sign in'}
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">
-        New here?{" "}
+        New here?{' '}
         <Link
           href={
-            redirectTarget ?
-              `/signup?next=${encodeURIComponent(redirectTarget)}`
-            : "/signup"
+            redirectTarget
+              ? `/signup?next=${encodeURIComponent(redirectTarget)}`
+              : '/signup'
           }
           className="font-medium text-primary hover:underline"
         >

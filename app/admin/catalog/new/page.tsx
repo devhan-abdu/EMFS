@@ -1,35 +1,35 @@
-import Link from "next/link";
-import type { Metadata } from "next";
-import { ChevronLeft } from "lucide-react";
+import Link from 'next/link';
+import type { Metadata } from 'next';
+import { ChevronLeft } from 'lucide-react';
 
-import { PageHeader } from "@/components/shared/page-layout";
+import { PageHeader } from '@/components/shared/page-layout';
 import {
   NewCatalogEntryForms,
   type CatalogBookOption,
-} from "@/components/admin/catalog/new-catalog-entry-forms";
-import { getCatalog } from "@/lib/services/catalog/get-catalog";
+} from '@/components/admin/catalog/new-catalog-entry-forms';
+import { getCatalog } from '@/lib/services/catalog/get-catalog';
 
 export const metadata: Metadata = {
-  title: "Add to the catalog — EMFSC Book Shelf Admin",
+  title: 'Add to the catalog — EMFSC Book Shelf Admin',
   description:
-    "Add a program book to the EMFSC reading sequence, or attach a new language edition to an existing book.",
+    'Add a program book to the EMFSC reading sequence, or attach a new language edition to an existing book.',
   openGraph: {
-    title: "Add to the catalog — EMFSC Book Shelf Admin",
-    description: "Add a program book or a new language edition.",
+    title: 'Add to the catalog — EMFSC Book Shelf Admin',
+    description: 'Add a program book or a new language edition.',
   },
 };
 
 export default async function NewCatalogEntryPage() {
   const result = await getCatalog({ page: 1, limit: 100 });
   if (!result.ok) {
-    throw new Error("Failed to load catalog");
+    throw new Error('Failed to load catalog');
   }
 
   const { slots } = result.data;
 
   const books: CatalogBookOption[] = slots.map((slot) => {
     const preferred =
-      slot.editions.find((edition) => edition.language === "en") ??
+      slot.editions.find((edition) => edition.language === 'en') ??
       slot.editions[0]!;
     return {
       id: preferred.id,

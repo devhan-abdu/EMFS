@@ -1,43 +1,132 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import type { Metadata } from "next";
-import { ChevronLeft, Layers, Users } from "lucide-react";
+import Link from 'next/link';
+import { notFound, redirect } from 'next/navigation';
+import type { Metadata } from 'next';
+import {
+  BookOpen,
+  ChevronLeft,
+  MapPin,
+  Pencil,
+  ShieldCheck,
+  Users,
+} from 'lucide-react';
+import { PageHeader } from '@/components/shared/page-layout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { RegistrationToggle } from '@/components/admin/registration-toggle';
+import { AuthzError, requireBatchAccess } from '@/lib/auth/authorize';
+import { getBatchDetail } from '@/lib/services/batches/batch-detail';
+import { getAdminApplicationsWithHandoff } from '@/lib/services/application/admin-handoff';
+import { listPaceGroupsForBatch } from '@/lib/services/pace-groups/pace-group';
+import { listPaceAdminAssignments } from '@/lib/services/pace-groups/pace-admin-assignment';
+import { getBatchPlacementStats } from '@/lib/services/pace-groups/placement';
+import { PaceGroupTabs } from '@/components/admin/pace-groups/pace-group-tabs';
+import { PaceGroupList } from '@/components/admin/pace-groups/pace-group-list';
+import { MemberPlacementPanel } from '@/components/admin/pace-groups/member-placement-panel';
+import { VolunteerRequestsPanel } from '@/components/admin/pace-groups/volunteer-requests-panel';
+import { DailyTaskPanel } from '@/components/admin/pace-groups/daily-task-panel';
+import type { PaceGroupWithAdmins } from '@/components/admin/pace-groups/types';
+import { MetricCard } from '@/components/admin/pace-groups/metric-card';
+import { StatusBadge } from '@/components/admin/StatusBadge';
+import {
+  deriveBatchStatus,
+  batchStatusLabels,
+} from '@/lib/services/batches/batch-status';
 
-import { PageHeader, StatCard } from "@/components/shared/page-layout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { RegistrationToggle } from "@/components/admin/registration-toggle";
-import { getBatchDetail } from "@/lib/services/batches/batch-detail";
-import { getAdminApplicationsWithHandoff } from "@/lib/services/application/admin-handoff";
+export async function generateMetadata({
+  params,
+}: BatchDetailPageProps): Promise<Metadata> {
+  const { batchId } = await params;
+  try {
+    await requireBatchAccess(batchId);
+  } catch {
+    return {
+      title: 'Batch Not Found — EMFSC Book Shelf Admin',
+    };
+  }
+  const batch = await getBatchDetail(batchId);
 
-export const metadata: Metadata = {
-  title: "Batch overview — EMFSC Book Shelf Admin",
-};
+  if (!batch) {
+    return {
+      title: 'Batch Not Found — EMFSC Book Shelf Admin',
+    };
+  }
+
+  const title = `${batch.name} — EMFSC Book Shelf Admin`;
+  const description = `Manage ${batch.name} overview, capacity (${batch.enrolled}/${batch.maxMembers} filled), registration windows, pace groups, and batch admin assignments.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+    },
+  };
+}
 
 const STALE_AFTER_DAYS = 3;
 
 type BatchDetailPageProps = {
   params: Promise<{ batchId: string }>;
+  searchParams: Promise<{
+    q?: string;
+    search?: string;
+    status?: string;
+    preference?: string;
+    pref?: string;
+  }>;
 };
 
 export default async function BatchDetailPage({
   params,
+  searchParams,
 }: BatchDetailPageProps) {
   const { batchId } = await params;
+  const rosterSearchParams = await searchParams;
+  try {
+    await requireBatchAccess(batchId);
+  } catch (e) {
+    if (e instanceof AuthzError) {
+      redirect('/admin/batches');
+    }
+    throw e;
+  }
+
   const batch = await getBatchDetail(batchId);
   if (!batch) notFound();
 
   const applications = await getAdminApplicationsWithHandoff(batchId);
-  const pendingCount = applications.filter(
-    (a) => a.status === "pending",
-  ).length;
+
   const handoffPending = applications.filter(
-    (a) => a.status === "approved_pending_handoff",
+    (a) => a.status === 'approved_pending_handoff',
   );
-  const staleHandoffCount = handoffPending.filter(
-    (a) => (a.daysSinceApproved ?? 0) > STALE_AFTER_DAYS,
+
+  const rawGroups = await listPaceGroupsForBatch({
+    batchId: batch.id,
+    includeArchived: true,
+  });
+  const groups: PaceGroupWithAdmins[] = await Promise.all(
+    rawGroups.map(async (group) => ({
+      ...group,
+      admins: await listPaceAdminAssignments({ paceGroupId: group.id }),
+    })),
+  );
+  const status = deriveBatchStatus(batch);
+
+  const activeGroups = groups.filter((g) => !g.archived);
+  const allAdmins = activeGroups.flatMap((g) => g.admins);
+  const groupsWithoutAdmin = activeGroups.filter(
+    (g) => g.admins.length === 0,
   ).length;
+  const groupsWithDailyTaskDuty = activeGroups.filter((g) =>
+    g.admins.some((a) => a.duty === 'daily_task'),
+  ).length;
+
+  // --- Live Member Placement stats (unfiltered; roster filters stream in tab) ---
+  const placementStats = await getBatchPlacementStats(batch.id);
+  const awaitingCount = placementStats.unplaced;
+  const assignedCount = placementStats.placed;
 
   return (
     <div className="space-y-8">
@@ -50,40 +139,64 @@ export default async function BatchDetailPage({
       </Link>
 
       <PageHeader
-        eyebrow="Batch overview"
+        eyebrow={batchStatusLabels[status]}
         title={batch.name}
-        description="Everything you need right after creating a batch — capacity, registration, and who's waiting on you."
+        description={`${batch.readingDaysPerWeek} reading days a week · starts ${batch.startDate ?? 'to be announced'}`}
+        actions={
+          <div className="flex items-center gap-3">
+            <StatusBadge status={status} />
+            <Button asChild variant="outline" className="gap-1.5">
+              <Link href={`/admin/batches/${batch.id}/edit`}>
+                <Pencil className="size-4" />
+                Edit batch
+              </Link>
+            </Button>
+          </div>
+        }
       />
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Seats filled"
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          icon={<Users className="size-5" />}
+          label="Members in batch"
           value={`${batch.enrolled} / ${batch.maxMembers}`}
-          hint={`${batch.paceGroupCount} planned pace group(s)`}
-        />
-        <StatCard
-          label="Pending review"
-          value={pendingCount}
-          hint={
-            batch.autoApprove ? "Auto-approve is on" : "Manual review required"
+          footer={
+            <Progress
+              value={(batch.enrolled / batch.maxMembers) * 100}
+              className="h-1.5"
+            />
           }
-          tone="gold"
         />
-        <StatCard
-          label="Handoff pending"
-          value={handoffPending.length}
-          hint={
-            staleHandoffCount > 0 ?
-              `${staleHandoffCount} stale (3+ days)`
-            : "None stale"
+        <MetricCard
+          icon={<BookOpen className="size-5" />}
+          label="Active pace groups"
+          value={String(activeGroups.length)}
+          footer={
+            <p className="text-xs text-muted-foreground">
+              {groupsWithDailyTaskDuty} with daily-task duty assigned
+            </p>
           }
-          tone={staleHandoffCount > 0 ? "gold" : "teal"}
         />
-        <StatCard
-          label="Batch admins"
-          value={batch.admins.length}
-          hint={batch.admins.length === 0 ? "None assigned yet" : undefined}
-          tone="teal"
+        <MetricCard
+          icon={<ShieldCheck className="size-5" />}
+          label="Assigned pace admins"
+          value={String(allAdmins.length)}
+          footer={
+            <p className="text-xs text-muted-foreground">
+              {groupsWithoutAdmin} group{groupsWithoutAdmin === 1 ? '' : 's'}{' '}
+              with no admin
+            </p>
+          }
+        />
+        <MetricCard
+          icon={<MapPin className="size-5" />}
+          label="Placement"
+          value={`${awaitingCount} awaiting`}
+          footer={
+            <p className="text-xs text-muted-foreground">
+              {assignedCount} placed in pace groups
+            </p>
+          }
         />
       </div>
 
@@ -99,7 +212,7 @@ export default async function BatchDetailPage({
             />
             <p className="text-sm text-muted-foreground">
               {batch.enrolled} of {batch.maxMembers} seats filled
-              {batch.startDate ? ` · starts ${batch.startDate}` : ""}.
+              {batch.startDate ? ` · starts ${batch.startDate}` : ''}.
             </p>
 
             <div className="flex items-center justify-between rounded-xl bg-surface-container p-4">
@@ -108,9 +221,9 @@ export default async function BatchDetailPage({
                   Registration
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {batch.registrationOpen ?
-                    "Open — members can apply now."
-                  : "Closed — applicants are routed to the waiting list."}
+                  {batch.registrationOpen
+                    ? 'Open — members can apply now.'
+                    : 'Closed — applicants are routed to the waiting list.'}
                 </p>
               </div>
               <RegistrationToggle
@@ -118,51 +231,66 @@ export default async function BatchDetailPage({
                 initialOpen={batch.registrationOpen}
               />
             </div>
-
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Button variant="outline" asChild>
-                <Link href={`/admin/members?batch=${batch.id}`}>
-                  <Users className="size-4" />
-                  Review applications
-                  {pendingCount > 0 ? ` (${pendingCount})` : ""}
-                </Link>
-              </Button>
-              <Button variant="outline" disabled>
-                <Layers className="size-4" />
-                Create pace groups
-              </Button>
-            </div>
           </CardContent>
         </Card>
 
         <Card className="card-soft">
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="font-display text-xl">Batch admins</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {batch.admins.length === 0 ?
+            {batch.admins.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No batch admins assigned yet.
               </p>
-            : batch.admins.map((admin) => (
+            ) : (
+              batch.admins.map((admin) => (
                 <div
                   key={admin.profileId}
                   className="flex items-center gap-3 rounded-xl bg-surface-container p-3"
                 >
                   <span className="flex size-8 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
                     {admin.name
-                      .split(" ")
+                      .split(' ')
                       .map((n) => n[0])
-                      .join("")}
+                      .join('')}
                   </span>
-                  <p className="text-sm font-medium text-foreground">
+                  <p className="flex-1 text-sm font-medium text-foreground">
                     {admin.name}
                   </p>
                 </div>
               ))
-            }
+            )}
           </CardContent>
         </Card>
+      </div>
+
+      <div id="pace-groups" className="scroll-mt-20 space-y-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-teal">
+            Pacing
+          </p>
+          <h2 className="font-display text-2xl font-semibold text-foreground">
+            Pace groups &amp; placement
+          </h2>
+        </div>
+
+        <PaceGroupTabs
+          groupsTab={
+            <PaceGroupList batchId={batch.id} initialGroups={groups} />
+          }
+          membersTab={
+            <MemberPlacementPanel
+              batchId={batch.id}
+              batchName={batch.name}
+              paceGroups={groups}
+              totalMemberCount={placementStats.total}
+              searchParams={rosterSearchParams}
+            />
+          }
+          volunteersTab={<VolunteerRequestsPanel batchName={batch.name} />}
+          tasksTab={<DailyTaskPanel groups={groups} />}
+        />
       </div>
     </div>
   );

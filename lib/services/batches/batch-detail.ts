@@ -1,20 +1,8 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, sql } from 'drizzle-orm';
 
-import { db } from "@/db";
-import { batchAdmins, batchMemberships, batches, profiles } from "@/db/schema";
-
-export type BatchDetail = {
-  id: string;
-  name: string;
-  maxMembers: number;
-  paceGroupCount: number;
-  registrationOpen: boolean;
-  autoApprove: boolean;
-  startDate: string | null;
-  readingDaysPerWeek: number;
-  enrolled: number;
-  admins: { profileId: string; name: string }[];
-};
+import { db } from '@/db';
+import { batchAdmins, batchMemberships, batches, profiles } from '@/db/schema';
+import { BatchDetail } from '@/lib/validations/batch';
 
 export async function getBatchDetail(
   batchId: string,
@@ -53,7 +41,7 @@ export async function getBatchDetail(
     enrolled: Number(enrolled ?? 0),
     admins: adminRows.map((a) => ({
       profileId: a.profileId,
-      name: `${a.firstName} ${a.fatherName ?? ""}`.trim(),
+      name: `${a.firstName} ${a.fatherName ?? ''}`.trim(),
     })),
   };
 }

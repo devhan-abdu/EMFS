@@ -1,9 +1,9 @@
-import { Search } from "lucide-react";
+import { Search } from 'lucide-react';
 
-import { EmptyState, PageHeader } from "@/components/shared/page-layout";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmptyState, PageHeader } from '@/components/shared/page-layout';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -11,43 +11,42 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
   getAdminApplicationsWithHandoff,
   type ApplicationHandoffStatus,
-} from "@/lib/services/application/admin-handoff";
-import { ApplicationRowActions } from "@/components/admin/application-row-actions";
-import { Metadata } from "next";
+} from '@/lib/services/application/admin-handoff';
+import { ApplicationRowActions } from '@/components/admin/application-row-actions';
+import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "Applications — EMFSC Book Shelf Admin",
+  title: 'Applications — EMFSC Book Shelf Admin',
   description:
-    "Review applications, approve members and track the Telegram handoff for each EMFSC reading batch.",
+    'Track applicants and Telegram handoff progress for each EMFSC reading batch.',
   openGraph: {
-    title: "Applications — EMFSC Book Shelf Admin",
-    description: "Review applicants and track approvals and handoffs.",
+    title: 'Applications — EMFSC Book Shelf Admin',
+    description: 'Track applicants and Telegram handoffs.',
   },
 };
 
 const STALE_AFTER_DAYS = 3;
 
-const tabs: { value: ApplicationHandoffStatus | "all"; label: string }[] = [
-  { value: "pending", label: "Pending" },
-  { value: "approved_pending_handoff", label: "Handoff pending" },
-  { value: "active", label: "Active" },
-  { value: "rejected", label: "Rejected" },
-  { value: "all", label: "Everyone" },
+const tabs: { value: ApplicationHandoffStatus | 'all'; label: string }[] = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'approved_pending_handoff', label: 'Handoff pending' },
+  { value: 'active', label: 'Active' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'all', label: 'Everyone' },
 ];
 
 function statusClass(status: ApplicationHandoffStatus, stale: boolean): string {
   const classes: Record<ApplicationHandoffStatus, string> = {
-    pending: "bg-gold/20 text-gold-foreground border-gold/30",
-    approved_pending_handoff:
-      stale ?
-        "bg-destructive/10 text-destructive border-destructive/30"
-      : "bg-gold/20 text-gold-foreground border-gold/30",
-    active: "bg-teal/15 text-teal-foreground border-teal/30",
-    rejected: "bg-muted text-muted-foreground border-border",
+    pending: 'bg-gold/20 text-gold-foreground border-gold/30',
+    approved_pending_handoff: stale
+      ? 'bg-destructive/10 text-destructive border-destructive/30'
+      : 'bg-gold/20 text-gold-foreground border-gold/30',
+    active: 'bg-teal/15 text-teal-foreground border-teal/30',
+    rejected: 'bg-muted text-muted-foreground border-border',
   };
 
   return classes[status];
@@ -55,28 +54,31 @@ function statusClass(status: ApplicationHandoffStatus, stale: boolean): string {
 
 function statusLabel(status: ApplicationHandoffStatus): string {
   const labels: Record<ApplicationHandoffStatus, string> = {
-    pending: "Pending",
-    approved_pending_handoff: "Handoff pending",
-    active: "Active",
-    rejected: "Rejected",
+    pending: 'Pending',
+    approved_pending_handoff: 'Handoff pending',
+    active: 'Active',
+    rejected: 'Rejected',
   };
   return labels[status];
 }
+
+import { requireRole } from '@/lib/auth/authorize';
 
 type MembersPageProps = {
   searchParams: Promise<{ batch?: string }>;
 };
 
 export default async function MembersPage({ searchParams }: MembersPageProps) {
+  const user = await requireRole(['batch_admin', 'super_admin']);
   const { batch: batchFilter } = await searchParams;
-  const applications = await getAdminApplicationsWithHandoff(batchFilter);
+  const applications = await getAdminApplicationsWithHandoff(batchFilter, user);
 
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Intake"
         title="Applications"
-        description="Review each sister's application, approve her into a pace group, then confirm the Telegram handoff."
+        description="Applicants are auto-approved when seats remain. Track who still needs to open the Telegram bot."
         actions={
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -99,9 +101,9 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
 
         {tabs.map((tab) => {
           const rows =
-            tab.value === "all" ?
-              applications
-            : applications.filter((a) => a.status === tab.value);
+            tab.value === 'all'
+              ? applications
+              : applications.filter((a) => a.status === tab.value);
 
           return (
             <TabsContent
@@ -109,12 +111,13 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
               value={tab.value}
               className="space-y-4"
             >
-              {rows.length === 0 ?
+              {rows.length === 0 ? (
                 <EmptyState
                   title="Nothing here yet"
                   description="When sisters apply to an open batch, they'll appear here for review."
                 />
-              : <>
+              ) : (
+                <>
                   <Card className="card-soft hidden overflow-hidden p-0 md:block">
                     <Table>
                       <TableHeader>
@@ -131,7 +134,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
                       <TableBody>
                         {rows.map((app) => {
                           const stale =
-                            app.status === "approved_pending_handoff" &&
+                            app.status === 'approved_pending_handoff' &&
                             (app.daysSinceApproved ?? 0) > STALE_AFTER_DAYS;
                           return (
                             <TableRow
@@ -142,9 +145,9 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
                                 <div className="flex items-center gap-3">
                                   <span className="flex size-9 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
                                     {app.name
-                                      .split(" ")
+                                      .split(' ')
                                       .map((n) => n[0])
-                                      .join("")}
+                                      .join('')}
                                   </span>
                                   <div>
                                     <p className="font-medium text-foreground">
@@ -167,7 +170,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
                                   className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusClass(app.status, stale)}`}
                                 >
                                   {statusLabel(app.status)}
-                                  {stale ? ` · ${app.daysSinceApproved}d` : ""}
+                                  {stale ? ` · ${app.daysSinceApproved}d` : ''}
                                 </span>
                               </TableCell>
                               <TableCell className="pr-6 text-right">
@@ -188,7 +191,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
                   <div className="space-y-4 md:hidden">
                     {rows.map((app) => {
                       const stale =
-                        app.status === "approved_pending_handoff" &&
+                        app.status === 'approved_pending_handoff' &&
                         (app.daysSinceApproved ?? 0) > STALE_AFTER_DAYS;
                       return (
                         <Card key={app.id} className="card-soft">
@@ -206,7 +209,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
                                 className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusClass(app.status, stale)}`}
                               >
                                 {statusLabel(app.status)}
-                                {stale ? ` · ${app.daysSinceApproved}d` : ""}
+                                {stale ? ` · ${app.daysSinceApproved}d` : ''}
                               </span>
                             </div>
                             <p className="text-xs text-muted-foreground">
@@ -224,7 +227,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
                     })}
                   </div>
                 </>
-              }
+              )}
             </TabsContent>
           );
         })}

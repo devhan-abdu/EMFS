@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 import {
   BookOpen,
@@ -13,11 +13,11 @@ import {
   Sun,
   UserRoundCheck,
   Users,
-} from "lucide-react";
-import { useEffect, useState } from "react";
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-import { Lotus } from "@/components/brand/lotus";
-import { Button } from "@/components/ui/button";
+import { Lotus } from '@/components/brand/lotus';
+import { Button } from '@/components/ui/button';
 import {
   Sidebar,
   SidebarContent,
@@ -30,39 +30,40 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
-} from "@/components/ui/sidebar";
+} from '@/components/ui/sidebar';
 
 const navItems = [
-  { title: "Overview", url: "/admin", icon: LayoutDashboard },
-  { title: "Batches", url: "/admin/batches", icon: Layers },
-  { title: "Applications", url: "/admin/members", icon: UserRoundCheck },
-  { title: "Pace groups", url: "/admin/pace-groups", icon: Users },
-  { title: "Book catalog", url: "/admin/catalog", icon: BookOpen },
-  { title: "Roles & access", url: "/admin/roles", icon: ShieldCheck },
+  { title: 'Overview', url: '/admin', icon: LayoutDashboard },
+  { title: 'Batches', url: '/admin/batches', icon: Layers },
+  { title: 'Applications', url: '/admin/members', icon: UserRoundCheck },
+  { title: 'Pace groups', url: '/admin/pace-groups', icon: Users },
+  { title: 'Book catalog', url: '/admin/catalog', icon: BookOpen },
+  { title: 'Roles & access', url: '/admin/roles', icon: ShieldCheck },
 ] as const;
 
 export function AdminSidebar() {
   const pathname = usePathname();
 
   const isActive = (url: string) =>
-    url === "/admin" ? pathname === "/admin" : pathname.startsWith(url);
+    url === '/admin' ? pathname === '/admin' : pathname.startsWith(url);
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border/60 px-3 py-4">
-        <div className="flex items-center gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-accent text-sidebar-foreground">
-            <Lotus className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <p className="truncate font-display text-sm font-semibold text-sidebar-foreground">
-              EMFSC Book Shelf
-            </p>
-            <p className="truncate text-xs text-sidebar-foreground/60">
-              Admin workspace
-            </p>
+        <Link href="/admin" className="flex items-center gap-3 px-2 py-1.5">
+          <div className="h-9 w-9 shrink-0 flex items-center justify-center">
+            <Lotus className="h-full w-full" />
           </div>
-        </div>
+
+          <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
+            <span className="truncate font-display text-sm font-semibold text-sidebar-foreground leading-tight">
+              EMFSC Book Shelf
+            </span>
+            <span className="truncate text-xs text-sidebar-foreground/60 leading-normal">
+              Admin workspace
+            </span>
+          </div>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent className="px-1">
@@ -99,7 +100,9 @@ export function AdminSidebar() {
           </span>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-sm text-sidebar-foreground">Hayat A.</p>
-            <p className="truncate text-xs text-sidebar-foreground/60">Super admin</p>
+            <p className="truncate text-xs text-sidebar-foreground/60">
+              Super admin
+            </p>
           </div>
           <Link
             href="/signin"
@@ -119,7 +122,7 @@ function ThemeToggle() {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
+    document.documentElement.classList.toggle('dark', dark);
   }, [dark]);
 
   return (
@@ -144,4 +147,3 @@ export function AdminTopBar() {
     </header>
   );
 }
-
