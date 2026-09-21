@@ -1,20 +1,19 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, type SQL } from 'drizzle-orm';
 
-import { db } from "@/db";
+import { db } from '@/db';
 import {
   applications,
   batches,
   batchMemberships,
   handoffRecords,
   profiles,
-} from "@/db/schema";
-import { buildTelegramStartLink } from "@/lib/services/bot";
+} from '@/db/schema';
+import { buildTelegramStartLink } from '@/lib/services/bot';
+import type { CurrentUser } from '@/lib/auth/session';
+import { getAuthorizedBatchIds } from '@/lib/auth/authorize';
 
 export type ApplicationHandoffStatus =
-  | "pending"
-  | "approved_pending_handoff"
-  | "active"
-  | "rejected";
+  'pending' | 'approved_pending_handoff' | 'active' | 'rejected';
 
 export type AdminApplicationWithHandoff = {
   id: string;
@@ -36,19 +35,47 @@ function deriveStatus(
   membershipStatus: string | null | undefined,
   handoffUsedAt: Date | null | undefined,
 ): ApplicationHandoffStatus {
-  if (!membershipStatus || membershipStatus === "applied") return "pending";
-  if (membershipStatus === "rejected") return "rejected";
-  if (membershipStatus === "approved") {
-    return handoffUsedAt ? "active" : "approved_pending_handoff";
+  if (!membershipStatus || membershipStatus === 'applied') return 'pending';
+  if (membershipStatus === 'rejected') return 'rejected';
+  if (membershipStatus === 'approved') {
+    return handoffUsedAt ? 'active' : 'approved_pending_handoff';
   }
-  return "active";
+  return 'active';
 }
-
 
 export async function getAdminApplicationsWithHandoff(
   batchId?: string,
+  userContext?: CurrentUser,
 ): Promise<AdminApplicationWithHandoff[]> {
-  const rows = await db
+  const conditions: SQL[] = [];
+
+  if (userContext) {
+    if (
+      userContext.profile.role === 'pace_admin' ||
+      userContext.profile.role === 'member'
+    ) {
+      return [];
+    }
+
+    const authBatchIds = await getAuthorizedBatchIds(userContext);
+    if (authBatchIds !== 'all') {
+      if (authBatchIds.length === 0) return [];
+      if (batchId) {
+        if (!authBatchIds.includes(batchId)) {
+          return []; // Prevents client-controlled scope bypass
+        }
+        conditions.push(eq(applications.batchId, batchId));
+      } else {
+        conditions.push(inArray(applications.batchId, authBatchIds));
+      }
+    } else if (batchId) {
+      conditions.push(eq(applications.batchId, batchId));
+    }
+  } else if (batchId) {
+    conditions.push(eq(applications.batchId, batchId));
+  }
+
+  const query = db
     .select({
       id: applications.id,
       profileId: applications.profileId,
@@ -71,17 +98,21 @@ export async function getAdminApplicationsWithHandoff(
       batchMemberships,
       eq(batchMemberships.profileId, applications.profileId),
     )
-    .leftJoin(handoffRecords, eq(handoffRecords.applicationId, applications.id))
-    .where(batchId ? eq(applications.batchId, batchId) : undefined)
-    .orderBy(desc(applications.createdAt));
+    .leftJoin(
+      handoffRecords,
+      eq(handoffRecords.applicationId, applications.id),
+    );
+
+  const rows = await (conditions.length > 0
+    ? query.where(and(...conditions)).orderBy(desc(applications.createdAt))
+    : query.orderBy(desc(applications.createdAt)));
 
   const now = Date.now();
 
   return rows.map((row) => {
     const status = deriveStatus(row.membershipStatus, row.handoffUsedAt);
-    const daysSinceApproved =
-      row.handoffIssuedAt ?
-        Math.floor(
+    const daysSinceApproved = row.handoffIssuedAt
+      ? Math.floor(
           (now - new Date(row.handoffIssuedAt).getTime()) /
             (1000 * 60 * 60 * 24),
         )
@@ -91,24 +122,23 @@ export async function getAdminApplicationsWithHandoff(
       id: row.id,
       profileId: row.profileId,
       batchId: row.batchId,
-      name:
-        row.firstName ?
-          `${row.firstName} ${row.fatherName ?? ""}`.trim()
+      name: row.firstName
+        ? `${row.firstName} ${row.fatherName ?? ''}`.trim()
         : `${row.firstName} ${row.fatherName}`.trim(),
       email: row.email,
-      batch: row.batchName ?? "—",
+      batch: row.batchName ?? '—',
       appliedOn: new Date(row.createdAt).toLocaleDateString(),
       status,
       handoffIssuedAt: row.handoffIssuedAt ?? null,
       handoffUsedAt: row.handoffUsedAt ?? null,
       telegramChatId:
-        row.telegramChatId === null || row.telegramChatId === undefined ?
-          null
-        : Number(row.telegramChatId),
+        row.telegramChatId === null || row.telegramChatId === undefined
+          ? null
+          : Number(row.telegramChatId),
       handoffBotLink:
-        status === "approved_pending_handoff" && row.handoffCode ?
-          buildTelegramStartLink(row.handoffCode)
-        : null,
+        status === 'approved_pending_handoff' && row.handoffCode
+          ? buildTelegramStartLink(row.handoffCode)
+          : null,
       daysSinceApproved,
     };
   });

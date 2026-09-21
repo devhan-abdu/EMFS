@@ -1,12 +1,12 @@
-import { revalidatePath } from "next/cache";
-import { Telegraf } from "telegraf";
-import { eq, and, isNull } from "drizzle-orm";
-import { handoffRecords } from "@/db/schema";
-import { activateMembership } from "./membership";
+import { Telegraf } from 'telegraf';
+import { eq, and, isNull } from 'drizzle-orm';
+import { handoffRecords } from '@/db/schema';
+import { activateMembership } from './membership';
+import { EventEmitter } from 'events';
 
 export function buildTelegramStartLink(
   code: string,
-  username = process.env.TELEGRAM_BOT_USERNAME || "emfsc_book_shelf_bot",
+  username = process.env.TELEGRAM_BOT_USERNAME || 'emfsc_book_shelf_bot',
 ) {
   return `https://t.me/${username}?start=${encodeURIComponent(code)}`;
 }
@@ -19,7 +19,7 @@ export function getBot() {
 
   return new Telegraf(token);
 }
-
+export const botEventEmitter = new EventEmitter();
 const bot = getBot();
 
 if (bot) {
@@ -27,11 +27,11 @@ if (bot) {
     const payload = ctx.startPayload;
     const chatId = ctx.chat.id;
 
-    const { db } = await import("@/db");
+    const { db } = await import('@/db');
 
     if (!payload) {
       await ctx.reply(
-        "Welcome! Please use the link provided after your application was approved.",
+        'Welcome! Please use the link provided after your application was approved.',
       );
       return;
     }
@@ -45,14 +45,12 @@ if (bot) {
 
     if (!handoff) {
       await ctx.reply(
-        "This code is invalid or has already been used. Please contact your batch admin.",
+        'This code is invalid or has already been used. Please contact your batch admin.',
       );
       return;
     }
 
     try {
-      console.log("Linking chatId:", chatId, "for handoff:", handoff.id);
-
       await db.transaction(async (tx) => {
         await tx
           .update(handoffRecords)
@@ -70,16 +68,15 @@ if (bot) {
         await activateMembership(handoff.applicationId, null, tx);
       });
 
-      revalidatePath("/me");
-      revalidatePath("/");
+      botEventEmitter.emit('activated');
 
       await ctx.reply(
         "You're linked and fully activated! Welcome to the batch 🎉",
       );
     } catch (err) {
-      console.error("Bot activation failed:", err);
+      console.error('Bot activation failed:', err);
       await ctx.reply(
-        "Something went wrong activating your membership. Please contact your batch admin.",
+        'Something went wrong activating your membership. Please contact your batch admin.',
       );
     }
   });

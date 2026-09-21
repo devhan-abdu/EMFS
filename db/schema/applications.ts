@@ -6,60 +6,60 @@ import {
   uuid,
   uniqueIndex,
   index,
-} from "drizzle-orm/pg-core";
+} from 'drizzle-orm/pg-core';
 
-import { profiles } from "./users";
-import { batches } from "./batches";
+import { profiles } from './users';
+import { batches } from './batches';
 
-export const PACE_GROUP_PREFERENCES = ["5", "10", "20", "40"] as const;
+export const PACE_GROUP_PREFERENCES = ['5', '10', '20', '40'] as const;
 
 export type PaceGroupPreference = (typeof PACE_GROUP_PREFERENCES)[number];
 
 export const paceGroupPreferenceEnum = pgEnum(
-  "pace_group_preference",
+  'pace_group_preference',
   PACE_GROUP_PREFERENCES,
 );
 
 export const applications = pgTable(
-  "applications",
+  'applications',
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().defaultRandom(),
 
-    profileId: uuid("profile_id")
+    profileId: uuid('profile_id')
       .notNull()
       .references(() => profiles.id, {
-        onDelete: "cascade",
+        onDelete: 'cascade',
       }),
 
-    batchId: uuid("batch_id")
+    batchId: uuid('batch_id')
       .notNull()
       .references(() => batches.id, {
-        onDelete: "cascade",
+        onDelete: 'cascade',
       }),
 
-    firstName: text("first_name").notNull(),
-    fatherName: text("father_name").notNull(),
-    grandfatherName: text("grandfather_name"),
+    firstName: text('first_name').notNull(),
+    fatherName: text('father_name').notNull(),
+    grandfatherName: text('grandfather_name'),
 
-    email: text("email").notNull(),
-    telegramUsername: text("telegram_username").notNull(),
-    phoneNumber: text("phone_number").notNull(),
+    email: text('email').notNull(),
+    telegramUsername: text('telegram_username').notNull(),
+    phoneNumber: text('phone_number').notNull(),
 
-    paceGroup: paceGroupPreferenceEnum("pace_group"),
+    paceGroup: paceGroupPreferenceEnum('pace_group'),
 
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
 
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("unique_profile_batch_application_idx").on(
+    uniqueIndex('unique_profile_batch_application_idx').on(
       table.profileId,
       table.batchId,
     ),
 
-    index("applications_batch_id_idx").on(table.batchId),
+    index('applications_batch_id_idx').on(table.batchId),
 
-    index("applications_profile_id_idx").on(table.profileId),
+    index('applications_profile_id_idx').on(table.profileId),
   ],
 );
 

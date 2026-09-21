@@ -1,26 +1,26 @@
-import { AdminSidebar, AdminTopBar } from "@/components/admin/admin-shell";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AuthzError, requireMinRole } from "@/lib/auth/authorize";
-import { redirect } from "next/navigation";
+import { AdminSidebar, AdminTopBar } from '@/components/admin/admin-shell';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import { AuthzError, requireMinRole } from '@/lib/auth/authorize';
+import { redirect } from 'next/navigation';
 
 export async function generateMetadata() {
   return {
-    title: "Admin",
+    title: 'Admin',
   };
 }
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
-  }) {
+}) {
   try {
-    await requireMinRole("pace_admin");
+    await requireMinRole('pace_admin');
   } catch (e) {
     if (e instanceof AuthzError) {
       redirect(
-        e.code === "UNAUTHENTICATED" ?
-          `/signin?next=${encodeURIComponent("/admin")}`
-        : "/",
+        e.code === 'UNAUTHENTICATED'
+          ? `/signin?next=${encodeURIComponent('/admin')}`
+          : '/',
       );
     }
     throw e;

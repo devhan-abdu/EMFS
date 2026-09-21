@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import sharp from 'sharp';
 
 import {
   COVER_IMAGE_MAX_BYTES,
@@ -11,11 +11,11 @@ import {
   coverFieldError,
   coverImageByteLengthSchema,
   type CoverImageProcessResult,
-} from "@/lib/validations/cover-image";
+} from '@/lib/validations/cover-image';
 import {
   validateCoverImage,
   type ValidateCoverImageInput,
-} from "@/lib/services/catalog/cover-image";
+} from '@/lib/services/catalog/cover-image';
 
 /**
  * Validate, then resize/compress in memory. Does not write the app filesystem
@@ -37,8 +37,8 @@ export async function processCoverImage(
       ok: false,
       errors: [
         coverFieldError(
-          "COVER_DIMENSIONS_TOO_LARGE",
-          "Cover image has too many pixels to process safely.",
+          'COVER_DIMENSIONS_TOO_LARGE',
+          'Cover image has too many pixels to process safely.',
         ),
       ],
     };
@@ -48,14 +48,14 @@ export async function processCoverImage(
   let info: { width: number; height: number; size: number };
   try {
     const result = await sharp(input.body, {
-      failOn: "error",
+      failOn: 'error',
       limitInputPixels: COVER_IMAGE_MAX_INPUT_PIXELS,
     })
       .rotate()
       .resize({
         width: COVER_IMAGE_MAX_DIMENSION_PX,
         height: COVER_IMAGE_MAX_DIMENSION_PX,
-        fit: "inside",
+        fit: 'inside',
         withoutEnlargement: true,
       })
       .webp({
@@ -74,8 +74,8 @@ export async function processCoverImage(
       ok: false,
       errors: [
         coverFieldError(
-          "COVER_PROCESS_FAILED",
-          "Cover image could not be processed. Upload a valid JPEG, PNG, or WebP file.",
+          'COVER_PROCESS_FAILED',
+          'Cover image could not be processed. Upload a valid JPEG, PNG, or WebP file.',
         ),
       ],
     };
@@ -89,7 +89,7 @@ export async function processCoverImage(
       ok: false,
       errors: [
         coverFieldError(
-          "COVER_DIMENSIONS_TOO_SMALL",
+          'COVER_DIMENSIONS_TOO_SMALL',
           `Cover image must be at least ${COVER_IMAGE_MIN_DIMENSION_PX}×${COVER_IMAGE_MIN_DIMENSION_PX} pixels after resize.`,
         ),
       ],
@@ -102,7 +102,7 @@ export async function processCoverImage(
       ok: false,
       errors: [
         coverFieldError(
-          "COVER_TOO_LARGE",
+          'COVER_TOO_LARGE',
           `Cover image must be at most ${COVER_IMAGE_MAX_BYTES} bytes (5 MiB) after compression.`,
         ),
       ],

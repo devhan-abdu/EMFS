@@ -1,11 +1,11 @@
-import "server-only";
-import { cache } from "react";
-import { headers } from "next/headers";
-import { eq } from "drizzle-orm";
+import 'server-only';
+import { cache } from 'react';
+import { headers } from 'next/headers';
+import { eq } from 'drizzle-orm';
 
-import { auth } from "@/lib/auth/auth";
-import { db } from "@/db";
-import { profiles, type Profile } from "@/db/schema";
+import { auth } from '@/lib/auth/auth';
+import { db } from '@/db';
+import { profiles, type Profile } from '@/db/schema';
 
 export type CurrentUser = {
   authUserId: string;

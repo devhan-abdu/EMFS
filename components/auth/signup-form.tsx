@@ -1,36 +1,36 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import Form from "next/form";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
-import { toast } from "sonner";
+import * as React from 'react';
+import Form from 'next/form';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { signUpAction } from "@/actions/auth";
-import { type SignUpFormState } from "@/lib/validations/auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { signUpAction } from '@/actions/auth';
+import { type SignUpFormState } from '@/lib/validations/auth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Field,
   FieldError,
   FieldGroup,
   FieldLabel,
-} from "@/components/ui/field";
+} from '@/components/ui/field';
 
 export function SignUpForm({ next }: { next?: string | null }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTarget = next ?? searchParams.get("next") ?? "/";
+  const redirectTarget = next ?? searchParams.get('next') ?? '/';
 
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
 
   const initialState: SignUpFormState = {
     values: {
-      email: "",
-      password: "",
-      confirmPassword: "",
+      email: '',
+      password: '',
+      confirmPassword: '',
     },
     errors: null,
     formError: null,
@@ -44,7 +44,7 @@ export function SignUpForm({ next }: { next?: string | null }) {
 
   React.useEffect(() => {
     if (formState.success) {
-      toast.success("Account created successfully!");
+      toast.success('Account created successfully!');
       router.push(redirectTarget);
       router.refresh();
     } else if (formState.formError) {
@@ -54,9 +54,7 @@ export function SignUpForm({ next }: { next?: string | null }) {
 
   return (
     <Form action={formAction} className="mt-8 space-y-5">
-      {next ?
-        <input type="hidden" name="next" value={next} />
-      : null}
+      {next ? <input type="hidden" name="next" value={next} /> : null}
 
       <FieldGroup>
         {/* Email */}
@@ -83,7 +81,7 @@ export function SignUpForm({ next }: { next?: string | null }) {
             <Input
               id="password"
               name="password"
-              type={showPassword ? "text" : "password"}
+              type={showPassword ? 'text' : 'password'}
               autoComplete="new-password"
               className="pr-10"
               defaultValue={formState.values?.password}
@@ -92,13 +90,15 @@ export function SignUpForm({ next }: { next?: string | null }) {
             />
             <button
               type="button"
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
               onClick={() => setShowPassword((visible) => !visible)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
             >
-              {showPassword ?
+              {showPassword ? (
                 <EyeOff className="size-4" />
-              : <Eye className="size-4" />}
+              ) : (
+                <Eye className="size-4" />
+              )}
             </button>
           </div>
           {formState.errors?.password && (
@@ -113,7 +113,7 @@ export function SignUpForm({ next }: { next?: string | null }) {
             <Input
               id="confirmPassword"
               name="confirmPassword"
-              type={showConfirmPassword ? "text" : "password"}
+              type={showConfirmPassword ? 'text' : 'password'}
               autoComplete="new-password"
               className="pr-10"
               defaultValue={formState.values?.confirmPassword}
@@ -123,16 +123,18 @@ export function SignUpForm({ next }: { next?: string | null }) {
             <button
               type="button"
               aria-label={
-                showConfirmPassword ?
-                  "Hide confirmed password"
-                : "Show confirmed password"
+                showConfirmPassword
+                  ? 'Hide confirmed password'
+                  : 'Show confirmed password'
               }
               onClick={() => setShowConfirmPassword((visible) => !visible)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
             >
-              {showConfirmPassword ?
+              {showConfirmPassword ? (
                 <EyeOff className="size-4" />
-              : <Eye className="size-4" />}
+              ) : (
+                <Eye className="size-4" />
+              )}
             </button>
           </div>
           {formState.errors?.confirmPassword && (
@@ -142,13 +144,13 @@ export function SignUpForm({ next }: { next?: string | null }) {
       </FieldGroup>
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Creating account..." : "Create account"}
+        {pending ? 'Creating account...' : 'Create account'}
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">
-        Already have an account?{" "}
+        Already have an account?{' '}
         <Link
-          href={next ? `/signin?next=${encodeURIComponent(next)}` : "/signin"}
+          href={next ? `/signin?next=${encodeURIComponent(next)}` : '/signin'}
           className="font-medium text-primary hover:underline"
         >
           Sign in

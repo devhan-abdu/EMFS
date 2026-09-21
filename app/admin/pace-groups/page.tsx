@@ -1,110 +1,57 @@
-import { Minus, Plus, UserRound } from "lucide-react";
-import { toast } from "sonner";
+import { Metadata } from 'next';
+import { Shield } from 'lucide-react';
 
-import { PageHeader } from "@/components/shared/page-layout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { getAdminPaceGroups } from "@/lib/services/admin";
-import { Metadata } from "next";
+import { PageHeader } from '@/components/shared/page-layout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export const metadate: Metadata = {
-  title: "Pace groups — EMFSC Book Shelf Admin",
+export const metadata: Metadata = {
+  title: 'Pace Groups — EMFSC Book Shelf Admin',
   description:
-    "Approve daily page targets, watch group progress and manage pace admins for each EMFSC reading group.",
-  openGraph: {
-    title: "Pace groups — EMFSC Book Shelf Admin",
-    description: "Daily page targets and progress for every reading group.",
-  },
+    'Monitor member reading activity and manage daily page targets by role.',
 };
 
-export default async function PaceGroupsPage() {
-  const paceGroups = await getAdminPaceGroups();
+export default function PaceGroupsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Daily rhythm"
-        title="Pace groups"
-        description="Approve tomorrow's page target for each group. Small adjustments keep everyone reading together."
+        eyebrow="Cohort Management"
+        title="Pace Groups & Member Activity"
+        description="Monitor daily reading progress, manage daily page targets, and review member activity based on your admin role."
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {paceGroups.map((group) => {
-          const pct = Math.round((group.dayProgress / group.totalDays) * 100);
-          return (
-            <Card key={group.id} className="card-soft">
-              <CardHeader className="space-y-1">
-                <CardTitle className="font-display text-xl">
-                  {group.name}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">{group.batch}</p>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="rounded-xl bg-surface-container p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    Currently reading
-                  </p>
-                  <p className="mt-1 font-medium text-foreground">
-                    {group.currentBook}
-                  </p>
-                </div>
+      {/* Role & Page Purpose Summary Banner */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold text-primary flex items-center gap-2">
+            <Shield className="size-4" />
+            Page Scope & Role Permissions
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground space-y-2">
+          <p>
+            This page tracks member reading activity and sets daily page
+            targets. Views and controls adapt based on your permission level:
+          </p>
+          <ul className="list-disc list-inside space-y-1 pl-2">
+            <li>
+              <strong className="text-foreground">Super Admin:</strong> Full
+              visibility across all batches, target approvals, and admin
+              assignments.
+            </li>
+            <li>
+              <strong className="text-foreground">Batch Admin:</strong> Manages
+              pace groups and daily targets within their assigned batch.
+            </li>
+            <li>
+              <strong className="text-foreground">Pace Group Admin:</strong>{' '}
+              Tracks member daily logs and suggests page targets for their
+              assigned group.
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className="tabular-nums text-foreground">
-                      Day {group.dayProgress} / {group.totalDays}
-                    </span>
-                  </div>
-                  <Progress value={pct} className="h-2" />
-                </div>
-
-                <div className="flex items-center justify-between rounded-xl border border-border p-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Tomorrow&apos;s target
-                    </p>
-                    <p className="font-display text-2xl font-semibold text-foreground">
-                      18 pages
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      aria-label="Fewer pages"
-                    >
-                      <Minus className="size-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      aria-label="More pages"
-                    >
-                      <Plus className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <UserRound className="size-4" />
-                    {group.admin} · {group.members} members
-                  </p>
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      toast.success(`Target approved for ${group.name}`)
-                    }
-                  >
-                    Approve
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {/* Static Dashboard Overview */}
     </div>
   );
 }

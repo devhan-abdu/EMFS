@@ -1,5 +1,5 @@
-import { z } from "zod";
-import type { FieldError } from "./cover-image";
+import { z } from 'zod';
+import type { FieldError } from './cover-image';
 
 export type ActionFailure = {
   ok: false;
@@ -7,22 +7,21 @@ export type ActionFailure = {
   message?: string;
 };
 
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | ActionFailure;
+export type ActionResult<T> = { ok: true; data: T } | ActionFailure;
 
 export function zodErrorToFieldErrors(error: z.ZodError): FieldError[] {
   return error.issues.map((issue) => ({
-    field: issue.path[0]?.toString() ?? "form",
+    field: issue.path[0]?.toString() ?? 'form',
     message: issue.message,
     code: issue.code,
   }));
 }
 
 const bookLanguageSchema = z.preprocess(
-  (value) => (value === "" || value === null || value === undefined ? "en" : value),
-  z.enum(["en", "am"], {
-    message: "language must be en or am",
+  (value) =>
+    value === '' || value === null || value === undefined ? 'en' : value,
+  z.enum(['en', 'am'], {
+    message: 'language must be en or am',
   }),
 );
 
@@ -31,16 +30,16 @@ export const createBookSchema = z.object({
   language: bookLanguageSchema,
   author: z.string().optional(),
   summary: z.preprocess(
-    (value) => (value === "" || value === null ? undefined : value),
+    (value) => (value === '' || value === null ? undefined : value),
     z.string().max(4000).optional(),
   ),
   pageCount: z.coerce
     .number()
-    .int("pageCount must be a whole number")
-    .positive("pageCount must be at least 1"),
+    .int('pageCount must be a whole number')
+    .positive('pageCount must be at least 1'),
   coverUrl: z.preprocess(
-    (value) => (value === "" || value === null ? undefined : value),
-    z.string().url("coverUrl must be a valid URL").optional(),
+    (value) => (value === '' || value === null ? undefined : value),
+    z.string().url('coverUrl must be a valid URL').optional(),
   ),
   pairedBookId: z.string().uuid().optional(),
 });
@@ -55,7 +54,7 @@ export type CreateBookWithCoverInput = z.input<typeof createBookSchema> & {
 };
 
 export const updateBookSchema = createBookSchema.extend({
-  bookId: z.string().uuid("bookId must be a valid UUID"),
+  bookId: z.string().uuid('bookId must be a valid UUID'),
 });
 
 export type UpdateBookInput = z.infer<typeof updateBookSchema>;
@@ -68,27 +67,27 @@ export type UpdateBookWithCoverInput = z.input<typeof updateBookSchema> & {
 };
 
 export const deleteBookSchema = z.object({
-  bookId: z.string().uuid("bookId must be a valid UUID"),
+  bookId: z.string().uuid('bookId must be a valid UUID'),
 });
 
 export type DeleteBookInput = z.infer<typeof deleteBookSchema>;
 
 export const addPairedEditionSchema = z.object({
-  pairedBookId: z.string().uuid("pairedBookId must be a valid UUID"),
-  title: z.string().min(1, "Title is required"),
+  pairedBookId: z.string().uuid('pairedBookId must be a valid UUID'),
+  title: z.string().min(1, 'Title is required'),
   language: bookLanguageSchema,
   author: z.string().optional(),
   summary: z.preprocess(
-    (value) => (value === "" || value === null ? undefined : value),
+    (value) => (value === '' || value === null ? undefined : value),
     z.string().max(4000).optional(),
   ),
   pageCount: z.coerce
     .number()
-    .int("pageCount must be a whole number")
-    .positive("pageCount must be at least 1"),
+    .int('pageCount must be a whole number')
+    .positive('pageCount must be at least 1'),
   coverUrl: z.preprocess(
-    (value) => (value === "" || value === null ? undefined : value),
-    z.string().url("coverUrl must be a valid URL").optional(),
+    (value) => (value === '' || value === null ? undefined : value),
+    z.string().url('coverUrl must be a valid URL').optional(),
   ),
   /** Explicit edit mode — update this edition instead of inserting. */
   editionId: z.string().uuid().optional(),
@@ -108,8 +107,11 @@ export type AddPairedEditionWithCoverInput = z.input<
 };
 
 export const reorderSlotsSchema = z.object({
-  fromSlot: z.coerce.number().int().positive("fromSlot must be a positive integer"),
-  toSlot: z.coerce.number().int().positive("toSlot must be a positive integer"),
+  fromSlot: z.coerce
+    .number()
+    .int()
+    .positive('fromSlot must be a positive integer'),
+  toSlot: z.coerce.number().int().positive('toSlot must be a positive integer'),
 });
 
 export type ReorderSlotsInput = z.infer<typeof reorderSlotsSchema>;
@@ -117,8 +119,8 @@ export type ReorderSlotsInput = z.infer<typeof reorderSlotsSchema>;
 /** One representative book id per curriculum slot, in the desired order. */
 export const reorderBooksSchema = z.object({
   orderedIds: z
-    .array(z.string().uuid("orderedIds must contain valid UUIDs"))
-    .min(1, "orderedIds must include at least one book"),
+    .array(z.string().uuid('orderedIds must contain valid UUIDs'))
+    .min(1, 'orderedIds must include at least one book'),
 });
 
 export type ReorderBooksInput = z.infer<typeof reorderBooksSchema>;
@@ -150,7 +152,3 @@ export const getCatalogSchema = z
 
 export type GetCatalogInput = z.input<typeof getCatalogSchema>;
 export type GetCatalogParsed = z.output<typeof getCatalogSchema>;
-
-
-
-
