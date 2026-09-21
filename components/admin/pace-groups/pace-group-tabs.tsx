@@ -14,8 +14,8 @@ export function PaceGroupTabs({
   tasksTab: React.ReactNode;
 }) {
   return (
-    <Tabs defaultValue="groups" className="space-y-6">
-      <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 bg-surface-container p-2">
+    <Tabs defaultValue="groups" className="space-y-12">
+      <TabsList className="flex h-auto w-full flex-wrap justify-start gap-6 sm:gap-2 bg-surface-container p-2">
         <TabsTrigger value="groups">Pace groups</TabsTrigger>
         <TabsTrigger value="members">Members &amp; placements</TabsTrigger>
         <TabsTrigger value="volunteers">Volunteer requests</TabsTrigger>

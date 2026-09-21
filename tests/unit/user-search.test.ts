@@ -452,7 +452,10 @@ describe('EMF-58: Server Action - searchProfilesAction Authorization & Execution
         },
       ]);
     }
-    expect(authorizeModule.requireRole).toHaveBeenCalledWith(['super_admin']);
+    expect(authorizeModule.requireRole).toHaveBeenCalledWith([
+      'batch_admin',
+      'super_admin',
+    ]);
   });
 
   it('supports string query input directly in searchProfilesAction', async () => {
@@ -508,11 +511,11 @@ describe('EMF-58: Server Action - searchProfilesAction Authorization & Execution
     }
   });
 
-  it('rejects non-super_admin callers (member, batch_admin, pace_admin, unauthenticated)', async () => {
+  it('rejects callers below batch_admin (member, pace_admin, unauthenticated)', async () => {
     vi.mocked(authorizeModule.requireRole).mockRejectedValue(
       new authorizeModule.AuthzError(
         'FORBIDDEN',
-        "Role 'batch_admin' is not permitted. Required at least: super_admin.",
+        "Role 'member' is not permitted. Required at least: batch_admin.",
       ),
     );
 
@@ -520,8 +523,36 @@ describe('EMF-58: Server Action - searchProfilesAction Authorization & Execution
       searchProfilesAction({ query: 'test' } as Parameters<
         typeof searchProfilesAction
       >[0]),
-    ).rejects.toThrow("Role 'batch_admin' is not permitted");
+    ).rejects.toThrow("Role 'member' is not permitted");
     expect(mockSelect).not.toHaveBeenCalled();
+  });
+
+  it('allows batch_admin to search profiles', async () => {
+    vi.mocked(authorizeModule.requireRole).mockResolvedValue({
+      authUserId: 'auth-batch-1',
+      email: 'batch@example.com',
+      profile: {
+        id: 'batch-profile-id',
+        authUserId: 'auth-batch-1',
+        role: 'batch_admin',
+        firstName: 'Batch',
+        fatherName: 'Admin',
+        grandfatherName: null,
+        telegramUsername: null,
+        phone: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    mockLimit.mockResolvedValueOnce([]);
+
+    const res = await searchProfilesAction({ query: 'Ze' });
+    expect(res.ok).toBe(true);
+    expect(authorizeModule.requireRole).toHaveBeenCalledWith([
+      'batch_admin',
+      'super_admin',
+    ]);
   });
 });
 
@@ -718,20 +749,93 @@ describe('Backend: list known batch admins - listKnownBatchAdmins & listKnownBat
         { id: 'b-1', name: 'Cohort 2026 Alpha' },
       ]);
     }
-    expect(authorizeModule.requireRole).toHaveBeenCalledWith(['super_admin']);
+    expect(authorizeModule.requireRole).toHaveBeenCalledWith([
+      'batch_admin',
+      'super_admin',
+    ]);
   });
 
-  it('rejects non-super_admin callers (member, batch_admin, pace_admin, unauthenticated) from listKnownBatchAdminsAction', async () => {
+  it('rejects callers below batch_admin from listKnownBatchAdminsAction', async () => {
     vi.mocked(authorizeModule.requireRole).mockRejectedValue(
       new authorizeModule.AuthzError(
         'FORBIDDEN',
-        "Role 'batch_admin' is not permitted. Required at least: super_admin.",
+        "Role 'member' is not permitted. Required at least: batch_admin.",
       ),
     );
 
     await expect(listKnownBatchAdminsAction()).rejects.toThrow(
-      "Role 'batch_admin' is not permitted",
+      "Role 'member' is not permitted",
     );
     expect(mockSelect).not.toHaveBeenCalled();
+  });
+});
+
+describe('Backend: previously assigned pace admins', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOrderBy.mockReturnValue({ limit: mockLimit });
+    mockGroupBy.mockReturnValue({
+      orderBy: mockOrderBy,
+      limit: mockLimit,
+    });
+    mockWhere.mockReturnValue({ limit: mockLimit });
+  });
+
+  it('returns distinct profiles previously assigned as pace admins', async () => {
+    const { getPreviouslyAssignedPaceAdmins } =
+      await import('@/lib/services/user-search');
+
+    mockLimit.mockResolvedValueOnce([
+      {
+        id: 'p-1',
+        firstName: 'Amina',
+        fatherName: 'Yusuf',
+        userName: 'Amina Yusuf',
+        email: 'amina@example.com',
+        adminOfPaceGroups: [{ id: 'pg-1', name: 'Nur — 10' }],
+      },
+    ]);
+
+    const result = await getPreviouslyAssignedPaceAdmins();
+
+    expect(result).toEqual([
+      {
+        profileId: 'p-1',
+        displayName: 'Amina Yusuf',
+        email: 'amina@example.com',
+        adminOfPaceGroups: [{ id: 'pg-1', name: 'Nur — 10' }],
+      },
+    ]);
+  });
+
+  it('permits batch_admin to load previously assigned pace admins', async () => {
+    const { getPreviouslyAssignedPaceAdminsAction } =
+      await import('@/actions/user-search');
+
+    vi.mocked(authorizeModule.requireRole).mockResolvedValue({
+      authUserId: 'auth-batch-1',
+      email: 'batch@example.com',
+      profile: {
+        id: 'batch-profile-id',
+        authUserId: 'auth-batch-1',
+        role: 'batch_admin',
+        firstName: 'Batch',
+        fatherName: 'Admin',
+        grandfatherName: null,
+        telegramUsername: null,
+        phone: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    mockLimit.mockResolvedValueOnce([]);
+
+    const res = await getPreviouslyAssignedPaceAdminsAction();
+    expect(res.ok).toBe(true);
+    expect(authorizeModule.requireRole).toHaveBeenCalledWith([
+      'batch_admin',
+      'super_admin',
+    ]);
   });
 });
