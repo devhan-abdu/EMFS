@@ -1,7 +1,14 @@
 import 'server-only';
 import { eq, or, and, ilike, notInArray, sql, desc } from 'drizzle-orm';
 import { db } from '@/db';
-import { profiles, batchAdmins, user, batches } from '@/db/schema';
+import {
+  profiles,
+  batchAdmins,
+  user,
+  batches,
+  paceAdminAssignments,
+  paceGroups,
+} from '@/db/schema';
 import type {
   SearchProfilesInput,
   ProfileSearchResult,
@@ -138,3 +145,61 @@ export async function getPreviouslyAssignedBatchAdmins(
 }
 
 export const listKnownBatchAdmins = getPreviouslyAssignedBatchAdmins;
+
+export type KnownPaceAdminGroup = { id: string; name: string };
+
+export type PaceAdminSearchResult = ProfileSearchResult & {
+  adminOfPaceGroups?: KnownPaceAdminGroup[];
+};
+
+/**
+ * Distinct profiles previously assigned as pace admins (any group / duty).
+ */
+export async function getPreviouslyAssignedPaceAdmins(
+  executor: DbOrTx = db,
+): Promise<PaceAdminSearchResult[]> {
+  try {
+    const rows = await executor
+      .select({
+        id: profiles.id,
+        firstName: profiles.firstName,
+        fatherName: profiles.fatherName,
+        userName: user.name,
+        email: user.email,
+        adminOfPaceGroups: sql<KnownPaceAdminGroup[]>`
+          jsonb_agg(distinct jsonb_build_object('id', ${paceGroups.id}, 'name', ${paceGroups.name}))
+        `,
+      })
+      .from(paceAdminAssignments)
+      .innerJoin(profiles, eq(paceAdminAssignments.profileId, profiles.id))
+      .innerJoin(user, eq(profiles.authUserId, user.id))
+      .innerJoin(
+        paceGroups,
+        eq(paceAdminAssignments.paceGroupId, paceGroups.id),
+      )
+      .groupBy(
+        profiles.id,
+        profiles.firstName,
+        profiles.fatherName,
+        user.name,
+        user.email,
+      )
+      .orderBy(desc(sql`max(${paceAdminAssignments.createdAt})`))
+      .limit(20);
+
+    return rows.map((r) => ({
+      profileId: r.id,
+      displayName: (r.userName || `${r.firstName} ${r.fatherName}`).trim(),
+      email: r.email,
+      adminOfPaceGroups: r.adminOfPaceGroups,
+    }));
+  } catch (cause) {
+    throw new UserSearchError(
+      'DB_ERROR',
+      'Failed to load previously assigned pace admins',
+      cause,
+    );
+  }
+}
+
+export const listKnownPaceAdmins = getPreviouslyAssignedPaceAdmins;

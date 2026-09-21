@@ -27,8 +27,13 @@ export const metadata: Metadata = {
   },
 };
 
+import { requireMinRole } from '@/lib/auth/authorize';
+
 export default async function BatchesPage() {
-  const batches = await getAdminBatches();
+  const user = await requireMinRole('pace_admin');
+  const batches = await getAdminBatches(user);
+  const isSuperAdmin = user.profile.role === 'super_admin';
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -36,12 +41,14 @@ export default async function BatchesPage() {
         title="Batches"
         description="Each batch holds its own pace groups, capacity and reading rhythm. Registration can open before pace groups or pace admins are assigned."
         actions={
-          <Button asChild>
-            <Link href="/admin/batches/new">
-              <Plus className="size-4" />
-              Create batch
-            </Link>
-          </Button>
+          isSuperAdmin ? (
+            <Button asChild>
+              <Link href="/admin/batches/new">
+                <Plus className="size-4" />
+                Create batch
+              </Link>
+            </Button>
+          ) : undefined
         }
       />
 

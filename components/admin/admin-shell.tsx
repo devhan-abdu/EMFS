@@ -50,19 +50,20 @@ export function AdminSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border/60 px-3 py-4">
-        <div className="flex items-center gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-accent text-sidebar-foreground">
-            <Lotus className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <p className="truncate font-display text-sm font-semibold text-sidebar-foreground">
-              EMFSC Book Shelf
-            </p>
-            <p className="truncate text-xs text-sidebar-foreground/60">
-              Admin workspace
-            </p>
+        <Link href="/admin" className="flex items-center gap-3 px-2 py-1.5">
+          <div className="h-9 w-9 shrink-0 flex items-center justify-center">
+            <Lotus className="h-full w-full" />
           </div>
-        </div>
+
+          <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
+            <span className="truncate font-display text-sm font-semibold text-sidebar-foreground leading-tight">
+              EMFSC Book Shelf
+            </span>
+            <span className="truncate text-xs text-sidebar-foreground/60 leading-normal">
+              Admin workspace
+            </span>
+          </div>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent className="px-1">

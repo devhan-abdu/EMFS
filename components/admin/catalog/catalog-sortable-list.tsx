@@ -136,6 +136,7 @@ export function CatalogSortableList({ slots }: CatalogSortableListProps) {
   const [pendingRowId, setPendingRowId] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems(toSortableSlots(slots));
   }, [slots]);
 

@@ -58,7 +58,19 @@ function RoleBadge({ role }: { role: AdminRole }) {
   );
 }
 
+import { redirect } from 'next/navigation';
+import { AuthzError, requireSuperAdmin } from '@/lib/auth/authorize';
+
 export default async function RolesPage() {
+  try {
+    await requireSuperAdmin();
+  } catch (e) {
+    if (e instanceof AuthzError) {
+      redirect('/admin');
+    }
+    throw e;
+  }
+
   const staff = await getAdminStaff();
   return (
     <div className="space-y-8">

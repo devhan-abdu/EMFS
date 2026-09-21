@@ -10,12 +10,12 @@ export * from './batch-memberships';
 export * from './pace-group-memberships';
 export * from './membership-move-audit';
 export * from './daily-tasks';
-
 export * from './applications';
 export * from './waitlist';
 export * from './handoff-records';
 export * from './membership-audit-logs';
-
 export * from './books';
 export * from './tasks';
 export * from './catalog-relations';
+export * from './daily-progress';
+export * from './pace-group-move-requests';

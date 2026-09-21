@@ -1,8 +1,8 @@
-import { revalidatePath } from 'next/cache';
 import { Telegraf } from 'telegraf';
 import { eq, and, isNull } from 'drizzle-orm';
 import { handoffRecords } from '@/db/schema';
 import { activateMembership } from './membership';
+import { EventEmitter } from 'events';
 
 export function buildTelegramStartLink(
   code: string,
@@ -19,7 +19,7 @@ export function getBot() {
 
   return new Telegraf(token);
 }
-
+export const botEventEmitter = new EventEmitter();
 const bot = getBot();
 
 if (bot) {
@@ -51,8 +51,6 @@ if (bot) {
     }
 
     try {
-      console.log('Linking chatId:', chatId, 'for handoff:', handoff.id);
-
       await db.transaction(async (tx) => {
         await tx
           .update(handoffRecords)
@@ -70,8 +68,7 @@ if (bot) {
         await activateMembership(handoff.applicationId, null, tx);
       });
 
-      revalidatePath('/me');
-      revalidatePath('/');
+      botEventEmitter.emit('activated');
 
       await ctx.reply(
         "You're linked and fully activated! Welcome to the batch 🎉",

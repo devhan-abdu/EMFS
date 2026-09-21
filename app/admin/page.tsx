@@ -29,9 +29,13 @@ export const metadata: Metadata = {
   },
 };
 
+import { requireMinRole } from '@/lib/auth/authorize';
+
 export default async function AdminOverview() {
+  const user = await requireMinRole('pace_admin');
+  const isSuperAdmin = user.profile.role === 'super_admin';
   const { applications, batches, paceGroups, stats, catalog } =
-    await getAdminOverviewData();
+    await getAdminOverviewData(user);
   const pending = applications.filter((a) => a.status === 'pending');
 
   return (
@@ -41,12 +45,14 @@ export default async function AdminOverview() {
         title="The circle at a glance"
         description="Everything happening across EMFSC reading batches today — who is waiting, who is reading, and what comes next."
         actions={
-          <Button asChild>
-            <Link href="/admin/batches/new">
-              Create batch
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
+          isSuperAdmin ? (
+            <Button asChild>
+              <Link href="/admin/batches/new">
+                Create batch
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          ) : undefined
         }
       />
 

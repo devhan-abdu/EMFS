@@ -23,11 +23,11 @@ export function MemberNav() {
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-4xl items-center gap-3 px-4 md:px-8">
           <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-accent text-primary">
-              <Lotus className="h-5 w-5" />
+            <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
+              <Lotus className="size-8" />
             </span>
-            <span className="hidden font-display text-base font-semibold text-foreground sm:block">
-              Book Shelf
+            <span className="hidden font-display text-lg font-semibold text-foreground sm:block">
+              EMFSC Book Shelf
             </span>
           </Link>
 

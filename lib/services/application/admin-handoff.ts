@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, type SQL } from 'drizzle-orm';
 
 import { db } from '@/db';
 import {
@@ -9,6 +9,8 @@ import {
   profiles,
 } from '@/db/schema';
 import { buildTelegramStartLink } from '@/lib/services/bot';
+import type { CurrentUser } from '@/lib/auth/session';
+import { getAuthorizedBatchIds } from '@/lib/auth/authorize';
 
 export type ApplicationHandoffStatus =
   'pending' | 'approved_pending_handoff' | 'active' | 'rejected';
@@ -43,8 +45,37 @@ function deriveStatus(
 
 export async function getAdminApplicationsWithHandoff(
   batchId?: string,
+  userContext?: CurrentUser,
 ): Promise<AdminApplicationWithHandoff[]> {
-  const rows = await db
+  const conditions: SQL[] = [];
+
+  if (userContext) {
+    if (
+      userContext.profile.role === 'pace_admin' ||
+      userContext.profile.role === 'member'
+    ) {
+      return [];
+    }
+
+    const authBatchIds = await getAuthorizedBatchIds(userContext);
+    if (authBatchIds !== 'all') {
+      if (authBatchIds.length === 0) return [];
+      if (batchId) {
+        if (!authBatchIds.includes(batchId)) {
+          return []; // Prevents client-controlled scope bypass
+        }
+        conditions.push(eq(applications.batchId, batchId));
+      } else {
+        conditions.push(inArray(applications.batchId, authBatchIds));
+      }
+    } else if (batchId) {
+      conditions.push(eq(applications.batchId, batchId));
+    }
+  } else if (batchId) {
+    conditions.push(eq(applications.batchId, batchId));
+  }
+
+  const query = db
     .select({
       id: applications.id,
       profileId: applications.profileId,
@@ -67,9 +98,14 @@ export async function getAdminApplicationsWithHandoff(
       batchMemberships,
       eq(batchMemberships.profileId, applications.profileId),
     )
-    .leftJoin(handoffRecords, eq(handoffRecords.applicationId, applications.id))
-    .where(batchId ? eq(applications.batchId, batchId) : undefined)
-    .orderBy(desc(applications.createdAt));
+    .leftJoin(
+      handoffRecords,
+      eq(handoffRecords.applicationId, applications.id),
+    );
+
+  const rows = await (conditions.length > 0
+    ? query.where(and(...conditions)).orderBy(desc(applications.createdAt))
+    : query.orderBy(desc(applications.createdAt)));
 
   const now = Date.now();
 

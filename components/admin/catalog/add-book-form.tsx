@@ -17,13 +17,7 @@ import { fieldErrorMap } from '@/components/admin/catalog/field-error-map';
 import { FormErrorBanner } from '@/components/admin/catalog/form-error-banner';
 import { GoogleBooksSearch } from '@/components/admin/catalog/google-books-search';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -103,6 +97,7 @@ export function AddBookForm({
   useEffect(() => {
     if (initialValues?.coverUrl)
       cover.applyExternalCoverUrl(initialValues.coverUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialValues?.coverUrl]);
 
   useEffect(() => {
