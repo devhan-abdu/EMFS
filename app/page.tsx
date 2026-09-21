@@ -56,7 +56,7 @@ export default async function Home() {
       <header className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-3">
           <span className="flex size-12 items-center justify-center rounded-xl bg-accent text-primary">
-            <Lotus className="size-10" priority />
+            <Lotus className="size-10" />
           </span>
           <span className="font-display text-xl font-semibold text-foreground">
             EMFSC Book Shelf

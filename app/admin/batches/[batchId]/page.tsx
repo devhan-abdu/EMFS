@@ -4,13 +4,12 @@ import type { Metadata } from 'next';
 import {
   BookOpen,
   ChevronLeft,
-  Layers,
   MapPin,
   Pencil,
   ShieldCheck,
   Users,
 } from 'lucide-react';
-import { PageHeader, StatCard } from '@/components/shared/page-layout';
+import { PageHeader } from '@/components/shared/page-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -20,19 +19,14 @@ import { getBatchDetail } from '@/lib/services/batches/batch-detail';
 import { getAdminApplicationsWithHandoff } from '@/lib/services/application/admin-handoff';
 import { listPaceGroupsForBatch } from '@/lib/services/pace-groups/pace-group';
 import { listPaceAdminAssignments } from '@/lib/services/pace-groups/pace-admin-assignment';
-import {
-  getBatchRoster,
-  getPendingMoveRequests,
-  getBatchMoveHistory,
-} from '@/lib/services/pace-groups/placement';
+import { getBatchPlacementStats } from '@/lib/services/pace-groups/placement';
 import { PaceGroupTabs } from '@/components/admin/pace-groups/pace-group-tabs';
 import { PaceGroupList } from '@/components/admin/pace-groups/pace-group-list';
-import { MemberPlacementSection } from '@/components/admin/pace-groups/member-placement-section';
+import { MemberPlacementPanel } from '@/components/admin/pace-groups/member-placement-panel';
 import { VolunteerRequestsPanel } from '@/components/admin/pace-groups/volunteer-requests-panel';
 import { DailyTaskPanel } from '@/components/admin/pace-groups/daily-task-panel';
 import type { PaceGroupWithAdmins } from '@/components/admin/pace-groups/types';
 import { MetricCard } from '@/components/admin/pace-groups/metric-card';
-import { PaceGroupCreateButton } from '@/components/admin/pace-groups/pace-group-create-button';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import {
   deriveBatchStatus,
@@ -75,12 +69,21 @@ const STALE_AFTER_DAYS = 3;
 
 type BatchDetailPageProps = {
   params: Promise<{ batchId: string }>;
+  searchParams: Promise<{
+    q?: string;
+    search?: string;
+    status?: string;
+    preference?: string;
+    pref?: string;
+  }>;
 };
 
 export default async function BatchDetailPage({
   params,
+  searchParams,
 }: BatchDetailPageProps) {
   const { batchId } = await params;
+  const rosterSearchParams = await searchParams;
   try {
     await requireBatchAccess(batchId);
   } catch (e) {
@@ -94,15 +97,10 @@ export default async function BatchDetailPage({
   if (!batch) notFound();
 
   const applications = await getAdminApplicationsWithHandoff(batchId);
-  const pendingCount = applications.filter(
-    (a) => a.status === 'pending',
-  ).length;
+
   const handoffPending = applications.filter(
     (a) => a.status === 'approved_pending_handoff',
   );
-  const staleHandoffCount = handoffPending.filter(
-    (a) => (a.daysSinceApproved ?? 0) > STALE_AFTER_DAYS,
-  ).length;
 
   const rawGroups = await listPaceGroupsForBatch({
     batchId: batch.id,
@@ -125,14 +123,10 @@ export default async function BatchDetailPage({
     g.admins.some((a) => a.duty === 'daily_task'),
   ).length;
 
-  // --- Live Member Placement & Move History queries ---
-  const [rosterSummary, pendingRequests, moveHistory] = await Promise.all([
-    getBatchRoster({ batchId: batch.id }),
-    getPendingMoveRequests(batch.id),
-    getBatchMoveHistory({ batchId: batch.id, page: 1, limit: 20 }),
-  ]);
-  const awaitingCount = rosterSummary.unplacedCount;
-  const assignedCount = rosterSummary.placedCount;
+  // --- Live Member Placement stats (unfiltered; roster filters stream in tab) ---
+  const placementStats = await getBatchPlacementStats(batch.id);
+  const awaitingCount = placementStats.unplaced;
+  const assignedCount = placementStats.placed;
 
   return (
     <div className="space-y-8">
@@ -243,10 +237,6 @@ export default async function BatchDetailPage({
         <Card className="card-soft">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="font-display text-xl">Batch admins</CardTitle>
-            {/* <BatchAdminAssignButton
-              batchId={batch.id}
-              existingIds={batch.admins.map((a) => a.profileId)}
-            /> */}
           </CardHeader>
           <CardContent className="space-y-3">
             {batch.admins.length === 0 ? (
@@ -268,10 +258,6 @@ export default async function BatchDetailPage({
                   <p className="flex-1 text-sm font-medium text-foreground">
                     {admin.name}
                   </p>
-                  {/* <RemoveBatchAdminButton
-                    batchId={batch.id}
-                    profileId={admin.profileId}
-                  /> */}
                 </div>
               ))
             )}
@@ -294,13 +280,12 @@ export default async function BatchDetailPage({
             <PaceGroupList batchId={batch.id} initialGroups={groups} />
           }
           membersTab={
-            <MemberPlacementSection
+            <MemberPlacementPanel
               batchId={batch.id}
               batchName={batch.name}
               paceGroups={groups}
-              initialRoster={rosterSummary}
-              initialPendingRequests={pendingRequests}
-              initialHistory={moveHistory}
+              totalMemberCount={placementStats.total}
+              searchParams={rosterSearchParams}
             />
           }
           volunteersTab={<VolunteerRequestsPanel batchName={batch.name} />}

@@ -40,6 +40,17 @@ import { bulkAssignMembersAction } from '@/actions/placement';
 import type { BatchRosterMember } from '@/lib/services/pace-groups/placement';
 import type { PaceGroupWithAdmins } from './types';
 
+function formatGroupLabel(
+  group: Pick<PaceGroupWithAdmins, 'name' | 'size'>,
+  memberCount?: number,
+) {
+  const countSuffix =
+    typeof memberCount === 'number'
+      ? ` — ${memberCount} member${memberCount === 1 ? '' : 's'}`
+      : '';
+  return `${group.name} (${group.size} pages/day)${countSuffix}`;
+}
+
 export function BulkPlacementDialog({
   open,
   onOpenChange,
@@ -215,7 +226,7 @@ function BulkPlacementWizard({
               </p>
             ) : (
               <Select
-                value={targetGroupId}
+                value={targetGroupId || null}
                 onValueChange={(v) => {
                   setTargetGroupId(v ?? '');
                   setFieldErrors({});
@@ -226,15 +237,21 @@ function BulkPlacementWizard({
                   className="w-full"
                   aria-label="Select target pace group"
                 >
-                  <SelectValue placeholder="Choose a target pace group..." />
+                  <SelectValue placeholder="Choose a target pace group...">
+                    {selectedTargetGroup
+                      ? formatGroupLabel(
+                          selectedTargetGroup,
+                          groupMemberCounts[selectedTargetGroup.id] ?? 0,
+                        )
+                      : null}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {activeGroups.map((g) => {
                     const count = groupMemberCounts[g.id] ?? 0;
                     return (
                       <SelectItem key={g.id} value={g.id}>
-                        {g.name} ({g.size} pages/day) — {count} member
-                        {count === 1 ? '' : 's'}
+                        {formatGroupLabel(g, count)}
                       </SelectItem>
                     );
                   })}

@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -46,6 +45,17 @@ export type PlacementDialogTarget = {
   member: BatchRosterMember;
   mode: 'assign' | 'move';
 };
+
+function formatGroupLabel(
+  group: Pick<PaceGroupWithAdmins, 'name' | 'size'>,
+  memberCount?: number,
+) {
+  const countSuffix =
+    typeof memberCount === 'number'
+      ? ` — ${memberCount} member${memberCount === 1 ? '' : 's'}`
+      : '';
+  return `${group.name} (${group.size} pages/day)${countSuffix}`;
+}
 
 export function PlacementAssignDialog({
   open,
@@ -105,20 +115,15 @@ function PlacementForm({
   const { member, mode } = target;
   const isMove = mode === 'move';
 
-  // Active groups excluding current group if moving
-  const availableGroups = React.useMemo(() => {
-    return paceGroups.filter(
-      (g) => !g.archived && (!isMove || g.id !== member.paceGroupId),
-    );
-  }, [paceGroups, isMove, member.paceGroupId]);
+  const availableGroups = paceGroups.filter(
+    (g) => !g.archived && (!isMove || g.id !== member.paceGroupId),
+  );
 
-  // Two-step workflow: 'select-group' -> 'confirm'
   const [step, setStep] = React.useState<'select-group' | 'confirm'>(
     'select-group',
   );
   const [targetGroupId, setTargetGroupId] = React.useState<string>('');
   const [moveReason, setMoveReason] = React.useState<string>('Pace adjustment');
-  const [notes, setNotes] = React.useState<string>('');
   const [fieldErrors, setFieldErrors] = React.useState<
     Record<string, string[]>
   >({});
@@ -154,7 +159,7 @@ function PlacementForm({
   }
 
   function handleCommit() {
-    if (!targetGroupId || isPending) return;
+    if (!targetGroupId || !selectedTargetGroup || isPending) return;
 
     setFormError(null);
     startTransition(async () => {
@@ -164,20 +169,18 @@ function PlacementForm({
             profileId: member.profileId,
             toPaceGroupId: targetGroupId,
             moveReason: moveReason.trim(),
-            notes: notes.trim() || undefined,
           })
         : await assignMemberAction({
             batchId,
             profileId: member.profileId,
             paceGroupId: targetGroupId,
-            notes: notes.trim() || undefined,
           });
 
       if (result.ok) {
         toast.success(
           isMove
-            ? `${member.name} moved to ${selectedTargetGroup?.name ?? 'new group'}`
-            : `${member.name} placed in ${selectedTargetGroup?.name ?? 'pace group'}`,
+            ? `${member.name} moved to ${selectedTargetGroup.name}`
+            : `${member.name} placed in ${selectedTargetGroup.name}`,
         );
         router.refresh();
         onSuccess();
@@ -194,7 +197,6 @@ function PlacementForm({
     });
   }
 
-  // STEP 1: TARGET GROUP PICKER
   if (step === 'select-group') {
     return (
       <form onSubmit={handleProceedToConfirm} className="space-y-4">
@@ -225,8 +227,7 @@ function PlacementForm({
           </div>
         )}
 
-        {/* Member Profile Summary */}
-        <div className="rounded-xl bg-surface-container p-4 space-y-2">
+        <div className="space-y-2 rounded-xl bg-surface-container p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-foreground">
@@ -255,7 +256,6 @@ function PlacementForm({
         </div>
 
         <FieldGroup className="space-y-4">
-          {/* Target Group Selector */}
           <Field data-invalid={!!fieldErrors.paceGroupId?.length}>
             <FieldLabel htmlFor="placement-target-group">
               {isMove ? 'New target pace group' : 'Target pace group'}
@@ -268,22 +268,28 @@ function PlacementForm({
               </p>
             ) : (
               <Select
-                value={targetGroupId}
+                value={targetGroupId || null}
                 onValueChange={(v) => {
                   setTargetGroupId(v ?? '');
                   setFieldErrors((prev) => ({ ...prev, paceGroupId: [] }));
                 }}
               >
                 <SelectTrigger id="placement-target-group" className="w-full">
-                  <SelectValue placeholder="Choose a pace group..." />
+                  <SelectValue placeholder="Choose a pace group...">
+                    {selectedTargetGroup
+                      ? formatGroupLabel(
+                          selectedTargetGroup,
+                          groupMemberCounts[selectedTargetGroup.id] ?? 0,
+                        )
+                      : null}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {availableGroups.map((g) => {
                     const count = groupMemberCounts[g.id] ?? 0;
                     return (
                       <SelectItem key={g.id} value={g.id}>
-                        {g.name} ({g.size} pages/day) — {count} member
-                        {count === 1 ? '' : 's'}
+                        {formatGroupLabel(g, count)}
                       </SelectItem>
                     );
                   })}
@@ -295,7 +301,6 @@ function PlacementForm({
             )}
           </Field>
 
-          {/* Move Reason (Only for move) */}
           {isMove && (
             <Field data-invalid={!!fieldErrors.moveReason?.length}>
               <FieldLabel htmlFor="placement-move-reason">
@@ -316,26 +321,6 @@ function PlacementForm({
               )}
             </Field>
           )}
-
-          {/* Admin Notes */}
-          <Field data-invalid={!!fieldErrors.notes?.length}>
-            <FieldLabel htmlFor="placement-notes">
-              Notes{' '}
-              <span className="text-muted-foreground font-normal">
-                (optional)
-              </span>
-            </FieldLabel>
-            <Textarea
-              id="placement-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add any internal context for this placement decision..."
-              rows={2}
-            />
-            {fieldErrors.notes?.[0] && (
-              <FieldError>{fieldErrors.notes[0]}</FieldError>
-            )}
-          </Field>
         </FieldGroup>
 
         <DialogFooter className="gap-2">
@@ -355,7 +340,6 @@ function PlacementForm({
     );
   }
 
-  // STEP 2: CONFIRMATION CARD BEFORE COMMITTING
   return (
     <div className="space-y-4">
       <DialogHeader>
@@ -374,9 +358,8 @@ function PlacementForm({
         </div>
       )}
 
-      {/* Target Pace Group Card */}
       <Card className="card-soft border-primary/20 bg-primary/5">
-        <CardContent className="p-4 space-y-2">
+        <CardContent className="space-y-2 p-4">
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">
               Destination pace group:
@@ -392,19 +375,18 @@ function PlacementForm({
                 {selectedTargetGroup?.name}
               </p>
             </div>
-            <span className="text-xs text-muted-foreground font-medium">
+            <span className="font-medium text-xs text-muted-foreground">
               {currentCount} → {currentCount + 1} members
             </span>
           </div>
         </CardContent>
       </Card>
 
-      {/* Member Details Confirmation Card */}
       <Card className="card-soft">
-        <CardContent className="p-4 space-y-2">
+        <CardContent className="space-y-2 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-foreground text-sm">
+              <p className="text-sm font-medium text-foreground">
                 {member.name}
               </p>
               <p className="text-xs text-muted-foreground">{member.email}</p>
@@ -420,7 +402,7 @@ function PlacementForm({
             )}
           </div>
 
-          <div className="border-t border-border pt-2 text-xs flex items-center justify-between text-muted-foreground">
+          <div className="flex items-center justify-between border-t border-border pt-2 text-xs text-muted-foreground">
             <span>
               {isMove
                 ? `From: ${member.paceGroupName ?? 'Unplaced'}`
@@ -435,15 +417,6 @@ function PlacementForm({
             <div className="border-t border-border pt-2 text-xs">
               <span className="text-muted-foreground">Reason: </span>
               <span className="font-medium text-foreground">{moveReason}</span>
-            </div>
-          )}
-
-          {notes.trim() && (
-            <div className="border-t border-border pt-2 text-xs">
-              <span className="text-muted-foreground">Note: </span>
-              <span className="italic text-foreground">
-                &ldquo;{notes.trim()}&rdquo;
-              </span>
             </div>
           )}
         </CardContent>

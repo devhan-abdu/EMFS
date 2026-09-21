@@ -206,7 +206,36 @@ describe('Member Roster & Placement Query Service', () => {
   });
 
   it('calculates batch-wide placement statistics accurately', async () => {
-    const executor = createMockExecutor(MOCK_BATCH, MOCK_RAW_ROWS);
+    const whereTotal = vi.fn().mockResolvedValue([{ value: 3 }]);
+    const wherePlaced = vi.fn().mockResolvedValue([{ value: 1 }]);
+
+    let selectCall = 0;
+    const selectMock = vi.fn().mockImplementation(() => {
+      selectCall += 1;
+      if (selectCall === 1) {
+        return {
+          from: vi.fn().mockReturnValue({
+            where: whereTotal,
+          }),
+        };
+      }
+      return {
+        from: vi.fn().mockReturnValue({
+          innerJoin: vi.fn().mockReturnValue({
+            where: wherePlaced,
+          }),
+        }),
+      };
+    });
+
+    const executor = {
+      query: {
+        batches: {
+          findFirst: vi.fn(),
+        },
+      },
+      select: selectMock,
+    } as unknown as Parameters<typeof getBatchPlacementStats>[1];
 
     const stats = await getBatchPlacementStats(MOCK_BATCH_ID, executor);
 

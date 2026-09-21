@@ -9,6 +9,7 @@ import {
   isNotNull,
   isNull,
   or,
+  sql,
 } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
@@ -233,7 +234,7 @@ export async function getBatchRoster(
     conditions.push(eq(applications.paceGroup, pacePreference));
   }
 
-  // Search filter across name, email, phone, and telegram handles
+  // Search filter across name, email, phone, telegram, and pace group name
   if (search && search.trim().length > 0) {
     const term = `%${search.trim()}%`;
     conditions.push(
@@ -246,6 +247,10 @@ export async function getBatchRoster(
         ilike(applications.email, term),
         ilike(applications.telegramUsername, term),
         ilike(profiles.telegramUsername, term),
+        ilike(profiles.phone, term),
+        ilike(applications.phoneNumber, term),
+        ilike(paceGroups.name, term),
+        sql`concat(${profiles.firstName}, ' ', ${profiles.fatherName}) ILIKE ${term}`,
       )!,
     );
   }
@@ -354,21 +359,76 @@ export async function getBatchRoster(
 }
 
 /**
- * Retrieves total, placed, and unplaced member counts for a batch.
+ * Lightweight placed / unplaced / total counts for a batch (no member rows).
  */
 export async function getBatchPlacementStats(
   batchId: string,
   executor: DbOrTx = db,
 ): Promise<{ total: number; placed: number; unplaced: number }> {
-  const result = await getBatchRoster(
-    { batchId, placementStatus: 'all', pacePreference: 'all' },
-    executor,
-  );
+  const [totalRow] = await executor
+    .select({ value: count() })
+    .from(batchMemberships)
+    .where(
+      and(
+        eq(batchMemberships.batchId, batchId),
+        inArray(batchMemberships.status, ['active', 'grace']),
+      ),
+    );
+
+  const [placedRow] = await executor
+    .select({ value: count() })
+    .from(paceGroupMemberships)
+    .innerJoin(
+      batchMemberships,
+      and(
+        eq(batchMemberships.profileId, paceGroupMemberships.profileId),
+        eq(batchMemberships.batchId, paceGroupMemberships.batchId),
+      ),
+    )
+    .where(
+      and(
+        eq(paceGroupMemberships.batchId, batchId),
+        eq(paceGroupMemberships.status, 'active'),
+        inArray(batchMemberships.status, ['active', 'grace']),
+      ),
+    );
+
+  const total = Number(totalRow?.value ?? 0);
+  const placed = Number(placedRow?.value ?? 0);
+
   return {
-    total: result.totalMembers,
-    placed: result.placedCount,
-    unplaced: result.unplacedCount,
+    total,
+    placed,
+    unplaced: Math.max(0, total - placed),
   };
+}
+
+/**
+ * Active membership counts keyed by pace group id for a batch.
+ */
+export async function getPaceGroupMemberCounts(
+  batchId: string,
+  executor: DbOrTx = db,
+): Promise<Record<string, number>> {
+  const rows = await executor
+    .select({
+      paceGroupId: paceGroupMemberships.paceGroupId,
+      memberCount: count(),
+    })
+    .from(paceGroupMemberships)
+    .where(
+      and(
+        eq(paceGroupMemberships.batchId, batchId),
+        eq(paceGroupMemberships.status, 'active'),
+      ),
+    )
+    .groupBy(paceGroupMemberships.paceGroupId);
+
+  const counts: Record<string, number> = {};
+  for (const row of rows) {
+    counts[row.paceGroupId] = Number(row.memberCount);
+  }
+  return counts;
 }
 
 /**
