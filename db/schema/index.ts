@@ -19,3 +19,6 @@ export * from './tasks';
 export * from './catalog-relations';
 export * from './daily-progress';
 export * from './pace-group-move-requests';
+export * from './book-chapters';
+export * from './edition-page-anchors';
+export * from './pace-posts';
