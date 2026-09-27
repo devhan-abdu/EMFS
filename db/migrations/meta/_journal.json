@@ -57,6 +57,13 @@
       "when": 1789936441961,
       "tag": "0007_dry_tempest",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790400000000,
+      "tag": "0008_curriculum_tables",
+      "breakpoints": true
     }
   ]
 }
