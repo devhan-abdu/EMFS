@@ -64,6 +64,13 @@
       "when": 1790400000000,
       "tag": "0008_curriculum_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790974642623,
+      "tag": "0009_unique_vengeance",
+      "breakpoints": true
     }
   ]
 }
