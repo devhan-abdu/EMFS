@@ -9,7 +9,7 @@ import {
 import { profiles } from './users';
 import { batches } from './batches';
 import { paceGroups } from './pace-groups';
-import { dailyTasks } from './daily-tasks';
+import { batchDailyTasks } from './daily-tasks';
 
 export const dailyProgressStatusEnum = pgEnum('daily_progress_status', [
   'done',
@@ -34,7 +34,7 @@ export const dailyProgress = pgTable(
       .references(() => paceGroups.id, { onDelete: 'cascade' }),
     taskId: uuid('task_id')
       .notNull()
-      .references(() => dailyTasks.id, { onDelete: 'cascade' }),
+      .references(() => batchDailyTasks.id, { onDelete: 'cascade' }),
     status: dailyProgressStatusEnum('status').notNull().default('not_done'),
     completedAt: timestamp('completed_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
