@@ -8,7 +8,7 @@ import {
   boolean,
 } from 'drizzle-orm/pg-core';
 import { batches } from './batches';
-import { books } from './books';
+import { catalogSlots } from './catalog-slots';
 
 export const paceGroups = pgTable(
   'pace_groups',
@@ -21,9 +21,9 @@ export const paceGroups = pgTable(
     archived: boolean('archived').notNull().default(false),
     archivedAt: timestamp('archived_at'),
     size: integer('size').notNull(), // e.g. 5 / 10 / 20 / 40
-    activeBookId: uuid('active_book_id')
+    activeCatalogSlotId: uuid('active_catalog_slot_id')
       .notNull()
-      .references(() => books.id, { onDelete: 'cascade' }),
+      .references(() => catalogSlots.id, { onDelete: 'restrict' }),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },

@@ -63,8 +63,10 @@ export const batchDailyTasks = pgTable(
     index('batch_daily_tasks_curriculum_step_id_idx').on(
       table.curriculumStepId,
     ),
-    index('batch_daily_tasks_publication_status_idx').on(
+    index('batch_daily_tasks_group_status_day_idx').on(
+      table.paceGroupId,
       table.publicationStatus,
+      table.batchDayNumber,
     ),
     check(
       'batch_daily_tasks_publication_check',

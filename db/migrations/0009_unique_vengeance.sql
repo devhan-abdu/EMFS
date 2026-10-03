@@ -17,18 +17,6 @@ CREATE TABLE "batch_daily_tasks" (
 	CONSTRAINT "batch_daily_tasks_day_number_check" CHECK ("batch_daily_tasks"."batch_day_number" > 0)
 );
 --> statement-breakpoint
-CREATE TABLE "edition_page_anchors" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"edition_book_id" uuid NOT NULL,
-	"program_page" integer NOT NULL,
-	"edition_page" integer NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "edition_page_anchors_edition_program_page_unique" UNIQUE("edition_book_id","program_page"),
-	CONSTRAINT "edition_page_anchors_program_page_check" CHECK ("edition_page_anchors"."program_page" >= 1),
-	CONSTRAINT "edition_page_anchors_edition_page_check" CHECK ("edition_page_anchors"."edition_page" >= 1)
-);
---> statement-breakpoint
 CREATE TABLE "curriculum_steps" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"slot_number" integer NOT NULL,
@@ -59,17 +47,13 @@ DROP TABLE "batch_pacing_offsets" CASCADE;--> statement-breakpoint
 DROP TABLE "pace_group_cursors" CASCADE;--> statement-breakpoint
 DROP TABLE "daily_tasks" CASCADE;--> statement-breakpoint
 DROP TABLE "tasks" CASCADE;--> statement-breakpoint
-ALTER TABLE "daily_progress" DROP CONSTRAINT "daily_progress_task_id_tasks_id_fk";
---> statement-breakpoint
 ALTER TABLE "pace_groups" ADD COLUMN "active_book_id" uuid NOT NULL;--> statement-breakpoint
 ALTER TABLE "batch_daily_tasks" ADD CONSTRAINT "batch_daily_tasks_pace_group_id_pace_groups_id_fk" FOREIGN KEY ("pace_group_id") REFERENCES "public"."pace_groups"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "batch_daily_tasks" ADD CONSTRAINT "batch_daily_tasks_curriculum_step_id_curriculum_steps_id_fk" FOREIGN KEY ("curriculum_step_id") REFERENCES "public"."curriculum_steps"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "batch_daily_tasks" ADD CONSTRAINT "batch_daily_tasks_published_by_profiles_id_fk" FOREIGN KEY ("published_by") REFERENCES "public"."profiles"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "edition_page_anchors" ADD CONSTRAINT "edition_page_anchors_edition_book_id_books_id_fk" FOREIGN KEY ("edition_book_id") REFERENCES "public"."books"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "curriculum_steps" ADD CONSTRAINT "curriculum_steps_created_by_profiles_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."profiles"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "curriculum_steps" ADD CONSTRAINT "curriculum_steps_source_batch_id_batches_id_fk" FOREIGN KEY ("source_batch_id") REFERENCES "public"."batches"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "batch_daily_tasks_curriculum_step_id_idx" ON "batch_daily_tasks" USING btree ("curriculum_step_id");--> statement-breakpoint
 CREATE INDEX "batch_daily_tasks_publication_status_idx" ON "batch_daily_tasks" USING btree ("publication_status");--> statement-breakpoint
-CREATE INDEX "edition_page_anchors_edition_book_id_idx" ON "edition_page_anchors" USING btree ("edition_book_id");--> statement-breakpoint
 ALTER TABLE "pace_groups" ADD CONSTRAINT "pace_groups_active_book_id_books_id_fk" FOREIGN KEY ("active_book_id") REFERENCES "public"."books"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "daily_progress" ADD CONSTRAINT "daily_progress_task_id_batch_daily_tasks_id_fk" FOREIGN KEY ("task_id") REFERENCES "public"."batch_daily_tasks"("id") ON DELETE cascade ON UPDATE no action;
