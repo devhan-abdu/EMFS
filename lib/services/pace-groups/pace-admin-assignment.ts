@@ -91,7 +91,7 @@ export async function assignPaceAdmin(
 
   return db.transaction(async (tx) => {
     const [targetProfile] = await tx
-      .select({ id: profiles.id, role: profiles.role })
+      .select({ id: profiles.id })
       .from(profiles)
       .where(eq(profiles.id, profileId))
       .limit(1);
@@ -131,13 +131,6 @@ export async function assignPaceAdmin(
       })
       .returning(ASSIGNMENT_RETURNING);
 
-    if (targetProfile.role === 'member') {
-      await tx
-        .update(profiles)
-        .set({ role: 'pace_admin', updatedAt: new Date() })
-        .where(eq(profiles.id, profileId));
-    }
-
     return created;
   });
 }
@@ -159,7 +152,6 @@ export async function removePaceAdminAssignment(
   return { id: assignmentId };
 }
 
-import { sql } from 'drizzle-orm';
 export async function listPaceAdminAssignments(
   input: ListPaceAdminAssignmentsInput,
 ): Promise<PaceAdminAssignmentDetailRow[]> {

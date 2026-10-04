@@ -2,7 +2,14 @@ import 'server-only';
 
 import { getCurrentUser, type CurrentUser } from '@/lib/auth/session';
 import { db } from '@/db';
-import { batchAdmins, paceAdminAssignments, paceGroups } from '@/db/schema';
+import {
+  batchAdmins,
+  batches,
+  batchMemberships,
+  paceAdminAssignments,
+  paceGroupMoveRequests,
+  paceGroups,
+} from '@/db/schema';
 import { and, eq, inArray } from 'drizzle-orm';
 
 export type Role = 'super_admin' | 'batch_admin' | 'pace_admin' | 'member';
@@ -16,14 +23,77 @@ export class AuthzError extends Error {
   }
 }
 
-const ROLE_RANK: Record<Role, number> = {
-  member: 0,
-  pace_admin: 1,
-  batch_admin: 2,
-  super_admin: 3,
-};
+function forbidden(message: string): never {
+  throw new AuthzError('FORBIDDEN', message);
+}
 
-/** Any signed-in user is fine — just confirms someone's actually logged in. */
+const hasAnyBatchAdminGrant = async (profileId: string) =>
+  Boolean(
+    await db.query.batchAdmins.findFirst({
+      where: eq(batchAdmins.profileId, profileId),
+    }),
+  );
+
+const hasAnyPaceAdminGrant = async (profileId: string) =>
+  Boolean(
+    await db.query.paceAdminAssignments.findFirst({
+      where: eq(paceAdminAssignments.profileId, profileId),
+    }),
+  );
+
+const isBatchAdminOf = async (profileId: string, batchId: string) =>
+  Boolean(
+    await db.query.batchAdmins.findFirst({
+      where: and(
+        eq(batchAdmins.batchId, batchId),
+        eq(batchAdmins.profileId, profileId),
+      ),
+    }),
+  );
+
+const isPaceAdminOf = async (profileId: string, paceGroupId: string) =>
+  Boolean(
+    await db.query.paceAdminAssignments.findFirst({
+      where: and(
+        eq(paceAdminAssignments.paceGroupId, paceGroupId),
+        eq(paceAdminAssignments.profileId, profileId),
+      ),
+    }),
+  );
+
+const hasActiveMembership = async (profileId: string) =>
+  Boolean(
+    await db.query.batchMemberships.findFirst({
+      where: and(
+        eq(batchMemberships.profileId, profileId),
+        inArray(batchMemberships.status, ['active', 'grace']),
+      ),
+    }),
+  );
+
+async function loadPaceGroupOrThrow(paceGroupId: string) {
+  const group = await db.query.paceGroups.findFirst({
+    where: eq(paceGroups.id, paceGroupId),
+  });
+  if (!group) forbidden('Pace group not found.');
+  return group;
+}
+
+async function getAssignments(profileId: string) {
+  const [batchRows, paceRows] = await Promise.all([
+    db.query.batchAdmins.findMany({
+      where: eq(batchAdmins.profileId, profileId),
+    }),
+    db.query.paceAdminAssignments.findMany({
+      where: eq(paceAdminAssignments.profileId, profileId),
+    }),
+  ]);
+  return {
+    batchIds: Array.from(new Set(batchRows.map((r) => r.batchId))),
+    paceGroupIds: Array.from(new Set(paceRows.map((r) => r.paceGroupId))),
+  };
+}
+
 export async function requireSession(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) {
@@ -32,29 +102,21 @@ export async function requireSession(): Promise<CurrentUser> {
   return user;
 }
 
-/**
- * Role must be at or above the lowest rank in `allowed` — e.g.
- * requireRole(["pace_admin"]) also lets a batch_admin or super_admin
- * through, since higher roles can do everything a lower role can (US-ADM-04).
- */
+/** Checks each requested grant independently; grants do not imply each other. */
 export async function requireRole(allowed: Role[]): Promise<CurrentUser> {
   const user = await requireSession();
-  const role = user.profile.role as Role;
+  const profileId = user.profile.id;
 
-  if (!allowed.includes(role)) {
-    throw new AuthzError(
-      'FORBIDDEN',
-      `Role '${role}' is not permitted. Required one of: ${allowed.join(', ')}.`,
-    );
-  }
-  return user;
-}
+  const checks: Record<Role, () => boolean | Promise<boolean>> = {
+    super_admin: () => user.profile.isSuperAdmin,
+    batch_admin: () => hasAnyBatchAdminGrant(profileId),
+    pace_admin: () => hasAnyPaceAdminGrant(profileId),
+    member: () => hasActiveMembership(profileId),
+  };
 
-export async function requireMinRole(minimum: Role): Promise<CurrentUser> {
-  const user = await requireSession();
-  const role = user.profile.role as Role;
-  if (ROLE_RANK[role] < ROLE_RANK[minimum]) {
-    throw new AuthzError('FORBIDDEN', `Requires at least '${minimum}' role.`);
+  const results = await Promise.all(allowed.map((role) => checks[role]()));
+  if (!results.some(Boolean)) {
+    forbidden(`Required one of the following grants: ${allowed.join(', ')}.`);
   }
   return user;
 }
@@ -64,7 +126,11 @@ export async function requireMinRole(minimum: Role): Promise<CurrentUser> {
  * Only super_admin rank is permitted (rank 3).
  */
 export async function requireSuperAdmin(): Promise<CurrentUser> {
-  return requireRole(['super_admin']);
+  const user = await requireSession();
+  if (!user.profile.isSuperAdmin) {
+    forbidden('Requires global super-admin access.');
+  }
+  return user;
 }
 
 /**
@@ -75,23 +141,48 @@ export async function requireSuperAdmin(): Promise<CurrentUser> {
 export async function requireBatchAccess(
   batchId: string,
 ): Promise<CurrentUser> {
-  const user = await requireRole(['batch_admin', 'super_admin']);
-  if (user.profile.role === 'super_admin') return user;
+  const user = await requireSession();
+  if (user.profile.isSuperAdmin) return user;
 
-  const assignment = await db.query.batchAdmins.findFirst({
-    where: and(
-      eq(batchAdmins.batchId, batchId),
-      eq(batchAdmins.profileId, user.profile.id),
-    ),
-  });
-
-  if (!assignment) {
-    throw new AuthzError(
-      'FORBIDDEN',
-      'You are not an assigned admin for this batch.',
-    );
+  if (!(await isBatchAdminOf(user.profile.id, batchId))) {
+    forbidden('You are not an assigned admin for this batch.');
   }
   return user;
+}
+
+export async function requireBatchAccessForPaceGroup(
+  paceGroupId: string,
+  expectedBatchId?: string,
+): Promise<CurrentUser> {
+  const group = await loadPaceGroupOrThrow(paceGroupId);
+  if (expectedBatchId && group.batchId !== expectedBatchId) {
+    forbidden('The pace group does not belong to the requested batch.');
+  }
+
+  await requireSession();
+  return requireBatchAccess(group.batchId);
+}
+
+export async function requireBatchAccessForMoveRequest(
+  requestId: string,
+  expectedBatchId?: string,
+): Promise<CurrentUser> {
+  await requireSession(); // authenticate before revealing whether the request exists
+  const request = await db.query.paceGroupMoveRequests.findFirst({
+    where: eq(paceGroupMoveRequests.id, requestId),
+  });
+  if (!request) forbidden('Move request not found.');
+
+  const targetGroup = await db.query.paceGroups.findFirst({
+    where: eq(paceGroups.id, request.toPaceGroupId),
+  });
+  if (!targetGroup || targetGroup.batchId !== request.batchId) {
+    forbidden('The move request has an invalid batch scope.');
+  }
+  if (expectedBatchId && targetGroup.batchId !== expectedBatchId) {
+    forbidden('The move request does not belong to the requested batch.');
+  }
+  return requireBatchAccess(targetGroup.batchId);
 }
 
 /**
@@ -103,111 +194,97 @@ export async function requireBatchAccess(
 export async function requirePaceGroupAccess(
   paceGroupId: string,
 ): Promise<CurrentUser> {
-  const user = await requireRole(['pace_admin', 'batch_admin', 'super_admin']);
-  if (user.profile.role === 'super_admin') return user;
+  const user = await requireSession();
+  const group = await loadPaceGroupOrThrow(paceGroupId);
 
-  const group = await db.query.paceGroups.findFirst({
-    where: eq(paceGroups.id, paceGroupId),
-  });
+  if (user.profile.isSuperAdmin) return user;
+  if (await isBatchAdminOf(user.profile.id, group.batchId)) return user;
+  if (await isPaceAdminOf(user.profile.id, paceGroupId)) return user;
 
-  if (!group) {
-    throw new AuthzError('FORBIDDEN', 'Pace group not found.');
+  forbidden('You are not assigned to this batch or pace group.');
+}
+
+/** Any assignment grants access to the admin workspace picker. */
+export async function requireAdminAccess(): Promise<CurrentUser> {
+  const user = await requireSession();
+  if (user.profile.isSuperAdmin) return user;
+
+  const [isBatchAdmin, isPaceAdmin] = await Promise.all([
+    hasAnyBatchAdminGrant(user.profile.id),
+    hasAnyPaceAdminGrant(user.profile.id),
+  ]);
+  if (!isBatchAdmin && !isPaceAdmin) {
+    forbidden('An admin assignment is required.');
   }
-
-  if (user.profile.role === 'batch_admin') {
-    const batchAssignment = await db.query.batchAdmins.findFirst({
-      where: and(
-        eq(batchAdmins.batchId, group.batchId),
-        eq(batchAdmins.profileId, user.profile.id),
-      ),
-    });
-
-    if (!batchAssignment) {
-      throw new AuthzError(
-        'FORBIDDEN',
-        'You are not an assigned admin for this batch.',
-      );
-    }
-    return user;
-  }
-
-  const paceAssignment = await db.query.paceAdminAssignments.findFirst({
-    where: and(
-      eq(paceAdminAssignments.paceGroupId, paceGroupId),
-      eq(paceAdminAssignments.profileId, user.profile.id),
-    ),
-  });
-
-  if (!paceAssignment) {
-    throw new AuthzError(
-      'FORBIDDEN',
-      'You are not an assigned admin for this pace group.',
-    );
-  }
-
   return user;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Scope resolution — IDs (for authorization checks)                          */
+/* -------------------------------------------------------------------------- */
+
 /**
- * Resolves the authorized batch IDs for a given user.
- * Returns 'all' for super_admin, or an array of string batch IDs for batch_admin / pace_admin.
+ * Authorized batch IDs. 'all' for super admins, otherwise directly assigned batches.
+ * Use for authorization checks. For UI pickers use getAuthorizedBatchOptions.
  */
 export async function getAuthorizedBatchIds(
   user: CurrentUser,
 ): Promise<string[] | 'all'> {
-  if (user.profile.role === 'super_admin') return 'all';
-
-  if (user.profile.role === 'batch_admin') {
-    const assignments = await db.query.batchAdmins.findMany({
-      where: eq(batchAdmins.profileId, user.profile.id),
-    });
-    return assignments.map((a) => a.batchId);
-  }
-
-  if (user.profile.role === 'pace_admin') {
-    const assignments = await db.query.paceAdminAssignments.findMany({
-      where: eq(paceAdminAssignments.profileId, user.profile.id),
-    });
-    if (assignments.length === 0) return [];
-    const groupIds = assignments.map((a) => a.paceGroupId);
-    const groups = await db.query.paceGroups.findMany({
-      where: inArray(paceGroups.id, groupIds),
-    });
-    return Array.from(new Set(groups.map((g) => g.batchId)));
-  }
-
-  return [];
+  if (user.profile.isSuperAdmin) return 'all';
+  return (await getAssignments(user.profile.id)).batchIds;
 }
 
 /**
- * Resolves the authorized pace group IDs for a given user.
- * Returns 'all' for super_admin, or an array of string pace group IDs for batch_admin / pace_admin.
+ * Authorized pace group IDs. 'all' for super admins, otherwise the union of
+ * groups in assigned batches and directly assigned pace groups.
+ * Use for authorization checks. For UI pickers use getAuthorizedPaceGroupOptions.
  */
 export async function getAuthorizedPaceGroupIds(
   user: CurrentUser,
 ): Promise<string[] | 'all'> {
-  if (user.profile.role === 'super_admin') return 'all';
+  if (user.profile.isSuperAdmin) return 'all';
 
-  if (user.profile.role === 'batch_admin') {
-    const batchAssignments = await db.query.batchAdmins.findMany({
-      where: eq(batchAdmins.profileId, user.profile.id),
-    });
-    if (batchAssignments.length === 0) return [];
-    const batchIds = batchAssignments.map((a) => a.batchId);
-    const groups = await db.query.paceGroups.findMany({
-      where: inArray(paceGroups.batchId, batchIds),
-    });
-    return groups.map((g) => g.id);
-  }
+  const { batchIds, paceGroupIds } = await getAssignments(user.profile.id);
+  const groupsInBatches = batchIds.length
+    ? await db.query.paceGroups.findMany({
+        where: inArray(paceGroups.batchId, batchIds),
+      })
+    : [];
 
-  if (user.profile.role === 'pace_admin') {
-    const assignments = await db.query.paceAdminAssignments.findMany({
-      where: eq(paceAdminAssignments.profileId, user.profile.id),
-    });
-    return assignments.map((a) => a.paceGroupId);
-  }
+  return Array.from(
+    new Set([...groupsInBatches.map((g) => g.id), ...paceGroupIds]),
+  );
+}
 
-  return [];
+/* -------------------------------------------------------------------------- */
+/* Scope resolution — options (for UI scope pickers / filters)                */
+/* -------------------------------------------------------------------------- */
+
+export type BatchOption = { id: string; name: string };
+export type PaceGroupOption = { id: string; name: string; batchId: string };
+
+export async function getAuthorizedBatchOptions(
+  user: CurrentUser,
+): Promise<BatchOption[]> {
+  const ids = await getAuthorizedBatchIds(user);
+  if (ids !== 'all' && ids.length === 0) return [];
+
+  const rows = await db.query.batches.findMany({
+    where: ids === 'all' ? undefined : inArray(batches.id, ids),
+  });
+  return rows.map(({ id, name }) => ({ id, name }));
+}
+
+export async function getAuthorizedPaceGroupOptions(
+  user: CurrentUser,
+): Promise<PaceGroupOption[]> {
+  const ids = await getAuthorizedPaceGroupIds(user);
+  if (ids !== 'all' && ids.length === 0) return [];
+
+  const rows = await db.query.paceGroups.findMany({
+    where: ids === 'all' ? undefined : inArray(paceGroups.id, ids),
+  });
+  return rows.map(({ id, name, batchId }) => ({ id, name, batchId }));
 }
 
 /** Formats an AuthzError into the standard FieldError structure used across actions. */

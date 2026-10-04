@@ -15,7 +15,7 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-5 rise-in md:flex-row md:items-end md:justify-between">
+    <div className="flex flex-col gap-5 rise-in lg:flex-row lg:items-end lg:justify-between">
       <div className="space-y-2">
         {eyebrow ? (
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal">

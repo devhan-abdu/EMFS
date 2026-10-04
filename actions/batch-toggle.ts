@@ -26,8 +26,8 @@ export async function toggleRegistrationAction(input: {
       .set({ registrationOpen: input.open, updatedAt: new Date() })
       .where(eq(batches.id, input.batchId));
 
-    revalidatePath(`/admin/batches/${input.batchId}`);
-    revalidatePath('/admin/batches');
+    revalidatePath(`/admin/b/${input.batchId}`);
+    revalidatePath('/admin/platform/batches');
     return { ok: true as const };
   } catch (e) {
     if (e instanceof AuthzError) {

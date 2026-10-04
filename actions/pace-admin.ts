@@ -38,7 +38,7 @@ export async function assignPaceAdminAction(rawInput: unknown) {
     const result = await assignPaceAdmin(parsed.data, actor.profile.id);
 
     revalidatePath('/admin/pace-groups');
-    revalidatePath('/admin/roles');
+    revalidatePath('/admin/platform/roles');
 
     return { ok: true as const, data: result };
   } catch (e) {

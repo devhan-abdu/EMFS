@@ -383,26 +383,38 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
     expect(mockInsertValues).toHaveBeenCalledTimes(3); // 1 for batch + 2 for admins
   });
 
-  it('rejects when an assigned admin profile has an invalid role and rolls back transaction', async () => {
-    const invalidAdminId = '44444444-4444-4444-8444-444444444444';
+  it('allows batch assignment regardless of the profile legacy role', async () => {
+    const adminId = '44444444-4444-4444-8444-444444444444';
 
-    mockSelectWhere.mockResolvedValueOnce([
-      { id: invalidAdminId, role: 'unauthorized_role' },
-    ]);
-
-    await expect(
-      createBatch(creatorId, {
-        name: 'Invalid Role Batch',
+    mockSelectWhere.mockResolvedValueOnce([{ id: adminId, role: 'member' }]);
+    mockInsertReturning.mockResolvedValueOnce([
+      {
+        id: createdBatchId,
+        name: 'Independent Grant Batch',
         maxMembers: 50,
         paceGroupCount: 1,
-        startDate: new Date('2026-09-01'),
-        readingDaysPerWeek: 6,
         registrationOpen: false,
-        adminIds: [invalidAdminId],
-      }),
-    ).rejects.toThrow(BatchError);
+        autoApprove: true,
+        startDate: '2026-09-01',
+        readingDaysPerWeek: 6,
+        createdBy: creatorId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
 
-    expect(mockInsertReturning).not.toHaveBeenCalled();
+    const result = await createBatch(creatorId, {
+      name: 'Independent Grant Batch',
+      maxMembers: 50,
+      paceGroupCount: 1,
+      startDate: new Date('2026-09-01'),
+      readingDaysPerWeek: 6,
+      registrationOpen: false,
+      adminIds: [adminId],
+    });
+
+    expect(result.assignedAdminIds).toEqual([adminId]);
+    expect(mockInsertValues).toHaveBeenCalledTimes(2);
   });
 
   it('rolls back transaction when an assigned admin profile does not exist', async () => {

@@ -41,6 +41,10 @@ const { AuthzErrorClass, mockRequireBatchAccess, mockRequireSession } =
 vi.mock('@/lib/auth/authorize', () => ({
   AuthzError: AuthzErrorClass,
   requireBatchAccess: (...args: unknown[]) => mockRequireBatchAccess(...args),
+  requireBatchAccessForPaceGroup: (_groupId: string, batchId: string) =>
+    mockRequireBatchAccess(batchId),
+  requireBatchAccessForMoveRequest: (_requestId: string, batchId: string) =>
+    mockRequireBatchAccess(batchId),
   requireSession: () => mockRequireSession(),
 }));
 

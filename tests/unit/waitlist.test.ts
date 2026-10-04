@@ -309,11 +309,7 @@ describe('Waitlist Service - removeFromWaitlist & Membership Synchronization', (
       where: whereDeleteMock,
     } as unknown as ReturnType<typeof dbTx.delete>);
 
-    const removed = await removeFromWaitlist(
-      'wl-2',
-      'user-owner-uuid',
-      'member',
-    );
+    const removed = await removeFromWaitlist('wl-2', 'user-owner-uuid');
 
     expect(removed).toEqual(existingWl);
     expect(dbTx.delete).toHaveBeenCalled();
@@ -368,7 +364,7 @@ describe('Waitlist Service - removeFromWaitlist & Membership Synchronization', (
     const removed = await removeFromWaitlist(
       'wl-2',
       'admin-user-uuid',
-      'batch_admin',
+      'batch-1',
     );
 
     expect(removed).toEqual(existingWl);
@@ -380,7 +376,7 @@ describe('Waitlist Service - removeFromWaitlist & Membership Synchronization', (
     vi.mocked(dbTx.query.waitlist.findFirst).mockResolvedValue(existingWl);
 
     await expect(
-      removeFromWaitlist('wl-2', 'other-malicious-user-uuid', 'member'),
+      removeFromWaitlist('wl-2', 'other-malicious-user-uuid'),
     ).rejects.toThrow('You are not authorized to remove this waitlist entry.');
   });
 
@@ -388,7 +384,7 @@ describe('Waitlist Service - removeFromWaitlist & Membership Synchronization', (
     vi.mocked(dbTx.query.waitlist.findFirst).mockResolvedValue(undefined);
 
     await expect(
-      removeFromWaitlist('non-existent-wl', 'any-user-uuid', 'member'),
+      removeFromWaitlist('non-existent-wl', 'any-user-uuid'),
     ).rejects.toThrow("Waitlist entry with ID 'non-existent-wl' not found.");
   });
 });

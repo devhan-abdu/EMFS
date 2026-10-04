@@ -72,7 +72,7 @@ export async function createBatch(
   return await executor.transaction(async (tx) => {
     // Verify all candidate admin profiles exist and have allowed roles
     const existingProfiles = await tx
-      .select({ id: profiles.id, role: profiles.role })
+      .select({ id: profiles.id })
       .from(profiles)
       .where(inArray(profiles.id, candidateAdminIds));
 
@@ -82,22 +82,6 @@ export async function createBatch(
       throw new BatchError(
         'ADMIN_NOT_FOUND',
         `Admin profile(s) not found: ${missingIds.join(', ')}`,
-      );
-    }
-
-    const ALLOWED_ADMIN_ROLES = new Set([
-      'super_admin',
-      'batch_admin',
-      'pace_admin',
-      'member',
-    ]);
-    const invalidRoleProfile = existingProfiles.find(
-      (p) => !ALLOWED_ADMIN_ROLES.has(p.role),
-    );
-    if (invalidRoleProfile) {
-      throw new BatchError(
-        'INVALID_ADMIN_ROLE',
-        `Profile '${invalidRoleProfile.id}' has invalid role '${invalidRoleProfile.role}' for batch admin assignment.`,
       );
     }
 
@@ -169,7 +153,7 @@ export async function updateBatch(
   return await executor.transaction(async (tx) => {
     // Verify all candidate admin profiles exist and have allowed roles
     const existingProfiles = await tx
-      .select({ id: profiles.id, role: profiles.role })
+      .select({ id: profiles.id })
       .from(profiles)
       .where(inArray(profiles.id, candidateAdminIds));
 
@@ -179,22 +163,6 @@ export async function updateBatch(
       throw new BatchError(
         'ADMIN_NOT_FOUND',
         `Admin profile(s) not found: ${missingIds.join(', ')}`,
-      );
-    }
-
-    const ALLOWED_ADMIN_ROLES = new Set([
-      'super_admin',
-      'batch_admin',
-      'pace_admin',
-      'member',
-    ]);
-    const invalidRoleProfile = existingProfiles.find(
-      (p) => !ALLOWED_ADMIN_ROLES.has(p.role),
-    );
-    if (invalidRoleProfile) {
-      throw new BatchError(
-        'INVALID_ADMIN_ROLE',
-        `Profile '${invalidRoleProfile.id}' has invalid role '${invalidRoleProfile.role}' for batch admin assignment.`,
       );
     }
 
@@ -253,12 +221,6 @@ export type AdminOption = {
   previouslyAssigned: boolean;
 };
 
-const ELIGIBLE_ADMIN_ROLES = [
-  'super_admin',
-  'batch_admin',
-  'pace_admin',
-] as const;
-
 export async function getEligibleBatchAdmins(
   executor: DbOrTx = db,
 ): Promise<AdminOption[]> {
@@ -273,7 +235,6 @@ export async function getEligibleBatchAdmins(
       })
       .from(profiles)
       .innerJoin(user, eq(profiles.authUserId, user.id))
-      .where(inArray(profiles.role, ELIGIBLE_ADMIN_ROLES))
       .orderBy(profiles.firstName, profiles.fatherName),
     executor
       .selectDistinct({ profileId: batchAdmins.profileId })

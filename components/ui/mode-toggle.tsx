@@ -1,7 +1,9 @@
 'use client';
 
+import { Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
 
 export function ModeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -15,16 +17,16 @@ export function ModeToggle() {
   const isDark = mounted && resolvedTheme === 'dark';
 
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon"
+      disabled={!mounted}
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-container hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
     >
-      <span className="material-symbols-outlined text-[22px]">
-        {isDark ? 'light_mode' : 'dark_mode'}
-      </span>
-    </button>
+      {isDark ? <Sun /> : <Moon />}
+    </Button>
   );
 }
