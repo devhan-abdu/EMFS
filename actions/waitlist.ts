@@ -1,12 +1,17 @@
 'use server';
 
-import { requireSession } from '@/lib/auth/authorize';
+import {
+  AuthzError,
+  requireBatchAccess,
+  requireSession,
+} from '@/lib/auth/authorize';
 import {
   createWaitlistSchema,
   removeWaitlistSchema,
 } from '@/lib/validations/waitlist';
 import {
   addToWaitlist,
+  getWaitlistEntryForAccess,
   removeFromWaitlist,
   WaitlistError,
 } from '@/lib/services/application/waitlist';
@@ -64,14 +69,21 @@ export async function leaveWaitlistAction(input: unknown) {
   }
 
   try {
+    const entry = await getWaitlistEntryForAccess(parsed.data.waitlistId);
+    let authorizedBatchId: string | undefined;
+    if (entry && entry.userId !== currentUser.profile.id) {
+      await requireBatchAccess(entry.batchId);
+      authorizedBatchId = entry.batchId;
+    }
+
     const removed = await removeFromWaitlist(
       parsed.data.waitlistId,
       currentUser.profile.id,
-      currentUser.profile.role,
+      authorizedBatchId,
     );
     return { ok: true as const, data: removed };
   } catch (e) {
-    if (e instanceof WaitlistError) {
+    if (e instanceof WaitlistError || e instanceof AuthzError) {
       return {
         ok: false as const,
         errors: { formErrors: [e.message], fieldErrors: {} },

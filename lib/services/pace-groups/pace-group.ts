@@ -1,6 +1,6 @@
 import { and, asc, count, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { paceGroups, batches } from '@/db/schema';
+import { books, catalogSlots, paceGroups, batches } from '@/db/schema';
 import type {
   CreatePaceGroupInput,
   UpdatePaceGroupInput,
@@ -12,6 +12,7 @@ export type PaceGroupErrorCode =
   | 'BATCH_NOT_FOUND'
   | 'PACE_GROUP_NOT_FOUND'
   | 'PLANNED_COUNT_EXCEEDED'
+  | 'CATALOG_NOT_CONFIGURED'
   | 'ALREADY_ARCHIVED';
 
 export class PaceGroupError extends Error {
@@ -64,6 +65,35 @@ export async function createPaceGroup(
       throw new PaceGroupError('BATCH_NOT_FOUND', 'Batch not found.');
     }
 
+    const [initialSlot] = await tx
+      .select({ id: catalogSlots.id })
+      .from(catalogSlots)
+      .where(eq(catalogSlots.sequenceOrder, 1))
+      .limit(1);
+
+    if (!initialSlot) {
+      throw new PaceGroupError(
+        'CATALOG_NOT_CONFIGURED',
+        'Add a catalog slot 1 before creating pace groups.',
+      );
+    }
+
+    const [initialBook] = await tx
+      .select({ id: books.id })
+      .from(books)
+      .where(
+        and(eq(books.catalogSlotId, initialSlot.id), eq(books.language, 'en')),
+      )
+      .orderBy(asc(books.language))
+      .limit(1);
+
+    if (!initialBook) {
+      throw new PaceGroupError(
+        'CATALOG_NOT_CONFIGURED',
+        'Add an English book to catalog slot 1 before creating pace groups.',
+      );
+    }
+
     if (!overridePlannedCount) {
       const [{ existingCount }] = await tx
         .select({ existingCount: count() })
@@ -82,7 +112,7 @@ export async function createPaceGroup(
 
     const [created] = await tx
       .insert(paceGroups)
-      .values({ batchId, name, size })
+      .values({ batchId, name, size, activeCatalogSlotId: initialSlot.id })
       .returning(PACE_GROUP_RETURNING);
 
     return created;

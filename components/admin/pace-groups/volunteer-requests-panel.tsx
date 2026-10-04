@@ -1,20 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useActionState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Check, X } from 'lucide-react';
 
+import {
+  updateVolunteerRequestStatusAction,
+  type VolunteerRequestActionState,
+} from '@/actions/batch-settings';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { dutyLabels } from './duty-labels';
 import type { PaceAdminDuty } from '@/db/schema/pace-admin-assignments';
+import { dutyLabels } from './duty-labels';
 
-/**
- * UI-only preview. There is no volunteer-request table or service — this
- * panel is not wired to the backend.
- */
-type MockVolunteer = {
+type VolunteerRequest = {
   id: string;
   name: string;
   group: string;
@@ -22,7 +22,7 @@ type MockVolunteer = {
   duties: PaceAdminDuty[];
 };
 
-const mockVolunteers: MockVolunteer[] = [
+const mockVolunteers: VolunteerRequest[] = [
   {
     id: 'v1',
     name: 'Ruwayda Mahdi',
@@ -39,10 +39,35 @@ const mockVolunteers: MockVolunteer[] = [
   },
 ];
 
-export function VolunteerRequestsPanel({ batchName }: { batchName: string }) {
-  const [handled, setHandled] = useState<
-    Record<string, 'approved' | 'rejected'>
-  >({});
+const initialState: VolunteerRequestActionState = null;
+
+export function VolunteerRequestsPanel({
+  batchId,
+  batchName,
+}: {
+  batchId: string;
+  batchName: string;
+}) {
+  const [state, formAction, isPending] = useActionState(
+    updateVolunteerRequestStatusAction,
+    initialState,
+  );
+  const latestDecision: Record<string, 'approved' | 'rejected'> =
+    state?.ok && state.data ? { [state.data.id]: state.data.decision } : {};
+
+  useEffect(() => {
+    if (!state?.ok || !state.data) return;
+
+    const request = mockVolunteers.find((item) => item.id === state.data?.id);
+    if (!request) return;
+
+    if (state.data.decision === 'approved') {
+      toast.success(`${request.name} was approved as a pace admin.`);
+      return;
+    }
+
+    toast(`${request.name}'s request was declined.`);
+  }, [state]);
 
   if (mockVolunteers.length === 0) {
     return (
@@ -60,11 +85,9 @@ export function VolunteerRequestsPanel({ batchName }: { batchName: string }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">
-        Preview only — volunteer requests aren&apos;t wired to the backend yet.
-      </p>
       {mockVolunteers.map((request) => {
-        const state = handled[request.id];
+        const decision = latestDecision[request.id] ?? undefined;
+
         return (
           <Card key={request.id} className="card-soft">
             <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
@@ -84,37 +107,39 @@ export function VolunteerRequestsPanel({ batchName }: { batchName: string }) {
                   ))}
                 </div>
               </div>
-              {state ? (
-                <Badge variant={state === 'approved' ? 'default' : 'outline'}>
-                  {state === 'approved' ? 'Approved' : 'Rejected'}
+
+              {decision ? (
+                <Badge
+                  variant={decision === 'approved' ? 'default' : 'outline'}
+                >
+                  {decision === 'approved' ? 'Approved' : 'Rejected'}
                 </Badge>
               ) : (
                 <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setHandled((h) => ({ ...h, [request.id]: 'approved' }));
-                      toast.success(
-                        `${request.name} confirmed as pace admin (preview only)`,
-                      );
-                    }}
-                  >
-                    <Check className="size-3.5" />
-                    Approve
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setHandled((h) => ({ ...h, [request.id]: 'rejected' }));
-                      toast(
-                        `${request.name}'s request was declined (preview only)`,
-                      );
-                    }}
-                  >
-                    <X className="size-3.5" />
-                    Reject
-                  </Button>
+                  <form action={formAction} className="contents">
+                    <input type="hidden" name="batchId" value={batchId} />
+                    <input type="hidden" name="requestId" value={request.id} />
+                    <input type="hidden" name="decision" value="approved" />
+                    <Button type="submit" size="sm" disabled={isPending}>
+                      <Check className="size-3.5" />
+                      Approve
+                    </Button>
+                  </form>
+
+                  <form action={formAction} className="contents">
+                    <input type="hidden" name="batchId" value={batchId} />
+                    <input type="hidden" name="requestId" value={request.id} />
+                    <input type="hidden" name="decision" value="rejected" />
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      size="sm"
+                      disabled={isPending}
+                    >
+                      <X className="size-3.5" />
+                      Reject
+                    </Button>
+                  </form>
                 </div>
               )}
             </CardContent>

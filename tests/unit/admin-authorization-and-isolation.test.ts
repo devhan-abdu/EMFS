@@ -60,6 +60,7 @@ import {
   requireSuperAdmin,
   requireBatchAccess,
   requirePaceGroupAccess,
+  requireBatchAccessForPaceGroup,
   getAuthorizedBatchIds,
   getAuthorizedPaceGroupIds,
   AuthzError,
@@ -96,6 +97,7 @@ function createTestUser(
       id: profileId,
       authUserId,
       role,
+      isSuperAdmin: role === 'super_admin',
       firstName,
       fatherName,
       grandfatherName: null,
@@ -146,6 +148,8 @@ const MEMBER_USER = createTestUser(
 describe('Admin Authorization & Data Isolation Security Suite', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFindManyBatchAdmins.mockResolvedValue([]);
+    mockFindManyPaceAdminAssignments.mockResolvedValue([]);
   });
 
   describe('1. PACE ADMIN Access & Data Isolation', () => {
@@ -204,6 +208,38 @@ describe('Admin Authorization & Data Isolation Security Suite', () => {
   });
 
   describe('2. BATCH ADMIN Access & Data Isolation', () => {
+    it('resolves batch and pace-group grants independently for a member profile', async () => {
+      mockFindManyBatchAdmins.mockResolvedValue([{ batchId: BATCH_1_ID }]);
+      mockFindManyPaceAdminAssignments.mockResolvedValue([
+        { paceGroupId: GROUP_2A_ID },
+      ]);
+      mockFindManyPaceGroups.mockResolvedValue([
+        { id: GROUP_1A_ID, batchId: BATCH_1_ID },
+      ]);
+
+      const batchIds = await getAuthorizedBatchIds(MEMBER_USER);
+      const groupIds = await getAuthorizedPaceGroupIds(MEMBER_USER);
+
+      expect(batchIds).toEqual([BATCH_1_ID]);
+      expect(groupIds).toEqual([GROUP_1A_ID, GROUP_2A_ID]);
+      expect(MEMBER_USER.profile.isSuperAdmin).toBe(false);
+    });
+
+    it('rejects a group request when its database batch differs from the client batch', async () => {
+      mockFindFirstPaceGroup.mockResolvedValueOnce({
+        id: GROUP_2A_ID,
+        batchId: BATCH_2_ID,
+      });
+
+      await expect(
+        requireBatchAccessForPaceGroup(GROUP_2A_ID, BATCH_1_ID),
+      ).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+        message: 'The pace group does not belong to the requested batch.',
+      });
+      expect(mockFindFirstBatchAdmin).not.toHaveBeenCalled();
+    });
+
     it('sees only batches they are assigned to via getAuthorizedBatchIds', async () => {
       mockFindManyBatchAdmins.mockResolvedValueOnce([{ batchId: BATCH_1_ID }]);
 
@@ -325,6 +361,10 @@ describe('Admin Authorization & Data Isolation Security Suite', () => {
 
     it('requirePaceGroupAccess succeeds for super admin on any pace group', async () => {
       mockGetCurrentUser.mockReturnValue(SUPER_ADMIN_USER);
+      mockFindFirstPaceGroup.mockResolvedValueOnce({
+        id: GROUP_2A_ID,
+        batchId: BATCH_2_ID,
+      });
 
       const user = await requirePaceGroupAccess(GROUP_2A_ID);
       expect(user.profile.id).toBe(SUPER_ADMIN_USER.profile.id);

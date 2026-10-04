@@ -47,7 +47,8 @@ export async function reviewApplicationAction(
       parsed.data.decision,
       currentUser.profile.id,
     );
-    revalidatePath('/admin/members');
+    revalidatePath(`/admin/b/${app.batchId}/applications`);
+    revalidatePath('/admin/platform/applications');
     return { ok: true, data: result };
   } catch (e) {
     if (e instanceof AuthzError) {

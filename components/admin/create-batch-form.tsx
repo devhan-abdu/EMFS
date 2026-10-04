@@ -90,7 +90,7 @@ export function CreateBatchForm({
       toast.success(
         isEditing ? 'Batch updated successfully' : 'Batch created successfully',
       );
-      router.push(`/admin/batches/${state.data.batch.id}`);
+      router.push(`/admin/b/${state.data.batch.id}`);
     }
   }, [state, router, isEditing]);
 
@@ -122,7 +122,7 @@ export function CreateBatchForm({
   useEffect(() => {
     if (state?.ok && state.data?.batch?.id) {
       toast.success('Batch created successfully');
-      router.push(`/admin/batches/${state.data.batch.id}`);
+      router.push(`/admin/b/${state.data.batch.id}`);
     }
   }, [state, router]);
 
@@ -274,7 +274,7 @@ export function CreateBatchForm({
               <p className="font-display text-xl">Batch admins</p>
 
               <Button asChild variant="ghost" size="sm" className="gap-1.5 ">
-                <Link href="/admin/roles">
+                <Link href="/admin/platform/roles">
                   <UserPlus className="size-4" />
                   Invite admin
                 </Link>
@@ -406,7 +406,7 @@ export function CreateBatchForm({
             {isPending ? 'Saving…' : isEditing ? 'Update batch' : 'Save batch'}
           </Button>
           <Button type="button" variant="outline" asChild>
-            <Link href="/admin/batches">Cancel</Link>
+            <Link href="/admin/platform/batches">Cancel</Link>
           </Button>
         </div>
       </div>

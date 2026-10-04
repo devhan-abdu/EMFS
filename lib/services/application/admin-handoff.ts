@@ -50,13 +50,6 @@ export async function getAdminApplicationsWithHandoff(
   const conditions: SQL[] = [];
 
   if (userContext) {
-    if (
-      userContext.profile.role === 'pace_admin' ||
-      userContext.profile.role === 'member'
-    ) {
-      return [];
-    }
-
     const authBatchIds = await getAuthorizedBatchIds(userContext);
     if (authBatchIds !== 'all') {
       if (authBatchIds.length === 0) return [];

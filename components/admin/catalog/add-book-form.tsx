@@ -105,7 +105,7 @@ export function AddBookForm({
       toast.success(bookId ? 'Book updated' : 'Book added to the catalog');
       if (onSuccess) onSuccess();
       if (!embedded) {
-        router.push('/admin/catalog');
+        router.push('/admin/platform/catalog');
         router.refresh();
       }
     } else if (state.errors?.length) {
@@ -320,7 +320,7 @@ export function AddBookForm({
           </Button>
         ) : (
           <Link
-            href="/admin/catalog"
+            href="/admin/platform/catalog"
             className="inline-flex h-12 flex-1 items-center justify-center rounded-xl border border-border bg-background text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-surface-container"
           >
             Cancel

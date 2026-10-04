@@ -102,7 +102,7 @@ export async function createBatchAction(
     };
   }
 
-  revalidatePath('/admin/batches');
+  revalidatePath('/admin/platform/batches');
   revalidatePath('/admin');
   revalidatePath('/');
   revalidatePath('/batches');
@@ -187,7 +187,7 @@ export async function updateBatchAction(
     };
   }
 
-  revalidatePath('/admin/batches');
+  revalidatePath('/admin/platform/batches');
   revalidatePath('/admin');
   revalidatePath('/');
   revalidatePath('/batches');
