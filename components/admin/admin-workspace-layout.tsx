@@ -8,6 +8,7 @@ import { AdminTopBar } from '@/components/admin/admin-shell';
 import { SidebarRouteCloser } from '@/components/admin/sidebar-route-closer';
 import { WorkspaceVisitTracker } from '@/components/admin/workspace-visit-tracker';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { signOutAction } from '@/actions/auth';
 import {
   AuthzError,
   requireBatchAccess,
@@ -15,19 +16,15 @@ import {
   requireSuperAdmin,
 } from '@/lib/auth/authorize';
 import type { CurrentUser } from '@/lib/auth/session';
-import { getAdminWorkspaceOptions } from '@/lib/admin/workspaces';
-
-type WorkspaceScope =
-  | { kind: 'platform' }
-  | { kind: 'batch'; id: string }
-  | { kind: 'group'; id: string };
+import type { AdminWorkspaceScope } from '@/lib/services/admin/workspace';
+import { getAdminWorkspaceData } from '@/lib/services/admin/workspace-data';
 
 export async function AdminWorkspaceLayout({
   children,
   scope,
 }: {
   children: ReactNode;
-  scope: WorkspaceScope;
+  scope: AdminWorkspaceScope;
 }) {
   let currentUser: CurrentUser;
   try {
@@ -42,8 +39,8 @@ export async function AdminWorkspaceLayout({
     throw error;
   }
 
-  const { batches, paceGroups, workspaceOptions } =
-    await getAdminWorkspaceOptions(currentUser);
+  const { currentWorkspaceTitle, workspaceOptions } =
+    await getAdminWorkspaceData(currentUser, scope);
   const profileName = [
     currentUser.profile.firstName,
     currentUser.profile.fatherName,
@@ -73,13 +70,6 @@ export async function AdminWorkspaceLayout({
       : scope.kind === 'batch'
         ? `/admin/b/${scope.id}`
         : `/admin/g/${scope.id}`;
-  const currentWorkspaceTitle =
-    scope.kind === 'batch'
-      ? batches.find((batch) => batch.id === scope.id)?.name
-      : scope.kind === 'group'
-        ? paceGroups.find((group) => group.id === scope.id)?.name
-        : undefined;
-
   return (
     <SidebarProvider>
       <SidebarRouteCloser />
@@ -92,6 +82,7 @@ export async function AdminWorkspaceLayout({
           <PlatformSidebar
             user={{ ...sidebarUser, role: 'Super Admin' }}
             workspaceOptions={workspaceOptions}
+            signOutAction={signOutAction}
           />
         ) : scope.kind === 'batch' ? (
           <BatchSidebar
@@ -99,6 +90,7 @@ export async function AdminWorkspaceLayout({
             workspaceTitle={currentWorkspaceTitle}
             workspaceOptions={workspaceOptions}
             user={sidebarUser}
+            signOutAction={signOutAction}
           />
         ) : (
           <GroupSidebar
@@ -106,6 +98,7 @@ export async function AdminWorkspaceLayout({
             workspaceTitle={currentWorkspaceTitle}
             workspaceOptions={workspaceOptions}
             user={sidebarUser}
+            signOutAction={signOutAction}
           />
         )}
         <div className="flex flex-1 flex-col">

@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { getAdminBatches } from '@/lib/services/admin';
+import { getAdminBatches } from '@/lib/services/admin/services';
 import { requireSuperAdmin } from '@/lib/auth/authorize';
 
 import type { Metadata } from 'next';

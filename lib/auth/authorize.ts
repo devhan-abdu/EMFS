@@ -41,6 +41,14 @@ const hasAnyPaceAdminGrant = async (profileId: string) =>
     }),
   );
 
+export async function hasAdminAssignment(profileId: string): Promise<boolean> {
+  const [isBatchAdmin, isPaceAdmin] = await Promise.all([
+    hasAnyBatchAdminGrant(profileId),
+    hasAnyPaceAdminGrant(profileId),
+  ]);
+  return isBatchAdmin || isPaceAdmin;
+}
+
 const isBatchAdminOf = async (profileId: string, batchId: string) =>
   Boolean(
     await db.query.batchAdmins.findFirst({
@@ -218,11 +226,7 @@ export async function requireAdminAccess(): Promise<CurrentUser> {
   const user = await requireSession();
   if (user.profile.isSuperAdmin) return user;
 
-  const [isBatchAdmin, isPaceAdmin] = await Promise.all([
-    hasAnyBatchAdminGrant(user.profile.id),
-    hasAnyPaceAdminGrant(user.profile.id),
-  ]);
-  if (!isBatchAdmin && !isPaceAdmin) {
+  if (!(await hasAdminAssignment(user.profile.id))) {
     forbidden('An admin assignment is required.');
   }
   return user;

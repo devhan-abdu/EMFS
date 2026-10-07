@@ -1,27 +1,15 @@
 // components/admin/AppSidebarShell.tsx
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  ChevronDown,
-  Layers,
-  LayoutDashboard,
-  LogOut,
-  Users,
-  type LucideIcon,
-} from 'lucide-react';
+import { LogOut, type LucideIcon } from 'lucide-react';
 
+import { WorkspaceSwitcher } from '@/components/admin/WorkspaceSwitcher';
 import { Lotus } from '@/components/brand/lotus';
 import { ModeToggle } from '@/components/ui/mode-toggle';
-import type { AdminWorkspaceOption } from '@/lib/admin-workspace';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import type { AdminWorkspaceOption } from '@/lib/services/admin/workspace';
 import {
   Sidebar,
   SidebarContent,
@@ -43,7 +31,7 @@ export interface NavItem {
   icon: LucideIcon;
   badge?: string | number;
 }
-export type { AdminWorkspaceOption } from '@/lib/admin-workspace';
+export type { AdminWorkspaceOption } from '@/lib/services/admin/workspace';
 
 interface AppSidebarShellProps {
   workspaceTitle: string;
@@ -56,6 +44,22 @@ interface AppSidebarShellProps {
     role: string;
     avatarInitials: string;
   };
+  /** Server action passed from the server layout. Must clear the workspace cookie. */
+  signOutAction: () => Promise<void>;
+}
+
+/**
+ * Exactly one nav item is active: the one with the longest url that is the
+ * current path or a parent of it. This keeps "Overview" (/admin/b/123) from
+ * lighting up on /admin/b/123/members.
+ */
+function findActiveUrl(navItems: NavItem[], pathname: string): string | null {
+  let best: string | null = null;
+  for (const { url } of navItems) {
+    const matches = pathname === url || pathname.startsWith(`${url}/`);
+    if (matches && (best === null || url.length > best.length)) best = url;
+  }
+  return best;
 }
 
 export function AppSidebar({
@@ -65,64 +69,36 @@ export function AppSidebar({
   navItems,
   workspaceOptions,
   user,
+  signOutAction,
 }: AppSidebarShellProps) {
   const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
-  const workspaceHeading = (
-    <span className="flex min-w-0 flex-1 items-center gap-3">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-accent text-sidebar-foreground">
-        <Lotus className="h-5 w-5" />
-      </span>
-      <span className="min-w-0 group-data-[collapsible=icon]:hidden">
-        <span className="block truncate font-display text-sm font-semibold text-sidebar-foreground">
-          {workspaceTitle}
-        </span>
-        <span className="block truncate text-xs text-sidebar-foreground/60">
-          {workspaceSubTitle}
-        </span>
-      </span>
-    </span>
+  const activeUrl = useMemo(
+    () => findActiveUrl(navItems, pathname),
+    [navItems, pathname],
   );
-
-  const isActive = (url: string) =>
-    url === '/admin' || url === '/admin/platform'
-      ? pathname === url
-      : pathname.startsWith(url);
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border/60 px-3 py-4">
-        {workspaceOptions.length > 1 ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-lg p-2 text-left outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring">
-              {workspaceHeading}
-              <ChevronDown className="size-4 shrink-0 text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="start" className="w-64">
-              <DropdownMenuLabel>Switch workspace</DropdownMenuLabel>
-              {workspaceOptions.map((workspace) => {
-                const Icon =
-                  workspace.kind === 'platform'
-                    ? LayoutDashboard
-                    : workspace.kind === 'batch'
-                      ? Layers
-                      : Users;
-
-                return (
-                  <DropdownMenuItem
-                    key={workspace.href}
-                    render={<Link href={workspace.href} />}
-                  >
-                    <Icon className="size-4" />
-                    <span className="truncate">{workspace.title}</span>
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          workspaceHeading
-        )}
+        <WorkspaceSwitcher
+          options={workspaceOptions}
+          currentTitle={workspaceTitle}
+        >
+          <span className="flex min-w-0 flex-1 items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-accent text-sidebar-foreground">
+              <Lotus className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 group-data-[collapsible=icon]:hidden">
+              <span className="block truncate font-display text-sm font-semibold text-sidebar-foreground">
+                {workspaceTitle}
+              </span>
+              <span className="block truncate text-xs text-sidebar-foreground/60">
+                {workspaceSubTitle}
+              </span>
+            </span>
+          </span>
+        </WorkspaceSwitcher>
       </SidebarHeader>
 
       <SidebarContent className="px-1">
@@ -136,12 +112,13 @@ export function AppSidebar({
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
                     asChild
-                    isActive={isActive(item.url)}
+                    isActive={item.url === activeUrl}
                     tooltip={item.title}
                     className="data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
                   >
                     <Link
                       href={item.url}
+                      aria-current={item.url === activeUrl ? 'page' : undefined}
                       className="flex items-center gap-3"
                       onClick={() => {
                         if (isMobile) setOpenMobile(false);
@@ -176,14 +153,20 @@ export function AppSidebar({
               {user.role}
             </p>
           </div>
-          <Link
-            href="/api/auth/signout"
-            aria-label="Sign out"
-            title="Sign out"
-            className="ml-auto rounded-md p-2 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground group-data-[collapsible=icon]:hidden"
+          {/* A form + server action: sign-out must never be a prefetchable GET link. */}
+          <form
+            action={signOutAction}
+            className="ml-auto group-data-[collapsible=icon]:hidden"
           >
-            <LogOut className="size-4" />
-          </Link>
+            <button
+              type="submit"
+              aria-label="Sign out"
+              title="Sign out"
+              className="rounded-md p-2 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <LogOut className="size-4" />
+            </button>
+          </form>
         </div>
       </SidebarFooter>
     </Sidebar>

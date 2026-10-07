@@ -1,5 +1,4 @@
-import { parseWorkspaceCookie } from '@/lib/admin-workspace';
-import type { AdminBatch, AdminPaceGroup } from '@/lib/services/admin';
+import { parseWorkspaceCookie } from '@/lib/services/admin/workspace';
 
 type LandingUser = {
   profile: {
@@ -8,12 +7,20 @@ type LandingUser = {
   };
 };
 
-type LandingBatch = Pick<
-  AdminBatch,
-  'id' | 'name' | 'registrationOpen' | 'startDate' | 'createdAt'
->;
+type LandingBatch = {
+  id: string;
+  name: string;
+  registrationOpen: boolean;
+  startDate: string | null;
+  createdAt: Date;
+};
 
-type LandingGroup = Pick<AdminPaceGroup, 'id' | 'name' | 'createdAt'>;
+type LandingGroup = {
+  id: string;
+  name: string;
+  createdAt: Date;
+  archived: boolean;
+};
 
 function compareBatches(
   left: LandingBatch,
@@ -48,7 +55,8 @@ export function resolveAdminLanding(
   );
   if (savedBatch) return `/admin/b/${savedBatch.id}`;
 
-  const savedGroup = groups.find(
+  const availableGroups = groups.filter((group) => !group.archived);
+  const savedGroup = availableGroups.find(
     (group) => savedWorkspace === `/admin/g/${group.id}`,
   );
   if (savedGroup) return `/admin/g/${savedGroup.id}`;
@@ -58,7 +66,7 @@ export function resolveAdminLanding(
   )[0];
   if (preferredBatch) return `/admin/b/${preferredBatch.id}`;
 
-  const preferredGroup = [...groups].sort(
+  const preferredGroup = [...availableGroups].sort(
     (left, right) =>
       right.createdAt.getTime() - left.createdAt.getTime() ||
       left.name.localeCompare(right.name),

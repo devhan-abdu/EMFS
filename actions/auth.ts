@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 
 import { db } from '@/db';
 import { profiles } from '@/db/schema';
+import { hasAdminAssignment } from '@/lib/auth/authorize';
 import { auth } from '@/lib/auth/auth';
 import { registerMember } from '@/lib/services/registration';
 import {
@@ -21,12 +22,8 @@ function safeNext(next: FormDataEntryValue | null | undefined): string | null {
   return next;
 }
 
-function defaultRedirectForRole(role: string | undefined): string {
-  return role === 'super_admin' ||
-    role === 'batch_admin' ||
-    role === 'pace_admin'
-    ? '/admin'
-    : '/';
+function isPublicDestination(next: string | null): next is string {
+  return Boolean(next && next !== '/admin' && !next.startsWith('/admin/'));
 }
 
 export async function signUpAction(
@@ -111,7 +108,14 @@ export async function signInAction(
     where: eq(profiles.authUserId, signInResult.user.id),
   });
 
-  const targetUrl = next ?? defaultRedirectForRole(profile?.role);
+  const hasAdminAccess = profile
+    ? profile.isSuperAdmin || (await hasAdminAssignment(profile.id))
+    : false;
+  const targetUrl = hasAdminAccess
+    ? (next ?? '/admin')
+    : isPublicDestination(next)
+      ? next
+      : '/';
 
   return {
     values: {},

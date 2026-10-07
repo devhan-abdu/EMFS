@@ -22,12 +22,14 @@ export function BatchSidebar({
   workspaceOptions,
   user = { name: 'Batch Admin', role: 'Batch Manager', avatarInitials: 'BA' },
   pendingMovesCount,
+  signOutAction,
 }: {
   batchId: string;
   workspaceTitle?: string;
   workspaceOptions: AdminWorkspaceOption[];
   user?: { name: string; role: string; avatarInitials: string };
   pendingMovesCount?: number;
+  signOutAction: () => Promise<void>;
 }) {
   const batchNavItems: NavItem[] = [
     {
@@ -82,6 +84,7 @@ export function BatchSidebar({
       navItems={batchNavItems}
       workspaceOptions={workspaceOptions}
       user={user}
+      signOutAction={signOutAction}
     />
   );
 }

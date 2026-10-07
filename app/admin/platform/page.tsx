@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 };
 
 import { requireSuperAdmin } from '@/lib/auth/authorize';
-import { getAdminOverviewData } from '@/lib/services/admin';
+import { getAdminOverviewData } from '@/lib/services/admin/services';
 
 const lifecycleLabels = {
   draft: 'Draft',
