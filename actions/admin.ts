@@ -1,41 +1,59 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { eq } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 
 import { db } from '@/db';
 import { profiles } from '@/db/schema';
 import { requireSuperAdmin } from '@/lib/auth/authorize';
-import type { AdminRole } from '@/lib/services/constants/admin-constants';
 
-const roles: AdminRole[] = [
-  'super_admin',
-  'batch_admin',
-  'pace_admin',
-  'member',
-];
+export type SuperAdminAccessActionState =
+  { ok: true } | { ok: false; error: string } | null;
 
-export async function updateProfileRoleAction(input: unknown) {
-  await requireSuperAdmin();
+export async function updateSuperAdminAccessAction(
+  _previousState: SuperAdminAccessActionState,
+  formData: FormData,
+): Promise<SuperAdminAccessActionState> {
+  const actor = await requireSuperAdmin();
+  const profileId = formData.get('profileId');
+  const enabledValue = formData.get('isSuperAdmin');
 
-  if (!input || typeof input !== 'object') {
-    return { ok: false as const, error: 'Invalid role update.' };
-  }
-
-  const { profileId, role } = input as { profileId?: unknown; role?: unknown };
   if (
     typeof profileId !== 'string' ||
-    typeof role !== 'string' ||
-    !roles.includes(role as AdminRole)
+    (enabledValue !== 'true' && enabledValue !== 'false')
   ) {
-    return { ok: false as const, error: 'Invalid profile or role.' };
+    return { ok: false, error: 'Invalid super-admin access update.' };
+  }
+
+  const enabled = enabledValue === 'true';
+  if (profileId === actor.profile.id && !enabled) {
+    return { ok: false, error: 'You cannot remove your own global access.' };
+  }
+
+  const target = await db.query.profiles.findFirst({
+    where: eq(profiles.id, profileId),
+  });
+  if (!target) return { ok: false, error: 'Profile not found.' };
+
+  if (target.isSuperAdmin && !enabled) {
+    const [superAdminCount] = await db
+      .select({ value: count() })
+      .from(profiles)
+      .where(eq(profiles.isSuperAdmin, true));
+    if (Number(superAdminCount?.value ?? 0) <= 1) {
+      return {
+        ok: false,
+        error: 'At least one global super admin must remain.',
+      };
+    }
   }
 
   await db
     .update(profiles)
-    .set({ role: role as AdminRole, updatedAt: new Date() })
+    .set({ isSuperAdmin: enabled, updatedAt: new Date() })
     .where(eq(profiles.id, profileId));
 
-  revalidatePath('/roles');
-  return { ok: true as const };
+  revalidatePath('/admin/platform/roles');
+  revalidatePath('/admin');
+  return { ok: true };
 }

@@ -193,7 +193,7 @@ export function PaceAdminAssignDialog({
           <DialogTitle className="flex items-center justify-between gap-2 pr-8">
             <span>Pace admins — {group.name}</span>
             <Button asChild variant="ghost" size="sm" className="gap-2">
-              <Link href="/admin/roles">
+              <Link href="/admin/platform/roles">
                 <UserPlus className="size-4" />
                 Invite admin
               </Link>

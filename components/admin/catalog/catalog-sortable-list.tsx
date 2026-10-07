@@ -19,6 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
+  Archive,
   GripVertical,
   Languages,
   Loader2,
@@ -29,7 +30,11 @@ import {
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
-import { deleteBookAction, reorderBooksAction } from '@/actions/catalog';
+import {
+  archiveCatalogSlotAction,
+  deleteBookAction,
+  reorderBooksAction,
+} from '@/actions/catalog';
 import { AddBookForm } from '@/components/admin/catalog/add-book-form';
 import {
   AddEditionForm,
@@ -133,6 +138,7 @@ export function CatalogSortableList({ slots }: CatalogSortableListProps) {
   );
   const [bookSheet, setBookSheet] = useState<BookSheetState | null>(null);
   const [deleteBook, setDeleteBook] = useState<DeleteBookState | null>(null);
+  const [archiveBook, setArchiveBook] = useState<DeleteBookState | null>(null);
   const [pendingRowId, setPendingRowId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -187,7 +193,8 @@ export function CatalogSortableList({ slots }: CatalogSortableListProps) {
 
   function confirmDeleteBook() {
     if (!deleteBook) return;
-    const { book } = deleteBook;
+    const target = deleteBook;
+    const { book } = target;
     setPendingRowId(book.id);
     startTransition(async () => {
       const result = await deleteBookAction({ bookId: book.id });
@@ -196,9 +203,31 @@ export function CatalogSortableList({ slots }: CatalogSortableListProps) {
       if (result.ok) {
         toast.success(`Deleted ${book.title}.`);
         router.refresh();
+      } else if (result.errors.some((error) => error.code === 'SLOT_IN_USE')) {
+        setArchiveBook(target);
+        toast.info('This slot is in use. Archive it to keep its history.');
       } else {
         toast.error(
           result.errors[0]?.message ?? `Failed to delete ${book.title}.`,
+        );
+      }
+    });
+  }
+
+  function confirmArchiveSlot() {
+    if (!archiveBook) return;
+    const { book } = archiveBook;
+    setPendingRowId(book.id);
+    startTransition(async () => {
+      const result = await archiveCatalogSlotAction({ bookId: book.id });
+      setPendingRowId(null);
+      setArchiveBook(null);
+      if (result.ok) {
+        toast.success(`Archived ${book.title}; task history is preserved.`);
+        router.refresh();
+      } else {
+        toast.error(
+          result.errors[0]?.message ?? `Failed to archive ${book.title}.`,
         );
       }
     });
@@ -246,6 +275,12 @@ export function CatalogSortableList({ slots }: CatalogSortableListProps) {
                 onEditBook={() => openEditBook(item)}
                 onDeleteBook={() =>
                   setDeleteBook({
+                    book: pickRepresentative(item),
+                    pairedEditionsCount: Math.max(0, item.editions.length - 1),
+                  })
+                }
+                onArchiveSlot={() =>
+                  setArchiveBook({
                     book: pickRepresentative(item),
                     pairedEditionsCount: Math.max(0, item.editions.length - 1),
                   })
@@ -369,6 +404,28 @@ export function CatalogSortableList({ slots }: CatalogSortableListProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={archiveBook !== null}
+        onOpenChange={(open) => !open && setArchiveBook(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive catalog slot?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {archiveBook?.book.title} and its editions will leave the active
+              catalog. Curriculum, scheduled tasks, and member progress will be
+              preserved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmArchiveSlot}>
+              Archive slot
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -381,6 +438,7 @@ function SortableCatalogRow({
   onEditEdition,
   onEditBook,
   onDeleteBook,
+  onArchiveSlot,
   isRowPending,
 }: {
   item: SortableSlot;
@@ -390,6 +448,7 @@ function SortableCatalogRow({
   onEditEdition: (edition: CatalogBookItem) => void;
   onEditBook: () => void;
   onDeleteBook: () => void;
+  onArchiveSlot: () => void;
   isRowPending: boolean;
 }) {
   const {
@@ -474,6 +533,10 @@ function SortableCatalogRow({
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={onEditBook}>
                   Edit book
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onArchiveSlot}>
+                  <Archive className="size-4" />
+                  Archive slot
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={onDeleteBook}

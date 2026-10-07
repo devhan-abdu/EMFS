@@ -9,12 +9,12 @@ import {
   listPaceAdminAssignments,
   getPaceAdminAssignmentById,
   PaceAdminError,
-} from '@/lib/services/pace-groups/pace-admin-assignment';
+} from '@/lib/services/admin/pace-admin-assignment';
 import {
   assignPaceAdminSchema,
   removePaceAdminAssignmentSchema,
   listPaceAdminAssignmentsSchema,
-} from '@/lib/validations/pace-admin';
+} from '@/lib/services/admin/pace-admin-validation';
 
 export async function assignPaceAdminAction(rawInput: unknown) {
   const parsed = assignPaceAdminSchema.safeParse(rawInput);
@@ -38,7 +38,7 @@ export async function assignPaceAdminAction(rawInput: unknown) {
     const result = await assignPaceAdmin(parsed.data, actor.profile.id);
 
     revalidatePath('/admin/pace-groups');
-    revalidatePath('/admin/roles');
+    revalidatePath('/admin/platform/roles');
 
     return { ok: true as const, data: result };
   } catch (e) {

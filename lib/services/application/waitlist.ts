@@ -107,7 +107,7 @@ export async function addToWaitlist(
 export async function removeFromWaitlist(
   waitlistId: string,
   requestingProfileId: string,
-  requestingRole?: string,
+  authorizedBatchId?: string,
 ) {
   return await db.transaction(async (tx) => {
     const existing = await tx.query.waitlist.findFirst({
@@ -122,10 +122,9 @@ export async function removeFromWaitlist(
     }
 
     const isOwner = existing.userId === requestingProfileId;
-    const isAdmin =
-      requestingRole === 'batch_admin' || requestingRole === 'super_admin';
+    const isBatchAdmin = authorizedBatchId === existing.batchId;
 
-    if (!isOwner && !isAdmin) {
+    if (!isOwner && !isBatchAdmin) {
       throw new WaitlistError(
         'FORBIDDEN',
         'You are not authorized to remove this waitlist entry.',
@@ -188,6 +187,14 @@ export async function removeFromWaitlist(
 
     return existing;
   });
+}
+
+export async function getWaitlistEntryForAccess(waitlistId: string) {
+  return (
+    (await db.query.waitlist.findFirst({
+      where: eq(waitlist.id, waitlistId),
+    })) ?? null
+  );
 }
 
 /**

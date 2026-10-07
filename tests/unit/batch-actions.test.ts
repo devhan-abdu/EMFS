@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createBatchAction } from '@/actions/batch';
 import * as authorizeModule from '@/lib/auth/authorize';
 import * as batchService from '@/lib/services/batches/batch';
+import { updateBatchCadenceSchema } from '@/lib/validations/batch-settings';
 
 vi.mock('next/navigation', () => ({
   redirect: vi.fn(),
@@ -41,6 +42,19 @@ describe('Batch Server Actions - Authorization & Execution', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('accepts weekday selections and derives the reading cadence from selected reading days', () => {
+    const parsed = updateBatchCadenceSchema.parse({
+      batchId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
+      readingDaysPerWeek: '3',
+      readingDays: ['mon', 'wed', 'fri'],
+      attendanceDays: ['tue', 'thu'],
+    });
+
+    expect(parsed.readingDaysPerWeek).toBe(3);
+    expect(parsed.readingDays).toEqual(['mon', 'wed', 'fri']);
+    expect(parsed.attendanceDays).toEqual(['tue', 'thu']);
   });
 
   it('permits Super Admin to create a batch from FormData and returns the created batch', async () => {

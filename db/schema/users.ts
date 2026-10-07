@@ -1,4 +1,11 @@
-import { pgTable, text, timestamp, pgEnum, uuid } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  text,
+  timestamp,
+  pgEnum,
+  uuid,
+  boolean,
+} from 'drizzle-orm/pg-core';
 
 import { user } from './auth';
 
@@ -20,6 +27,8 @@ export const profiles = pgTable('profiles', {
     }),
 
   role: roleEnum('role').notNull().default('member'),
+
+  isSuperAdmin: boolean('is_super_admin').notNull().default(false),
 
   firstName: text('first_name'),
   fatherName: text('father_name'),

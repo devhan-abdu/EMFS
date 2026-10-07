@@ -1,19 +1,30 @@
 import 'server-only';
 
-import { and, asc, count, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  lte,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
 
 import { db } from '@/db';
-import { countOrphanedCloudinaryAssets } from '@/lib/services/catalog/cloudinary';
 import {
   applications,
   batchAdmins,
   batchMemberships,
   batches,
   books,
+  catalogSlots,
+  paceAdminAssignments,
   paceGroupMemberships,
   paceGroups,
   profiles,
-  tasks,
   user,
 } from '@/db/schema';
 import type { CurrentUser } from '@/lib/auth/session';
@@ -54,6 +65,7 @@ export type AdminBatch = {
   startDate: string | null;
   readingDaysPerWeek: number;
   registrationOpen: boolean;
+  createdAt: Date;
   admins: string[];
 };
 
@@ -75,6 +87,7 @@ export type AdminPaceGroup = {
   name: string;
   batch: string;
   members: number;
+  createdAt: Date;
   admin: string;
   currentBook: string;
   dayProgress: number;
@@ -85,8 +98,14 @@ export type AdminStaffMember = {
   id: string;
   name: string;
   email: string;
-  role: 'super_admin' | 'batch_admin' | 'pace_admin' | 'member';
-  scope: string;
+  isSuperAdmin: boolean;
+  batchAssignments: { id: string; name: string }[];
+  paceGroupAssignments: {
+    id: string;
+    name: string;
+    batchId: string;
+    batchName: string;
+  }[];
   lastActive: string;
 };
 
@@ -118,6 +137,7 @@ export async function getAdminBatches(
       startDate: batches.startDate,
       readingDaysPerWeek: batches.readingDaysPerWeek,
       registrationOpen: batches.registrationOpen,
+      createdAt: batches.createdAt,
       enrolled: count(batchMemberships.id),
     })
     .from(batches)
@@ -162,12 +182,6 @@ export async function getAdminApplications(
 ): Promise<AdminApplication[]> {
   const appConditions: SQL[] = [];
   if (userContext) {
-    if (
-      userContext.profile.role === 'pace_admin' ||
-      userContext.profile.role === 'member'
-    ) {
-      return [];
-    }
     const authBatchIds = await getAuthorizedBatchIds(userContext);
     if (authBatchIds !== 'all') {
       if (authBatchIds.length === 0) return [];
@@ -231,7 +245,7 @@ export async function getAdminApplications(
 export async function getAdminPaceGroups(
   userContext?: CurrentUser,
 ): Promise<AdminPaceGroup[]> {
-  const groupConditions: SQL[] = [];
+  const groupConditions: SQL[] = [eq(paceGroups.archived, false)];
   if (userContext) {
     const authGroupIds = await getAuthorizedPaceGroupIds(userContext);
     if (authGroupIds !== 'all') {
@@ -246,6 +260,7 @@ export async function getAdminPaceGroups(
       name: paceGroups.name,
       batch: batches.name,
       members: count(paceGroupMemberships.id),
+      createdAt: paceGroups.createdAt,
     })
     .from(paceGroups)
     .innerJoin(batches, eq(batches.id, paceGroups.batchId))
@@ -257,14 +272,10 @@ export async function getAdminPaceGroups(
       ),
     );
 
-  const rows = await (groupConditions.length > 0
-    ? query
-        .where(and(...groupConditions))
-        .groupBy(paceGroups.id, batches.name)
-        .orderBy(asc(batches.name), asc(paceGroups.name))
-    : query
-        .groupBy(paceGroups.id, batches.name)
-        .orderBy(asc(batches.name), asc(paceGroups.name)));
+  const rows = await query
+    .where(and(...groupConditions))
+    .groupBy(paceGroups.id, batches.name)
+    .orderBy(asc(batches.name), asc(paceGroups.name));
 
   return rows.map((row) => ({
     ...row,
@@ -282,111 +293,147 @@ export async function getAdminStaff(): Promise<AdminStaffMember[]> {
       id: profiles.id,
       name: sql<string>`coalesce(${user.name}, concat(${profiles.firstName}, ' ', ${profiles.fatherName}))`,
       email: user.email,
-      role: profiles.role,
+      isSuperAdmin: profiles.isSuperAdmin,
       lastActive: profiles.updatedAt,
     })
     .from(profiles)
     .innerJoin(user, eq(user.id, profiles.authUserId))
     .orderBy(asc(user.name));
 
+  const [batchAssignments, paceAssignments] = await Promise.all([
+    db
+      .select({
+        profileId: batchAdmins.profileId,
+        id: batches.id,
+        name: batches.name,
+      })
+      .from(batchAdmins)
+      .innerJoin(batches, eq(batches.id, batchAdmins.batchId)),
+    db
+      .selectDistinct({
+        profileId: paceAdminAssignments.profileId,
+        id: paceGroups.id,
+        name: paceGroups.name,
+        batchId: batches.id,
+        batchName: batches.name,
+      })
+      .from(paceAdminAssignments)
+      .innerJoin(
+        paceGroups,
+        eq(paceGroups.id, paceAdminAssignments.paceGroupId),
+      )
+      .innerJoin(batches, eq(batches.id, paceGroups.batchId)),
+  ]);
+
   return rows.map((row) => ({
     ...row,
-    scope: row.role === 'super_admin' ? 'All batches' : 'Assigned batches',
+    batchAssignments: batchAssignments
+      .filter((assignment) => assignment.profileId === row.id)
+      .map(({ id, name }) => ({ id, name })),
+    paceGroupAssignments: paceAssignments
+      .filter((assignment) => assignment.profileId === row.id)
+      .map(({ id, name, batchId, batchName }) => ({
+        id,
+        name,
+        batchId,
+        batchName,
+      })),
     lastActive: formatDate(row.lastActive) ?? 'Unknown',
   }));
 }
 
-export async function getAdminOverviewData(userContext?: CurrentUser) {
-  const [adminBatches, adminApplications, adminPaceGroups] = await Promise.all([
-    getAdminBatches(userContext),
-    getAdminApplications(userContext),
-    getAdminPaceGroups(userContext),
-  ]);
+export async function getAdminOverviewData() {
+  const adminBatches = await getAdminBatches();
+  const today = new Date().toISOString().slice(0, 10);
 
   const [memberCount] = await db
-    .select({ count: count(profiles.id) })
-    .from(profiles)
-    .where(eq(profiles.role, 'member'));
+    .select({
+      count: sql<number>`count(distinct ${batchMemberships.profileId})`,
+    })
+    .from(batchMemberships)
+    .where(inArray(batchMemberships.status, ['active', 'grace']));
   const [
-    [catalogCount],
+    [catalogBookCount],
+    [batchAdminCount],
     recentAdditions,
-    editionCoverageGaps,
-    curriculumGaps,
-    referencedCoverRows,
+    recentActiveBatchRows,
   ] = await Promise.all([
     db
-      .select({ count: sql<number>`count(distinct ${books.sequenceOrder})` })
-      .from(books),
+      .select({ count: count(books.id) })
+      .from(books)
+      .innerJoin(catalogSlots, eq(catalogSlots.id, books.catalogSlotId))
+      .where(eq(catalogSlots.archived, false)),
+    db
+      .select({
+        count: sql<number>`count(distinct ${batchAdmins.profileId})`,
+      })
+      .from(batchAdmins)
+      .innerJoin(batches, eq(batchAdmins.batchId, batches.id))
+      .where(
+        or(eq(batches.registrationOpen, true), lte(batches.startDate, today)),
+      ),
     db
       .select({
         id: books.id,
         title: books.title,
         language: books.language,
-        sequenceOrder: books.sequenceOrder,
+        sequenceOrder: catalogSlots.sequenceOrder,
         createdAt: books.createdAt,
       })
       .from(books)
+      .innerJoin(catalogSlots, eq(catalogSlots.id, books.catalogSlotId))
+      .where(eq(catalogSlots.archived, false))
       .orderBy(desc(books.createdAt))
       .limit(ADMIN_OVERVIEW_RECENT_BOOK_LIMIT),
     db
-      .select({
-        sequenceOrder: books.sequenceOrder,
-        editionCount: sql<number>`count(distinct ${books.language})`,
-      })
-      .from(books)
-      .groupBy(books.sequenceOrder)
-      .having(sql`count(distinct ${books.language}) = 1`)
-      .orderBy(asc(books.sequenceOrder)),
-    db
-      .select({
-        id: books.id,
-        title: books.title,
-        language: books.language,
-        sequenceOrder: books.sequenceOrder,
-        tasksCount: count(tasks.id),
-      })
-      .from(books)
-      .leftJoin(tasks, eq(tasks.bookId, books.id))
-      .groupBy(books.id)
-      .having(sql`count(${tasks.id}) = 0`)
-      .orderBy(asc(books.sequenceOrder), asc(books.language)),
-    db.select({ coverUrl: books.coverUrl }).from(books),
+      .select({ id: batches.id })
+      .from(batches)
+      .where(
+        or(eq(batches.registrationOpen, true), lte(batches.startDate, today)),
+      )
+      .orderBy(desc(batches.createdAt))
+      .limit(4),
   ]);
-  let orphanedUploadCount: number | null = null;
-  try {
-    orphanedUploadCount = await countOrphanedCloudinaryAssets(
-      referencedCoverRows
-        .map((row) => row.coverUrl)
-        .filter((url): url is string => Boolean(url)),
-    );
-  } catch {
-    // Cloudinary health must not prevent the admin overview from loading.
-  }
+
+  const overviewBatches = adminBatches.map((batch) => {
+    const hasStarted = Boolean(batch.startDate && batch.startDate <= today);
+
+    return {
+      ...batch,
+      lifecycleStatus: batch.registrationOpen
+        ? ('registration-open' as const)
+        : hasStarted
+          ? ('started' as const)
+          : ('draft' as const),
+      registrationNeedsReview: Boolean(
+        batch.startDate && batch.startDate > today && !batch.registrationOpen,
+      ),
+    };
+  });
+  const overviewBatchesById = new Map(
+    overviewBatches.map((batch) => [batch.id, batch]),
+  );
+  const recentBatches = recentActiveBatchRows.flatMap(({ id }) => {
+    const batch = overviewBatchesById.get(id);
+    return batch ? [batch] : [];
+  });
 
   return {
-    batches: adminBatches,
-    applications: adminApplications,
-    paceGroups: adminPaceGroups,
+    batches: overviewBatches,
+    recentBatches,
     stats: {
-      activeMembers: Number(memberCount?.count ?? 0),
-      activeBatches: adminBatches.filter((batch) => batch.registrationOpen)
-        .length,
-      pendingApplications: adminApplications.filter(
-        (application) => application.status === 'pending',
+      totalReaders: Number(memberCount?.count ?? 0),
+      activeBatches: overviewBatches.filter(
+        (batch) => batch.lifecycleStatus !== 'draft',
       ).length,
-      catalogSlots: Number(catalogCount?.count ?? 0),
+      draftBatches: overviewBatches.filter(
+        (batch) => batch.lifecycleStatus === 'draft',
+      ).length,
+      assignedBatchAdmins: Number(batchAdminCount?.count ?? 0),
+      catalogBooks: Number(catalogBookCount?.count ?? 0),
     },
     catalog: {
       recentAdditions,
-      editionCoverageGaps: editionCoverageGaps.map((gap) => ({
-        ...gap,
-        editionCount: Number(gap.editionCount),
-      })),
-      curriculumGaps: curriculumGaps.map((gap) => ({
-        ...gap,
-        tasksCount: Number(gap.tasksCount),
-      })),
-      orphanedUploadCount,
     },
   };
 }
