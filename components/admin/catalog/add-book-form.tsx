@@ -32,7 +32,7 @@ import { useCoverImageField } from '@/hooks/use-cover-image-field';
 import {
   PROGRAM_BOOK_CATEGORY_PRESETS,
   PROGRAM_BOOK_LANGUAGES,
-} from '@/lib/services/constants/admin-catalog-constants';
+} from '@/lib/services/admin/catalog-constants';
 
 const initialState: CreateBookActionResult = { ok: false, errors: [] };
 

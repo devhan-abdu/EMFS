@@ -3,7 +3,7 @@ import { KeyRound } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { SuperAdminToggle } from '@/components/admin/super-admin-toggle';
-import { getAdminStaff } from '@/lib/services/admin';
+import { getAdminStaff } from '@/lib/services/admin/services';
 import type { Metadata } from 'next';
 import { AuthzError, requireSuperAdmin } from '@/lib/auth/authorize';
 import { redirect } from 'next/navigation';

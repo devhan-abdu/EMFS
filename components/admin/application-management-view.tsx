@@ -15,7 +15,7 @@ import {
 import type {
   AdminApplicationWithHandoff,
   ApplicationHandoffStatus,
-} from '@/lib/services/application/admin-handoff';
+} from '@/lib/services/admin/application-handoff';
 import { ApplicationRowActions } from '@/components/admin/application-row-actions';
 
 const STALE_AFTER_DAYS = 3;

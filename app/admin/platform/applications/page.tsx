@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { requireSuperAdmin } from '@/lib/auth/authorize';
-import { getAdminApplicationsWithHandoff } from '@/lib/services/application/admin-handoff';
+import { getAdminApplicationsWithHandoff } from '@/lib/services/admin/application-handoff';
 import { ApplicationManagementView } from '@/components/admin/application-management-view';
 
 export default async function PlatformApplicationsPage() {

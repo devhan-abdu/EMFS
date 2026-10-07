@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import {
   ADMIN_LAST_WORKSPACE_COOKIE,
   buildWorkspaceCookie,
-} from '@/lib/admin-workspace';
+} from '@/lib/services/admin/workspace';
 
 export function WorkspaceVisitTracker({
   profileId,

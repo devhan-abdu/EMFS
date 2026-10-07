@@ -5,7 +5,7 @@ import { MemberPlacementPanel } from '@/components/admin/pace-groups/member-plac
 import { requireBatchAccess } from '@/lib/auth/authorize';
 import { getBatchDetail } from '@/lib/services/batches/batch-detail';
 import { listPaceGroupsForBatch } from '@/lib/services/pace-groups/pace-group';
-import { listPaceAdminAssignments } from '@/lib/services/pace-groups/pace-admin-assignment';
+import { listPaceAdminAssignments } from '@/lib/services/admin/pace-admin-assignment';
 import type { PaceGroupWithAdmins } from '@/components/admin/pace-groups/types';
 
 export default async function BatchMembersPage({

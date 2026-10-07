@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { AuthzError, requireBatchAccess } from '@/lib/auth/authorize';
-import { getAdminApplicationsWithHandoff } from '@/lib/services/application/admin-handoff';
+import { getAdminApplicationsWithHandoff } from '@/lib/services/admin/application-handoff';
 import { ApplicationManagementView } from '@/components/admin/application-management-view';
 
 type Props = {

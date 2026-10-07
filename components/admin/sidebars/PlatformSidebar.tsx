@@ -18,9 +18,11 @@ const platformNavItems: NavItem[] = [
 export function PlatformSidebar({
   user = { name: 'Hayat A.', role: 'Super Admin', avatarInitials: 'HA' },
   workspaceOptions,
+  signOutAction,
 }: {
   user?: { name: string; role: string; avatarInitials: string };
   workspaceOptions: AdminWorkspaceOption[];
+  signOutAction: () => Promise<void>;
 }) {
   return (
     <AppSidebar
@@ -30,6 +32,7 @@ export function PlatformSidebar({
       navItems={platformNavItems}
       workspaceOptions={workspaceOptions}
       user={user}
+      signOutAction={signOutAction}
     />
   );
 }

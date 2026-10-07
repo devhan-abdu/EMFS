@@ -11,7 +11,7 @@ import {
   getAuthorizedBatchIds,
   requirePaceGroupAccess,
 } from '@/lib/auth/authorize';
-import { listPaceAdminAssignments } from '@/lib/services/pace-groups/pace-admin-assignment';
+import { listPaceAdminAssignments } from '@/lib/services/admin/pace-admin-assignment';
 import { eq } from 'drizzle-orm';
 
 export const metadata: Metadata = {

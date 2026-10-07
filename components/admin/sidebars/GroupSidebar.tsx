@@ -33,12 +33,14 @@ export function GroupSidebar({
     hasInspirationDuty: true,
   },
   user = { name: 'Pace Lead', role: 'Group Admin', avatarInitials: 'PL' },
+  signOutAction,
 }: {
   groupId: string;
   workspaceTitle?: string;
   workspaceOptions: AdminWorkspaceOption[];
   duties?: GroupDutyFlags;
   user?: { name: string; role: string; avatarInitials: string };
+  signOutAction: () => Promise<void>;
 }) {
   const allNavItems: (NavItem & { dutyKey?: keyof GroupDutyFlags })[] = [
     {
@@ -91,6 +93,7 @@ export function GroupSidebar({
       navItems={activeNavItems}
       workspaceOptions={workspaceOptions}
       user={user}
+      signOutAction={signOutAction}
     />
   );
 }

@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { RegistrationToggle } from '@/components/admin/registration-toggle';
 import { AuthzError, requireBatchAccess } from '@/lib/auth/authorize';
 import { getBatchDetail } from '@/lib/services/batches/batch-detail';
-import { getBatchOverviewData } from '@/lib/services/batches/batch-overview';
+import { getBatchOverviewData } from '@/lib/services/admin/batch-overview';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import {
   deriveBatchStatus,
