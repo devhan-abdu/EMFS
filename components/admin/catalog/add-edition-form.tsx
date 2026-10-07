@@ -54,7 +54,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCoverImageField } from '@/hooks/use-cover-image-field';
-import { EDITION_LANGUAGES } from '@/lib/services/constants/admin-catalog-constants';
+import { EDITION_LANGUAGES } from '@/lib/services/admin/catalog-constants';
 import { cn } from '@/lib/utils';
 
 const initialState: AddPairedEditionActionResult = { ok: false, errors: [] };
@@ -110,8 +110,8 @@ export function AddEditionForm({
   editionId,
   defaultPairedBookId = '',
   initialValues,
-  cancelHref = '/admin/catalog',
-  successHref = '/admin/catalog',
+  cancelHref = '/admin/platform/catalog',
+  successHref = '/admin/platform/catalog',
   onSuccess,
   onCancel,
   embedded = false,

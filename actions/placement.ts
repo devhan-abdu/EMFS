@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import {
   AuthzError,
-  requireBatchAccess,
+  requireBatchAccessForMoveRequest,
+  requireBatchAccessForPaceGroup,
   requireSession,
 } from '@/lib/auth/authorize';
 import {
@@ -31,10 +32,13 @@ export async function assignMemberAction(rawInput: unknown) {
   }
 
   try {
-    const actor = await requireBatchAccess(parsed.data.batchId);
+    const actor = await requireBatchAccessForPaceGroup(
+      parsed.data.paceGroupId,
+      parsed.data.batchId,
+    );
     const result = await assignMemberToPaceGroup(parsed.data, actor.profile.id);
 
-    revalidatePath(`/admin/batches/${parsed.data.batchId}`);
+    revalidatePath(`/admin/b/${parsed.data.batchId}`);
     revalidatePath('/admin/pace-groups');
 
     return { ok: true as const, data: result };
@@ -101,10 +105,13 @@ export async function moveMemberAction(rawInput: unknown) {
   }
 
   try {
-    const actor = await requireBatchAccess(parsed.data.batchId);
+    const actor = await requireBatchAccessForPaceGroup(
+      parsed.data.toPaceGroupId,
+      parsed.data.batchId,
+    );
     const result = await moveMemberToPaceGroup(parsed.data, actor.profile.id);
 
-    revalidatePath(`/admin/batches/${parsed.data.batchId}`);
+    revalidatePath(`/admin/b/${parsed.data.batchId}`);
     revalidatePath('/admin/pace-groups');
 
     return { ok: true as const, data: result };
@@ -172,13 +179,16 @@ export async function bulkAssignMembersAction(rawInput: unknown) {
   }
 
   try {
-    const actor = await requireBatchAccess(parsed.data.batchId);
+    const actor = await requireBatchAccessForPaceGroup(
+      parsed.data.targetGroupId,
+      parsed.data.batchId,
+    );
     const result = await bulkAssignMembersToPaceGroup(
       parsed.data,
       actor.profile.id,
     );
 
-    revalidatePath(`/admin/batches/${parsed.data.batchId}`);
+    revalidatePath(`/admin/b/${parsed.data.batchId}`);
     revalidatePath('/admin/pace-groups');
 
     return { ok: true as const, data: result };
@@ -242,10 +252,13 @@ export async function approveMoveRequestAction(rawInput: unknown) {
   }
 
   try {
-    const actor = await requireBatchAccess(parsed.data.batchId);
+    const actor = await requireBatchAccessForMoveRequest(
+      parsed.data.requestId,
+      parsed.data.batchId,
+    );
     const result = await approveMoveRequest(parsed.data, actor.profile.id);
 
-    revalidatePath(`/admin/batches/${parsed.data.batchId}`);
+    revalidatePath(`/admin/b/${parsed.data.batchId}`);
     revalidatePath('/admin/pace-groups');
 
     return { ok: true as const, data: result };
@@ -288,10 +301,13 @@ export async function rejectMoveRequestAction(rawInput: unknown) {
   }
 
   try {
-    const actor = await requireBatchAccess(parsed.data.batchId);
+    const actor = await requireBatchAccessForMoveRequest(
+      parsed.data.requestId,
+      parsed.data.batchId,
+    );
     const result = await rejectMoveRequest(parsed.data, actor.profile.id);
 
-    revalidatePath(`/admin/batches/${parsed.data.batchId}`);
+    revalidatePath(`/admin/b/${parsed.data.batchId}`);
     revalidatePath('/admin/pace-groups');
 
     return { ok: true as const, data: result };
@@ -335,21 +351,16 @@ export async function createMoveRequestAction(rawInput: unknown) {
 
   try {
     const session = await requireSession();
-    if (
-      session.profile.role !== 'super_admin' &&
-      session.profile.role !== 'batch_admin'
-    ) {
-      if (parsed.data.profileId !== session.profile.id) {
-        throw new AuthzError(
-          'FORBIDDEN',
-          'You can only submit move requests for your own profile.',
-        );
-      }
+    if (parsed.data.profileId !== session.profile.id) {
+      await requireBatchAccessForPaceGroup(
+        parsed.data.toPaceGroupId,
+        parsed.data.batchId,
+      );
     }
 
     const result = await createMoveRequest(parsed.data);
 
-    revalidatePath(`/admin/batches/${parsed.data.batchId}`);
+    revalidatePath(`/admin/b/${parsed.data.batchId}`);
     revalidatePath('/admin/pace-groups');
 
     return { ok: true as const, data: result };

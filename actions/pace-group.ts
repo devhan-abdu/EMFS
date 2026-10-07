@@ -28,7 +28,7 @@ export async function createPaceGroupAction(rawInput: unknown) {
     const result = await createPaceGroup(parsed.data);
 
     revalidatePath('/admin/pace-groups');
-    revalidatePath(`/admin/batches/${parsed.data.batchId}`);
+    revalidatePath(`/admin/b/${parsed.data.batchId}`);
 
     return { ok: true as const, data: result };
   } catch (e) {

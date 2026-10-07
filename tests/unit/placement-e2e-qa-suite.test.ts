@@ -30,6 +30,8 @@ const {
 vi.mock('@/lib/auth/authorize', () => ({
   AuthzError: MockAuthzError,
   requireBatchAccess: (...args: unknown[]) => mockRequireBatchAccess(...args),
+  requireBatchAccessForPaceGroup: (_groupId: string, batchId: string) =>
+    mockRequireBatchAccess(batchId),
   requirePaceGroupAccess: (...args: unknown[]) =>
     mockRequirePaceGroupAccess(...args),
   requireSession: () => mockRequireSession(),
@@ -60,7 +62,8 @@ vi.mock('@/db', () => ({
       paceAdminAssignments: { findFirst: vi.fn(), findMany: vi.fn() },
       batchMemberships: { findFirst: vi.fn() },
       paceGroupMemberships: { findFirst: vi.fn(), findMany: vi.fn() },
-      dailyTasks: { findFirst: vi.fn() },
+      batchDailyTasks: { findFirst: vi.fn() },
+      curriculumSteps: { findFirst: vi.fn() },
       dailyProgress: { findFirst: vi.fn() },
       books: { findFirst: vi.fn() },
       batchPacingOffsets: { findMany: vi.fn() },
@@ -904,24 +907,36 @@ describe('Comprehensive End-to-End QA & Security Suite: Member Placement & Group
         batchId: BATCH_ID,
         name: 'Group 10 (10 p/d)',
         size: 10,
+        activeBookId: 'book-1',
         archived: false,
       } as never);
 
-      vi.mocked(db.query.dailyTasks.findFirst).mockResolvedValueOnce({
+      vi.mocked(db.query.batchDailyTasks.findFirst).mockResolvedValueOnce({
         id: 'task-1',
         paceGroupId: GROUP_10_ID,
-        bookId: 'book-1',
-        dayNumber: 1,
+        curriculumStepId: 'step-1',
+        batchDayNumber: 1,
+        scheduledDate: '2026-10-01',
+        localCaptionOverride: null,
+        publicationStatus: 'published',
+      } as never);
+      vi.mocked(db.query.curriculumSteps.findFirst).mockResolvedValueOnce({
+        id: 'step-1',
+        slotNumber: 1,
+        paceSize: 10,
+        stepNumber: 1,
+        version: 1,
         startPage: 1,
         endPage: 10,
-        content: 'Read pages 1-10',
-        publicationStatus: 'published',
-        book: {
-          id: 'book-1',
-          title: 'Book 1',
-          author: 'Author',
-          totalPages: 300,
-        },
+        caption: 'Read pages 1-10',
+      } as never);
+      vi.mocked(db.query.books.findFirst).mockResolvedValueOnce({
+        id: 'book-1',
+        title: 'Book 1',
+        language: 'en',
+        sequenceOrder: 1,
+        author: 'Author',
+        pageCount: 300,
       } as never);
       vi.mocked(db.query.dailyProgress.findFirst).mockResolvedValueOnce(
         null as never,

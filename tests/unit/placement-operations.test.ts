@@ -30,6 +30,8 @@ const { AuthzErrorClass, mockRequireBatchAccess } = vi.hoisted(() => {
 vi.mock('@/lib/auth/authorize', () => ({
   AuthzError: AuthzErrorClass,
   requireBatchAccess: (...args: unknown[]) => mockRequireBatchAccess(...args),
+  requireBatchAccessForPaceGroup: (_groupId: string, batchId: string) =>
+    mockRequireBatchAccess(batchId),
 }));
 
 vi.mock('next/cache', () => ({

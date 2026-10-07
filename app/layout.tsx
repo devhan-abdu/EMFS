@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Fraunces, Plus_Jakarta_Sans } from 'next/font/google';
 import { Toaster } from '@/components/ui/sonner';
+import { ThemeProvider } from '@/components/theme/theme-provider';
 import './globals.css';
 
 const fraunces = Fraunces({ subsets: ['latin'], variable: '--font-display' });
@@ -29,10 +30,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${jakarta.variable}`}>
+    <html
+      lang="en"
+      className={`${fraunces.variable} ${jakarta.variable}`}
+      suppressHydrationWarning
+    >
       <body>
-        {children}
-        <Toaster richColors position="top-right" />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          storageKey="theme"
+        >
+          {children}
+          <Toaster richColors position="top-right" />
+        </ThemeProvider>
       </body>
     </html>
   );
