@@ -107,14 +107,23 @@ export async function requireRole(allowed: Role[]): Promise<CurrentUser> {
   const user = await requireSession();
   const profileId = user.profile.id;
 
-  const checks: Record<Role, () => boolean | Promise<boolean>> = {
+  if (allowed.includes('super_admin') && user.profile.isSuperAdmin) {
+    return user;
+  }
+
+  const [assignments, isActiveMember] = await Promise.all([
+    getAssignments(profileId),
+    hasActiveMembership(profileId),
+  ]);
+
+  const checks: Record<Role, () => boolean> = {
     super_admin: () => user.profile.isSuperAdmin,
-    batch_admin: () => hasAnyBatchAdminGrant(profileId),
-    pace_admin: () => hasAnyPaceAdminGrant(profileId),
-    member: () => hasActiveMembership(profileId),
+    batch_admin: () => assignments.batchIds.length > 0,
+    pace_admin: () => assignments.paceGroupIds.length > 0,
+    member: () => isActiveMember,
   };
 
-  const results = await Promise.all(allowed.map((role) => checks[role]()));
+  const results = allowed.map((role) => checks[role]());
   if (!results.some(Boolean)) {
     forbidden(`Required one of the following grants: ${allowed.join(', ')}.`);
   }
