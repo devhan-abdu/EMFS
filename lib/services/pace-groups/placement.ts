@@ -86,7 +86,8 @@ export type BatchRosterMember = {
   // Current assigned pace group (if placed)
   paceGroupId: string | null;
   paceGroupName: string | null;
-  paceGroupSize: number | null;
+  paceGroupMinPages: number | null;
+  paceGroupMaxPages: number | null;
   paceGroupMembershipId: string | null;
   placedAt: Date | null;
 };
@@ -141,7 +142,8 @@ export type PendingMoveRequestItem = {
   currentPaceGroupName: string | null;
   requestedPaceGroupId: string;
   requestedPaceGroupName: string;
-  requestedPaceGroupSize: number;
+  requestedPaceGroupMinPages: number;
+  requestedPaceGroupMaxPages: number;
   status: string;
   reason: string | null;
   pacePreference: string | null;
@@ -276,7 +278,8 @@ export async function getBatchRoster(
       paceGroupMembershipId: paceGroupMemberships.id,
       paceGroupId: paceGroups.id,
       paceGroupName: paceGroups.name,
-      paceGroupSize: paceGroups.size,
+      paceGroupMinPages: paceGroups.min_pages,
+      paceGroupMaxPages: paceGroups.max_pages,
       placedAt: paceGroupMemberships.startDate,
     })
     .from(batchMemberships)
@@ -335,7 +338,8 @@ export async function getBatchRoster(
 
       paceGroupId: isPlaced ? row.paceGroupId : null,
       paceGroupName: isPlaced ? row.paceGroupName : null,
-      paceGroupSize: isPlaced ? row.paceGroupSize : null,
+      paceGroupMinPages: isPlaced ? row.paceGroupMinPages : null,
+      paceGroupMaxPages: isPlaced ? row.paceGroupMaxPages : null,
       paceGroupMembershipId: isPlaced ? row.paceGroupMembershipId : null,
       placedAt: isPlaced ? row.placedAt : null,
     };
@@ -1128,7 +1132,8 @@ export async function getPendingMoveRequests(
       currentPaceGroupName: fromPaceGroups.name,
       requestedPaceGroupId: toPaceGroups.id,
       requestedPaceGroupName: toPaceGroups.name,
-      requestedPaceGroupSize: toPaceGroups.size,
+      requestedPaceGroupMinPages: toPaceGroups.min_pages,
+      requestedPaceGroupMaxPages: toPaceGroups.max_pages,
       status: paceGroupMoveRequests.status,
       reason: paceGroupMoveRequests.reason,
       createdAt: paceGroupMoveRequests.createdAt,
@@ -1175,7 +1180,8 @@ export async function getPendingMoveRequests(
     currentPaceGroupName: row.currentPaceGroupName ?? null,
     requestedPaceGroupId: row.requestedPaceGroupId,
     requestedPaceGroupName: row.requestedPaceGroupName,
-    requestedPaceGroupSize: row.requestedPaceGroupSize,
+    requestedPaceGroupMinPages: row.requestedPaceGroupMinPages,
+    requestedPaceGroupMaxPages: row.requestedPaceGroupMaxPages,
     status: row.status,
     reason: row.reason,
     pacePreference: row.appPacePreference ?? null,

@@ -14,7 +14,8 @@ export type PaceGroupErrorCode =
   | 'PACE_GROUP_NOT_FOUND'
   | 'PLANNED_COUNT_EXCEEDED'
   | 'CATALOG_NOT_CONFIGURED'
-  | 'ALREADY_ARCHIVED';
+  | 'ALREADY_ARCHIVED'
+  | 'INVALID_PACE_RANGE';
 
 export class PaceGroupError extends Error {
   code: PaceGroupErrorCode;
@@ -29,7 +30,8 @@ export type PaceGroupRow = {
   id: string;
   batchId: string;
   name: string;
-  size: number;
+  min_pages: number;
+  max_pages: number;
   archived: boolean;
 };
 
@@ -37,7 +39,8 @@ const PACE_GROUP_RETURNING = {
   id: paceGroups.id,
   batchId: paceGroups.batchId,
   name: paceGroups.name,
-  size: paceGroups.size,
+  min_pages: paceGroups.min_pages,
+  max_pages: paceGroups.max_pages,
   archived: paceGroups.archived,
 };
 
@@ -60,7 +63,14 @@ export async function createPaceGroupInTransaction(
   tx: DbTransaction,
   input: CreatePaceGroupInput,
 ): Promise<PaceGroupRow> {
-  const { batchId, name, size, overridePlannedCount } = input;
+  const { batchId, name, min_pages, max_pages, overridePlannedCount } = input;
+
+  if (min_pages > max_pages) {
+    throw new PaceGroupError(
+      'INVALID_PACE_RANGE',
+      'Minimum pages cannot exceed maximum pages.',
+    );
+  }
 
   const [batch] = await tx
     .select({ id: batches.id, paceGroupCount: batches.paceGroupCount })
@@ -119,7 +129,13 @@ export async function createPaceGroupInTransaction(
 
   const [created] = await tx
     .insert(paceGroups)
-    .values({ batchId, name, size, activeCatalogSlotId: initialSlot.id })
+    .values({
+      batchId,
+      name,
+      min_pages,
+      max_pages,
+      activeCatalogSlotId: initialSlot.id,
+    })
     .returning(PACE_GROUP_RETURNING);
 
   return created;
@@ -128,18 +144,28 @@ export async function createPaceGroupInTransaction(
 export async function updatePaceGroup(
   input: UpdatePaceGroupInput,
 ): Promise<PaceGroupRow> {
-  const { paceGroupId, name, size } = input;
+  const { paceGroupId, name, min_pages, max_pages } = input;
 
   const existing = await getPaceGroupById(paceGroupId);
   if (!existing) {
     throw new PaceGroupError('PACE_GROUP_NOT_FOUND', 'Pace group not found.');
   }
 
+  const nextMinPages = min_pages ?? existing.min_pages;
+  const nextMaxPages = max_pages ?? existing.max_pages;
+  if (nextMinPages > nextMaxPages) {
+    throw new PaceGroupError(
+      'INVALID_PACE_RANGE',
+      'Minimum pages cannot exceed maximum pages.',
+    );
+  }
+
   const [updated] = await db
     .update(paceGroups)
     .set({
       ...(name !== undefined ? { name } : {}),
-      ...(size !== undefined ? { size } : {}),
+      ...(min_pages !== undefined ? { min_pages } : {}),
+      ...(max_pages !== undefined ? { max_pages } : {}),
       updatedAt: new Date(),
     })
     .where(eq(paceGroups.id, paceGroupId))

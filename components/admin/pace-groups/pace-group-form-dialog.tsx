@@ -20,19 +20,17 @@ import {
   FieldLabel,
 } from '@/components/ui/field';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { PACE_GROUP_SIZE_PRESETS } from '@/lib/validations/pace-group';
-import {
   createPaceGroupAction,
   updatePaceGroupAction,
 } from '@/actions/pace-group';
 import { createPaceGroupForDiscoveredTopicAction } from '@/actions/telegram';
 import type { PaceGroupWithAdmins } from './types';
+
+type PaceGroupFormState = {
+  success: boolean;
+  formError: string | null;
+  fieldErrors: Record<string, string[]>;
+};
 
 export function PaceGroupFormDialog({
   open,
@@ -66,7 +64,7 @@ export function PaceGroupFormDialog({
             {discovery
               ? `Create an EMFS pace group for ${discovery.topicName ? `“${discovery.topicName}”` : `Telegram topic #${discovery.messageThreadId}`}.`
               : isEdit
-                ? 'Update the name or daily page pace for this group.'
+                ? 'Update the name or minimum and maximum pages per day.'
                 : 'This group will live inside the current batch.'}
           </DialogDescription>
         </DialogHeader>
@@ -106,63 +104,64 @@ function PaceGroupForm({
   onClose: () => void;
 }) {
   const isEdit = Boolean(initial);
-  const [name, setName] = React.useState(
-    initial?.name ?? discovery?.topicName ?? '',
+  const [name, setName] = React.useState(initial?.name ?? '');
+  const [minPages, setMinPages] = React.useState(
+    String(initial?.min_pages ?? 10),
   );
-  const [size, setSize] = React.useState(String(initial?.size ?? 10));
-  const [fieldErrors, setFieldErrors] = React.useState<
-    Record<string, string[]>
-  >({});
-  const [formError, setFormError] = React.useState<string | null>(null);
-  const [isPending, startTransition] = React.useTransition();
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setFieldErrors({});
-    setFormError(null);
-
-    startTransition(async () => {
+  const [maxPages, setMaxPages] = React.useState(
+    String(initial?.max_pages ?? 20),
+  );
+  const [state, formAction, isPending] = React.useActionState<
+    PaceGroupFormState,
+    FormData
+  >(
+    async (_previousState, formData) => {
+      const input = {
+        batchId,
+        name: String(formData.get('name') ?? ''),
+        min_pages: String(formData.get('min_pages') ?? ''),
+        max_pages: String(formData.get('max_pages') ?? ''),
+      };
       const result = isEdit
         ? await updatePaceGroupAction({
+            ...input,
             paceGroupId: initial!.id,
-            name,
-            size: Number(size),
           })
         : discovery
           ? await createPaceGroupForDiscoveredTopicAction({
-              batchId,
+              ...input,
               discoveryId: discovery.id,
-              name,
-              size: Number(size),
             })
-          : await createPaceGroupAction({
-              batchId,
-              name,
-              size: Number(size),
-            });
+          : await createPaceGroupAction(input);
 
-      if (result.ok) {
-        toast.success(
-          isEdit
-            ? 'Pace group updated'
-            : discovery
-              ? 'Pace group created and topic connected'
-              : 'Pace group created',
-        );
-        onSuccess();
-        onClose();
-        return;
-      }
+      return result.ok
+        ? { success: true, formError: null, fieldErrors: {} }
+        : {
+            success: false,
+            formError: result.errors?.formErrors?.[0] ?? null,
+            fieldErrors: result.errors?.fieldErrors ?? {},
+          };
+    },
+    { success: false, formError: null, fieldErrors: {} },
+  );
+  const fieldErrors = state.fieldErrors;
+  const formError = state.formError;
 
-      if (result.errors?.fieldErrors) {
-        setFieldErrors(result.errors.fieldErrors as Record<string, string[]>);
-      }
-      setFormError(result.errors?.formErrors?.[0] ?? null);
-    });
-  }
+  React.useEffect(() => {
+    if (!state.success) return;
+    toast.success(
+      isEdit
+        ? 'Pace group updated'
+        : discovery
+          ? 'Pace group created and topic connected'
+          : 'Pace group created',
+    );
+    onSuccess();
+    onClose();
+  }, [discovery, isEdit, onClose, onSuccess, state.success]);
 
   return (
-    <form className="space-y-4" onSubmit={handleSubmit}>
+    <form className="space-y-4" action={formAction}>
       {formError && (
         <p className="text-xs font-medium text-destructive">{formError}</p>
       )}
@@ -173,6 +172,7 @@ function PaceGroupForm({
           <FieldLabel htmlFor="pg-name">Group name</FieldLabel>
           <Input
             id="pg-name"
+            name="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Nur · 10 pages"
@@ -184,27 +184,40 @@ function PaceGroupForm({
           )}
         </Field>
 
-        {/* Pages Per Day */}
-        <Field data-invalid={!!fieldErrors.size?.length}>
-          <FieldLabel htmlFor="pg-size">Pages a day</FieldLabel>
-          <Select
-            value={size}
-            onValueChange={(v) => setSize(v ?? '10')}
+        {/* Minimum Pages Per Day */}
+        <Field data-invalid={!!fieldErrors.min_pages?.length}>
+          <FieldLabel htmlFor="pg-min-pages">Minimum pages per day</FieldLabel>
+          <Input
+            id="pg-min-pages"
+            name="min_pages"
+            type="number"
+            min="1"
+            max={maxPages}
+            value={minPages}
+            onChange={(e) => setMinPages(e.target.value)}
             disabled={isPending}
-          >
-            <SelectTrigger id="pg-size" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PACE_GROUP_SIZE_PRESETS.map((p) => (
-                <SelectItem key={p} value={String(p)}>
-                  {p} pages
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {fieldErrors.size?.[0] && (
-            <FieldError>{fieldErrors.size[0]}</FieldError>
+            aria-invalid={!!fieldErrors.min_pages?.length}
+          />
+          {fieldErrors.min_pages?.[0] && (
+            <FieldError>{fieldErrors.min_pages[0]}</FieldError>
+          )}
+        </Field>
+
+        {/* Maximum Pages Per Day */}
+        <Field data-invalid={!!fieldErrors.max_pages?.length}>
+          <FieldLabel htmlFor="pg-max-pages">Maximum pages per day</FieldLabel>
+          <Input
+            id="pg-max-pages"
+            name="max_pages"
+            type="number"
+            min="1"
+            value={maxPages}
+            onChange={(e) => setMaxPages(e.target.value)}
+            disabled={isPending}
+            aria-invalid={!!fieldErrors.max_pages?.length}
+          />
+          {fieldErrors.max_pages?.[0] && (
+            <FieldError>{fieldErrors.max_pages[0]}</FieldError>
           )}
         </Field>
       </FieldGroup>

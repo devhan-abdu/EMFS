@@ -308,7 +308,7 @@ export async function validateDailyProgressEligibility(
 
   if (
     curriculumStep.catalogSlotId !== book.catalogSlotId ||
-    curriculumStep.paceSize !== paceGroup.size
+    curriculumStep.paceSize !== paceGroup.max_pages
   ) {
     throw new DailyProgressError(
       'TASK_GROUP_MISMATCH',

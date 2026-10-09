@@ -86,8 +86,12 @@ export function PendingMoveRequestsPanel({
                   </span>
                   <ArrowRight className="size-4 text-muted-foreground" />
                   <span className="font-medium text-primary">
-                    {req.requestedPaceGroupName} ({req.requestedPaceGroupSize}{' '}
-                    pages/day)
+                    {req.requestedPaceGroupName} (
+                    {req.requestedPaceGroupMinPages ===
+                    req.requestedPaceGroupMaxPages
+                      ? `${req.requestedPaceGroupMaxPages} pages/day`
+                      : `${req.requestedPaceGroupMinPages}–${req.requestedPaceGroupMaxPages} pages/day`}
+                    )
                   </span>
                 </div>
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createPaceGroupSchema } from '@/lib/validations/pace-group';
+import { createPaceGroupBaseSchema } from '@/lib/validations/pace-group';
 
 /** Unambiguous alphabet (no 0/O, 1/I/L) so codes are easy to type in a chat. */
 export const LINK_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -44,9 +44,13 @@ export const mapDiscoveredTopicActionSchema = batchActionSchema.extend({
 });
 
 export const createPaceGroupForDiscoveredTopicActionSchema =
-  createPaceGroupSchema
+  createPaceGroupBaseSchema
     .omit({ overridePlannedCount: true })
-    .extend({ discoveryId: z.string().uuid('Invalid topic registration.') });
+    .extend({ discoveryId: z.string().uuid('Invalid topic registration.') })
+    .refine((value) => value.min_pages <= value.max_pages, {
+      message: 'Minimum pages cannot exceed maximum pages',
+      path: ['min_pages'],
+    });
 
 export const createLinkCodeActionSchema = batchActionSchema.extend({
   topicSyncMode: LinkMode.default('managed'),

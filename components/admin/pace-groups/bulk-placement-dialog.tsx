@@ -38,17 +38,18 @@ import {
 } from '@/components/ui/select';
 import { bulkAssignMembersAction } from '@/actions/placement';
 import type { BatchRosterMember } from '@/lib/services/pace-groups/placement';
-import type { PaceGroupWithAdmins } from './types';
+import type { PaceGroupPreview } from './types';
 
-function formatGroupLabel(
-  group: Pick<PaceGroupWithAdmins, 'name' | 'size'>,
-  memberCount?: number,
-) {
+function formatGroupLabel(group: PaceGroupPreview, memberCount?: number) {
   const countSuffix =
     typeof memberCount === 'number'
       ? ` — ${memberCount} member${memberCount === 1 ? '' : 's'}`
       : '';
-  return `${group.name} (${group.size} pages/day)${countSuffix}`;
+  const pace =
+    group.min_pages === group.max_pages
+      ? `${group.max_pages} pages/day`
+      : `${group.min_pages}–${group.max_pages} pages/day`;
+  return `${group.name} (${pace})${countSuffix}`;
 }
 
 export function BulkPlacementDialog({
@@ -64,7 +65,7 @@ export function BulkPlacementDialog({
   onOpenChange: (open: boolean) => void;
   batchId: string;
   selectedMembers: BatchRosterMember[];
-  paceGroups: PaceGroupWithAdmins[];
+  paceGroups: PaceGroupPreview[];
   groupMemberCounts?: Record<string, number>;
   onSuccess?: () => void;
 }) {
@@ -103,7 +104,7 @@ function BulkPlacementWizard({
 }: {
   batchId: string;
   selectedMembers: BatchRosterMember[];
-  paceGroups: PaceGroupWithAdmins[];
+  paceGroups: PaceGroupPreview[];
   groupMemberCounts: Record<string, number>;
   onSuccess: () => void;
   onClose: () => void;
@@ -326,7 +327,12 @@ function BulkPlacementWizard({
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Destination group:</span>
             <span className="font-semibold text-primary">
-              {selectedTargetGroup?.size} pages/day
+              {selectedTargetGroup
+                ? selectedTargetGroup.min_pages ===
+                  selectedTargetGroup.max_pages
+                  ? `${selectedTargetGroup.max_pages} pages/day`
+                  : `${selectedTargetGroup.min_pages}–${selectedTargetGroup.max_pages} pages/day`
+                : ''}
             </span>
           </div>
           <div className="flex items-center justify-between">
