@@ -12,7 +12,7 @@ const paceSizeSchema = z.coerce
 export const createPaceGroupSchema = z.object({
   batchId: z.string().uuid('Invalid batch ID'),
   name: z.string().trim().min(1, 'Group name is required').max(100),
-  size: paceSizeSchema,
+  max_pages: paceSizeSchema,
   /** Deliberate override of the batch's planned pace-group count. */
   overridePlannedCount: z.boolean().optional().default(false),
 });
@@ -21,7 +21,7 @@ export type CreatePaceGroupInput = z.infer<typeof createPaceGroupSchema>;
 export const updatePaceGroupSchema = z.object({
   paceGroupId: z.string().uuid('Invalid pace group ID'),
   name: z.string().trim().min(1, 'Group name is required').max(100).optional(),
-  size: paceSizeSchema.optional(),
+  max_pages: paceSizeSchema.optional(),
 });
 export type UpdatePaceGroupInput = z.infer<typeof updatePaceGroupSchema>;
 

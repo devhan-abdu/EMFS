@@ -260,7 +260,7 @@ export async function getMemberHomeState(
     batchName,
     paceGroupId: paceGroup.id,
     paceGroupName: paceGroup.name,
-    paceGroupSize: paceGroup.size,
+    paceGroupSize: paceGroup.max_pages,
     schedule,
   };
 }

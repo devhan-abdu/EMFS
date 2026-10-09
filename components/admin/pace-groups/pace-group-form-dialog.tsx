@@ -89,7 +89,9 @@ function PaceGroupForm({
 }) {
   const isEdit = Boolean(initial);
   const [name, setName] = React.useState(initial?.name ?? '');
-  const [size, setSize] = React.useState(String(initial?.size ?? 10));
+  const [pagesPerDay, setPagesPerDay] = React.useState(
+    String(initial?.max_pages ?? 10),
+  );
   const [fieldErrors, setFieldErrors] = React.useState<
     Record<string, string[]>
   >({});
@@ -106,12 +108,12 @@ function PaceGroupForm({
         ? await updatePaceGroupAction({
             paceGroupId: initial!.id,
             name,
-            size: Number(size),
+            max_pages: Number(pagesPerDay),
           })
         : await createPaceGroupAction({
             batchId,
             name,
-            size: Number(size),
+            max_pages: Number(pagesPerDay),
           });
 
       if (result.ok) {
@@ -152,11 +154,11 @@ function PaceGroupForm({
         </Field>
 
         {/* Pages Per Day */}
-        <Field data-invalid={!!fieldErrors.size?.length}>
+        <Field data-invalid={!!fieldErrors.max_pages?.length}>
           <FieldLabel htmlFor="pg-size">Pages a day</FieldLabel>
           <Select
-            value={size}
-            onValueChange={(v) => setSize(v ?? '10')}
+            value={pagesPerDay}
+            onValueChange={(v) => setPagesPerDay(v ?? '10')}
             disabled={isPending}
           >
             <SelectTrigger id="pg-size" className="w-full">
@@ -170,8 +172,8 @@ function PaceGroupForm({
               ))}
             </SelectContent>
           </Select>
-          {fieldErrors.size?.[0] && (
-            <FieldError>{fieldErrors.size[0]}</FieldError>
+          {fieldErrors.max_pages?.[0] && (
+            <FieldError>{fieldErrors.max_pages[0]}</FieldError>
           )}
         </Field>
       </FieldGroup>

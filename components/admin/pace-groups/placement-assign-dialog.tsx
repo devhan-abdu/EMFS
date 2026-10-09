@@ -39,22 +39,19 @@ import {
 } from '@/components/ui/select';
 import { assignMemberAction, moveMemberAction } from '@/actions/placement';
 import type { BatchRosterMember } from '@/lib/services/pace-groups/placement';
-import type { PaceGroupWithAdmins } from './types';
+import type { PaceGroupPreview } from './types';
 
 export type PlacementDialogTarget = {
   member: BatchRosterMember;
   mode: 'assign' | 'move';
 };
 
-function formatGroupLabel(
-  group: Pick<PaceGroupWithAdmins, 'name' | 'size'>,
-  memberCount?: number,
-) {
+function formatGroupLabel(group: PaceGroupPreview, memberCount?: number) {
   const countSuffix =
     typeof memberCount === 'number'
       ? ` — ${memberCount} member${memberCount === 1 ? '' : 's'}`
       : '';
-  return `${group.name} (${group.size} pages/day)${countSuffix}`;
+  return `${group.name} (${group.max_pages} pages/day)${countSuffix}`;
 }
 
 export function PlacementAssignDialog({
@@ -70,7 +67,7 @@ export function PlacementAssignDialog({
   onOpenChange: (open: boolean) => void;
   batchId: string;
   target: PlacementDialogTarget | null;
-  paceGroups: PaceGroupWithAdmins[];
+  paceGroups: PaceGroupPreview[];
   groupMemberCounts?: Record<string, number>;
   onSuccess?: () => void;
 }) {
@@ -106,7 +103,7 @@ function PlacementForm({
 }: {
   batchId: string;
   target: PlacementDialogTarget;
-  paceGroups: PaceGroupWithAdmins[];
+  paceGroups: PaceGroupPreview[];
   groupMemberCounts: Record<string, number>;
   onSuccess: () => void;
   onClose: () => void;
@@ -365,7 +362,7 @@ function PlacementForm({
               Destination pace group:
             </span>
             <span className="font-semibold text-primary">
-              {selectedTargetGroup?.size} pages/day
+              {selectedTargetGroup?.max_pages} pages/day
             </span>
           </div>
           <div className="flex items-center justify-between">

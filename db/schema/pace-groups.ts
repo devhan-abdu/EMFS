@@ -20,7 +20,8 @@ export const paceGroups = pgTable(
     name: text('name').notNull(),
     archived: boolean('archived').notNull().default(false),
     archivedAt: timestamp('archived_at'),
-    size: integer('size').notNull(), // e.g. 5 / 10 / 20 / 40
+    min_pages: integer('min_pages').notNull().default(1), // minimum pages per day
+    max_pages: integer('max_pages').notNull(), // maximum pages per day
     activeCatalogSlotId: uuid('active_catalog_slot_id')
       .notNull()
       .references(() => catalogSlots.id, { onDelete: 'restrict' }),
