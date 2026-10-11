@@ -28,7 +28,7 @@ export type PaceGroupRow = {
   id: string;
   batchId: string;
   name: string;
-  size: number;
+  max_pages: number;
   archived: boolean;
 };
 
@@ -36,7 +36,7 @@ const PACE_GROUP_RETURNING = {
   id: paceGroups.id,
   batchId: paceGroups.batchId,
   name: paceGroups.name,
-  size: paceGroups.size,
+  max_pages: paceGroups.max_pages,
   archived: paceGroups.archived,
 };
 
@@ -52,7 +52,7 @@ export async function getPaceGroupById(paceGroupId: string) {
 export async function createPaceGroup(
   input: CreatePaceGroupInput,
 ): Promise<PaceGroupRow> {
-  const { batchId, name, size, overridePlannedCount } = input;
+  const { batchId, name, max_pages, overridePlannedCount } = input;
 
   return db.transaction(async (tx) => {
     const [batch] = await tx
@@ -112,7 +112,7 @@ export async function createPaceGroup(
 
     const [created] = await tx
       .insert(paceGroups)
-      .values({ batchId, name, size, activeCatalogSlotId: initialSlot.id })
+      .values({ batchId, name, max_pages, activeCatalogSlotId: initialSlot.id })
       .returning(PACE_GROUP_RETURNING);
 
     return created;
@@ -122,7 +122,7 @@ export async function createPaceGroup(
 export async function updatePaceGroup(
   input: UpdatePaceGroupInput,
 ): Promise<PaceGroupRow> {
-  const { paceGroupId, name, size } = input;
+  const { paceGroupId, name, max_pages } = input;
 
   const existing = await getPaceGroupById(paceGroupId);
   if (!existing) {
@@ -133,7 +133,7 @@ export async function updatePaceGroup(
     .update(paceGroups)
     .set({
       ...(name !== undefined ? { name } : {}),
-      ...(size !== undefined ? { size } : {}),
+      ...(max_pages !== undefined ? { max_pages } : {}),
       updatedAt: new Date(),
     })
     .where(eq(paceGroups.id, paceGroupId))

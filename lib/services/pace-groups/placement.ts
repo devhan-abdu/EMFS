@@ -276,7 +276,7 @@ export async function getBatchRoster(
       paceGroupMembershipId: paceGroupMemberships.id,
       paceGroupId: paceGroups.id,
       paceGroupName: paceGroups.name,
-      paceGroupSize: paceGroups.size,
+      paceGroupSize: paceGroups.max_pages,
       placedAt: paceGroupMemberships.startDate,
     })
     .from(batchMemberships)
@@ -1128,7 +1128,7 @@ export async function getPendingMoveRequests(
       currentPaceGroupName: fromPaceGroups.name,
       requestedPaceGroupId: toPaceGroups.id,
       requestedPaceGroupName: toPaceGroups.name,
-      requestedPaceGroupSize: toPaceGroups.size,
+      requestedPaceGroupSize: toPaceGroups.max_pages,
       status: paceGroupMoveRequests.status,
       reason: paceGroupMoveRequests.reason,
       createdAt: paceGroupMoveRequests.createdAt,

@@ -4,3 +4,7 @@ import type { PaceAdminAssignmentDetailRow } from '@/lib/services/admin/pace-adm
 export type PaceGroupWithAdmins = PaceGroupRow & {
   admins: PaceAdminAssignmentDetailRow[];
 };
+export type PaceGroupPreview = Pick<
+  PaceGroupWithAdmins,
+  'name' | 'max_pages' | 'id' | 'archived'
+>;
