@@ -209,7 +209,7 @@ export default async function BatchWorkspacePage({
                         {group.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Capacity {group.size} · {group.admins.length} pace
+                        Capacity {group.max_pages} · {group.admins.length} pace
                         admins
                       </p>
                     </div>

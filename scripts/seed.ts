@@ -250,7 +250,11 @@ async function ensureBatchAdmin(profileId: string, batchId: string) {
   }
 }
 
-async function ensurePaceGroup(batchId: string, name: string, size: number) {
+async function ensurePaceGroup(
+  batchId: string,
+  name: string,
+  max_pages: number,
+) {
   const existing = await db
     .select()
     .from(paceGroups)
@@ -266,14 +270,16 @@ async function ensurePaceGroup(batchId: string, name: string, size: number) {
     id: paceGroupId,
     batchId,
     name,
-    size,
+    min_pages: 1,
+    max_pages,
   });
 
   return {
     id: paceGroupId,
     batchId,
     name,
-    size,
+    min_pages: 1,
+    max_pages,
   } as typeof paceGroups.$inferSelect;
 }
 
