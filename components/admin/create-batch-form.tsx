@@ -28,8 +28,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
   Popover,
@@ -77,9 +75,6 @@ export function CreateBatchForm({
     initialData?.admins?.map((a) => a.profileId) ?? [],
   );
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [registrationOpen, setRegistrationOpen] = useState(
-    initialData?.registrationOpen ?? true,
-  );
   const fieldErrors = state?.errors?.fieldErrors ?? {};
   const formattedDefaultDate = initialData?.startDate
     ? new Date(initialData.startDate).toISOString().split('T')[0]
@@ -118,13 +113,6 @@ export function CreateBatchForm({
       return [...prev, id];
     });
   }
-
-  useEffect(() => {
-    if (state?.ok && state.data?.batch?.id) {
-      toast.success('Batch created successfully');
-      router.push(`/admin/b/${state.data.batch.id}`);
-    }
-  }, [state, router]);
 
   return (
     <form action={formAction} className="grid gap-6 lg:grid-cols-3">
@@ -240,34 +228,6 @@ export function CreateBatchForm({
       </div>
 
       <div className="space-y-6">
-        <Card className="card-soft">
-          <CardHeader>
-            <CardTitle className="font-display text-xl">Registration</CardTitle>
-            <CardDescription>
-              Registration starts closed. When you open it, applicants are
-              approved automatically and get a Telegram bot link
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between rounded-xl bg-surface-container p-4">
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  Open registration
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Members can apply and receive a bot link immediately
-                </p>
-              </div>
-              <Switch
-                name="registrationOpen"
-                value="true"
-                checked={registrationOpen}
-                onCheckedChange={setRegistrationOpen}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
         <Card className="card-soft">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">

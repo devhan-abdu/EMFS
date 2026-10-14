@@ -27,8 +27,6 @@ export const createBatchSchema = z
       .max(7, 'Reading days per week must be between 1 and 7')
       .default(6),
 
-    registrationOpen: z.boolean().default(false),
-
     adminIds: z
       .array(z.string().uuid('Invalid admin UUID'))
       .min(1, 'At least 1 batch admin is required')
@@ -68,3 +66,9 @@ export type BatchDetail = {
 
 export type CreateBatchInput = z.infer<typeof createBatchSchema>;
 export type CreateBatchRawInput = z.input<typeof createBatchSchema>;
+
+export const toggleRegistrationSchema = z.object({
+  batchId: z.string().trim().min(1, 'Batch ID is required'),
+  open: z.boolean({ message: 'Registration status must be a boolean' }),
+});
+export type ToggleRegistrationInput = z.infer<typeof toggleRegistrationSchema>;
