@@ -1,12 +1,15 @@
-import { and, eq, gte } from 'drizzle-orm';
+import { and, asc, eq, gt, gte, isNull, lte, or } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   applications,
+  batchBreaks,
   batchMemberships,
+  batchDailyTasks,
   batches,
   books,
+  curriculumStepEditions,
+  curriculumSteps,
   dailyProgress,
-  dailyTasks,
   handoffRecords,
   paceGroupMemberships,
   paceGroups,
@@ -23,17 +26,25 @@ export type MemberScheduleState =
   | {
       status: 'published';
       dayNumber: number;
-      task: typeof dailyTasks.$inferSelect;
+      task: typeof batchDailyTasks.$inferSelect & {
+        startPage: number;
+        endPage: number;
+        content: string;
+      };
       book?: typeof books.$inferSelect | null;
       isCompleted: boolean;
       completedAt: Date | null;
     }
   | {
       status: 'no_published_task';
-      dayNumber: number;
     }
   | {
       status: 'rest_day';
+    }
+  | {
+      status: 'break_day';
+      title: string;
+      endDate: string;
     }
   | {
       status: 'exhausted_curriculum';
@@ -186,68 +197,111 @@ export async function getMemberHomeState(
         startDate: batchStartDate,
       };
     } else {
-      const [y1, m1, d1] = todayKey.split('-').map(Number);
-      const [y0, m0, d0] = batchStartDate.split('-').map(Number);
-      const calendarDays = Math.max(
-        0,
-        Math.round(
-          (Date.UTC(y1, m1 - 1, d1) - Date.UTC(y0, m0 - 1, d0)) /
-            (1000 * 60 * 60 * 24),
-        ),
-      );
-
-      const cadence = Math.max(1, Math.min(7, batch.readingDaysPerWeek || 6));
-      const dayInCycle = calendarDays % 7;
-
-      if (dayInCycle >= cadence) {
-        schedule = { status: 'rest_day' };
-      } else {
-        const dayNumber =
-          Math.floor(calendarDays / 7) * cadence + dayInCycle + 1;
-
-        const publishedTask = await db.query.dailyTasks.findFirst({
-          where: and(
-            eq(dailyTasks.paceGroupId, paceGroup.id),
-            eq(dailyTasks.dayNumber, dayNumber),
-            eq(dailyTasks.publicationStatus, 'published'),
+      const breaksToday = await db.query.batchBreaks.findMany({
+        where: and(
+          eq(batchBreaks.batchId, membership.batchId),
+          or(
+            isNull(batchBreaks.paceGroupId),
+            eq(batchBreaks.paceGroupId, paceGroup.id),
           ),
-          with: {
-            book: true,
-          },
+          lte(batchBreaks.startDate, todayKey),
+          gte(batchBreaks.endDate, todayKey),
+        ),
+        orderBy: [asc(batchBreaks.startDate)],
+      });
+
+      if (breaksToday[0]) {
+        schedule = {
+          status: 'break_day',
+          title: breaksToday[0].title,
+          endDate: breaksToday[0].endDate,
+        };
+      } else {
+        const taskForToday = await db.query.batchDailyTasks.findFirst({
+          where: and(
+            eq(batchDailyTasks.paceGroupId, paceGroup.id),
+            eq(batchDailyTasks.scheduledDate, todayKey),
+          ),
         });
 
-        if (publishedTask) {
-          const progress = await db.query.dailyProgress.findFirst({
-            where: and(
-              eq(dailyProgress.profileId, profileId),
-              eq(dailyProgress.taskId, publishedTask.id),
-            ),
-          });
+        if (!taskForToday) {
+          const [futureTask, anyGroupTask] = await Promise.all([
+            db.query.batchDailyTasks.findFirst({
+              where: and(
+                eq(batchDailyTasks.paceGroupId, paceGroup.id),
+                gt(batchDailyTasks.scheduledDate, todayKey),
+              ),
+            }),
+            db.query.batchDailyTasks.findFirst({
+              where: eq(batchDailyTasks.paceGroupId, paceGroup.id),
+            }),
+          ]);
 
-          schedule = {
-            status: 'published',
-            dayNumber,
-            task: publishedTask,
-            book: publishedTask.book,
-            isCompleted: progress?.status === 'done',
-            completedAt: progress?.completedAt ?? null,
-          };
-        } else {
-          const futureTasks = await db.query.dailyTasks.findFirst({
-            where: and(
-              eq(dailyTasks.paceGroupId, paceGroup.id),
-              gte(dailyTasks.dayNumber, dayNumber),
-            ),
-          });
-
-          const anyGroupTasks = await db.query.dailyTasks.findFirst({
-            where: eq(dailyTasks.paceGroupId, paceGroup.id),
-          });
-
-          if (anyGroupTasks && !futureTasks) {
+          if (anyGroupTask && !futureTask) {
             schedule = { status: 'exhausted_curriculum' };
+          } else if (futureTask) {
+            schedule = { status: 'rest_day' };
           } else {
-            schedule = { status: 'no_published_task', dayNumber };
+            schedule = { status: 'no_published_task' };
+          }
+        } else if (taskForToday.publicationStatus !== 'published') {
+          schedule = { status: 'no_published_task' };
+        } else {
+          const dayNumber = taskForToday.batchDayNumber;
+          const curriculumStep = await db.query.curriculumSteps.findFirst({
+            where: eq(curriculumSteps.id, taskForToday.curriculumStepId),
+          });
+          const book = curriculumStep
+            ? await db.query.books.findFirst({
+                where: and(
+                  eq(books.catalogSlotId, paceGroup.activeCatalogSlotId),
+                  eq(books.language, 'en'),
+                ),
+              })
+            : null;
+
+          if (
+            curriculumStep &&
+            book &&
+            curriculumStep.catalogSlotId === book.catalogSlotId &&
+            curriculumStep.paceSize === paceGroup.size
+          ) {
+            const stepEdition = await db.query.curriculumStepEditions.findFirst(
+              {
+                where: and(
+                  eq(
+                    curriculumStepEditions.curriculumStepId,
+                    curriculumStep.id,
+                  ),
+                  eq(curriculumStepEditions.bookId, book.id),
+                ),
+              },
+            );
+            const progress = await db.query.dailyProgress.findFirst({
+              where: and(
+                eq(dailyProgress.profileId, profileId),
+                eq(dailyProgress.taskId, taskForToday.id),
+              ),
+            });
+
+            schedule = {
+              status: 'published',
+              dayNumber,
+              task: {
+                ...taskForToday,
+                startPage: stepEdition?.startPage ?? 1,
+                endPage: stepEdition?.endPage ?? 1,
+                content:
+                  taskForToday.localCaptionOverride ??
+                  stepEdition?.caption ??
+                  '',
+              },
+              book,
+              isCompleted: progress?.status === 'done',
+              completedAt: progress?.completedAt ?? null,
+            };
+          } else {
+            schedule = { status: 'no_published_task' };
           }
         }
       }

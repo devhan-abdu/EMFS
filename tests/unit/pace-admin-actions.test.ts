@@ -62,7 +62,7 @@ vi.mock('@/lib/services/pace-groups/pace-group', () => ({
     serviceMocks.getPaceGroupById(...args),
 }));
 
-vi.mock('@/lib/services/pace-groups/pace-admin-assignment', () => ({
+vi.mock('@/lib/services/admin/pace-admin-assignment', () => ({
   assignPaceAdmin: (...args: unknown[]) =>
     serviceMocks.assignPaceAdmin(...args),
   PaceAdminError: class PaceAdminError extends Error {

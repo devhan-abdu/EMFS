@@ -1,7 +1,7 @@
-import { asc, count, countDistinct, inArray } from 'drizzle-orm';
+import { asc, count, countDistinct, eq, inArray } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { books } from '@/db/schema';
+import { books, catalogSlots, curriculumSteps } from '@/db/schema';
 import {
   getCatalogSchema,
   zodErrorToFieldErrors,
@@ -73,9 +73,11 @@ export async function getCatalog(
   const [stats] = await db
     .select({
       totalBooks: count(books.id),
-      totalSlots: countDistinct(books.sequenceOrder),
+      totalSlots: countDistinct(catalogSlots.id),
     })
-    .from(books);
+    .from(catalogSlots)
+    .leftJoin(books, eq(books.catalogSlotId, catalogSlots.id))
+    .where(eq(catalogSlots.archived, false));
 
   const totalBooks = stats?.totalBooks ? Number(stats.totalBooks) : 0;
   const totalSlots = stats?.totalSlots ? Number(stats.totalSlots) : 0;
@@ -105,14 +107,19 @@ export async function getCatalog(
 
   const pageSlotRows = await db
     .selectDistinct({
-      sequenceOrder: books.sequenceOrder,
+      id: catalogSlots.id,
+      sequenceOrder: catalogSlots.sequenceOrder,
     })
-    .from(books)
-    .orderBy(asc(books.sequenceOrder))
+    .from(catalogSlots)
+    .where(eq(catalogSlots.archived, false))
+    .orderBy(asc(catalogSlots.sequenceOrder))
     .limit(limit)
     .offset(offset);
 
-  const slotNumbers = pageSlotRows.map((r) => r.sequenceOrder);
+  const slotIds = pageSlotRows.map((row) => row.id);
+  const orderBySlotId = new Map(
+    pageSlotRows.map((row) => [row.id, row.sequenceOrder]),
+  );
 
   const paginationBase = {
     page,
@@ -125,7 +132,7 @@ export async function getCatalog(
     hasPrevPage: page > 1,
   };
 
-  if (slotNumbers.length === 0) {
+  if (slotIds.length === 0) {
     return {
       ok: true,
       data: {
@@ -139,9 +146,21 @@ export async function getCatalog(
     };
   }
 
+  const curriculumStepCounts = await db
+    .select({
+      catalogSlotId: curriculumSteps.catalogSlotId,
+      count: count(curriculumSteps.id),
+    })
+    .from(curriculumSteps)
+    .where(inArray(curriculumSteps.catalogSlotId, slotIds))
+    .groupBy(curriculumSteps.catalogSlotId);
+  const countBySlot = new Map(
+    curriculumStepCounts.map((row) => [row.catalogSlotId, row.count]),
+  );
+
   const pageBooks = await db.query.books.findMany({
-    where: inArray(books.sequenceOrder, slotNumbers),
-    orderBy: [asc(books.sequenceOrder), asc(books.language), asc(books.id)],
+    where: inArray(books.catalogSlotId, slotIds),
+    orderBy: [asc(books.language), asc(books.id)],
     with: {
       pairedBook: {
         columns: {
@@ -150,11 +169,6 @@ export async function getCatalog(
           language: true,
           author: true,
           coverUrl: true,
-        },
-      },
-      tasks: {
-        columns: {
-          id: true,
         },
       },
     },
@@ -168,7 +182,7 @@ export async function getCatalog(
     coverUrl: b.coverUrl,
     summary: b.summary,
     pageCount: b.pageCount,
-    sequenceOrder: b.sequenceOrder,
+    sequenceOrder: orderBySlotId.get(b.catalogSlotId) ?? 0,
     pairedBookId: b.pairedBookId,
     createdAt: b.createdAt,
     updatedAt: b.updatedAt,
@@ -178,24 +192,27 @@ export async function getCatalog(
           coverUrl: b.pairedBook.coverUrl,
         }
       : null,
-    tasksCount: b.tasks?.length ?? 0,
+    tasksCount: countBySlot.get(b.catalogSlotId) ?? 0,
   }));
 
-  const slotsMap = new Map<number, CatalogBookItem[]>();
-  for (const slot of slotNumbers) {
-    slotsMap.set(slot, []);
+  const slotsMap = new Map<string, CatalogBookItem[]>();
+  const slotIdByBookId = new Map(
+    pageBooks.map((book) => [book.id, book.catalogSlotId]),
+  );
+  for (const slotId of slotIds) {
+    slotsMap.set(slotId, []);
   }
 
   for (const book of formattedBooks) {
-    const list = slotsMap.get(book.sequenceOrder);
+    const list = slotsMap.get(slotIdByBookId.get(book.id) ?? '');
     if (list) {
       list.push(book);
     }
   }
 
-  const slots: CatalogSlotGroup[] = slotNumbers.map((slot) => ({
-    slot,
-    editions: slotsMap.get(slot) ?? [],
+  const slots: CatalogSlotGroup[] = pageSlotRows.map((slot) => ({
+    slot: slot.sequenceOrder,
+    editions: slotsMap.get(slot.id) ?? [],
   }));
 
   return {

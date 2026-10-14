@@ -104,13 +104,15 @@ describe('reorderCatalogSlots Service', () => {
         .fn()
         // 1st select: maxSlot stats
         .mockReturnValueOnce({
-          from: vi.fn(async () => [{ maxSlot: 5 }]),
+          from: vi.fn(() => ({
+            where: vi.fn(async () => [{ maxSlot: 5 }]),
+          })),
         })
         // 2nd select: fromSlot check
         .mockReturnValueOnce({
           from: vi.fn(() => ({
             where: vi.fn(() => ({
-              limit: vi.fn(async () => [{ id: 'book-4' }]),
+              limit: vi.fn(async () => [{ id: 'slot-4' }]),
             })),
           })),
         }),
@@ -141,13 +143,7 @@ describe('reorderCatalogSlots Service', () => {
       });
     }
 
-    // Check 3-step update sequence:
-    // 1. Move to temporary negative slot (-4)
-    expect(updates[0].sequenceOrder).toBe(-4);
-    // 2. Shift intermediate slots (2..3 -> 3..4)
-    expect(updates[1].sequenceOrder).toBeDefined();
-    // 3. Move temporary slot to target slot (2)
-    expect(updates[2].sequenceOrder).toBe(2);
+    expect(updates.map((update) => update.sequenceOrder)).toEqual([6, 4, 3, 2]);
   });
 
   it('reorders upwards (e.g. moving slot 2 to slot 4)', async () => {
@@ -158,13 +154,15 @@ describe('reorderCatalogSlots Service', () => {
         .fn()
         // 1st select: maxSlot stats
         .mockReturnValueOnce({
-          from: vi.fn(async () => [{ maxSlot: 5 }]),
+          from: vi.fn(() => ({
+            where: vi.fn(async () => [{ maxSlot: 5 }]),
+          })),
         })
         // 2nd select: fromSlot check
         .mockReturnValueOnce({
           from: vi.fn(() => ({
             where: vi.fn(() => ({
-              limit: vi.fn(async () => [{ id: 'book-2' }]),
+              limit: vi.fn(async () => [{ id: 'slot-2' }]),
             })),
           })),
         }),
@@ -195,14 +193,15 @@ describe('reorderCatalogSlots Service', () => {
       });
     }
 
-    expect(updates[0].sequenceOrder).toBe(-2);
-    expect(updates[2].sequenceOrder).toBe(4);
+    expect(updates.map((update) => update.sequenceOrder)).toEqual([6, 2, 3, 4]);
   });
 
   it('rejects out of bounds fromSlot', async () => {
     const txMock = {
       select: vi.fn().mockReturnValueOnce({
-        from: vi.fn(async () => [{ maxSlot: 3 }]),
+        from: vi.fn(() => ({
+          where: vi.fn(async () => [{ maxSlot: 3 }]),
+        })),
       }),
     };
 
@@ -226,7 +225,9 @@ describe('reorderCatalogSlots Service', () => {
   it('rejects out of bounds toSlot', async () => {
     const txMock = {
       select: vi.fn().mockReturnValueOnce({
-        from: vi.fn(async () => [{ maxSlot: 3 }]),
+        from: vi.fn(() => ({
+          where: vi.fn(async () => [{ maxSlot: 3 }]),
+        })),
       }),
     };
 
@@ -310,19 +311,19 @@ describe('reorderBooks Service', () => {
 
     transactionMock.mockImplementation(async (fn) =>
       fn({
-        query: {
-          books: {
-            findMany: findManyMock,
-          },
-        },
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            innerJoin: vi.fn(() => ({
+              where: vi.fn(async () => [
+                { bookId: idA, catalogSlotId: 'slot-a', sequenceOrder: 11 },
+                { bookId: idB, catalogSlotId: 'slot-b', sequenceOrder: 12 },
+              ]),
+            })),
+          })),
+        })),
         update: updateMock,
       }),
     );
-
-    findManyMock.mockResolvedValueOnce([
-      { id: idA, sequenceOrder: 11 },
-      { id: idB, sequenceOrder: 12 },
-    ]);
 
     const result = await reorderBooks({ orderedIds: [idA, idB] });
 
@@ -351,20 +352,25 @@ describe('reorderBooks Service', () => {
 
     transactionMock.mockImplementation(async (fn) =>
       fn({
-        query: {
-          books: {
-            findMany: findManyMock,
-          },
-        },
+        select: vi
+          .fn()
+          .mockReturnValueOnce({
+            from: vi.fn(() => ({
+              innerJoin: vi.fn(() => ({
+                where: vi.fn(async () => [
+                  { bookId: idA, catalogSlotId: 'slot-a', sequenceOrder: 11 },
+                  { bookId: idB, catalogSlotId: 'slot-b', sequenceOrder: 12 },
+                  { bookId: idC, catalogSlotId: 'slot-c', sequenceOrder: 13 },
+                ]),
+              })),
+            })),
+          })
+          .mockReturnValueOnce({
+            from: vi.fn(async () => [{ maxSlot: 13 }]),
+          }),
         update: updateMock,
       }),
     );
-
-    findManyMock.mockResolvedValueOnce([
-      { id: idA, sequenceOrder: 11 },
-      { id: idB, sequenceOrder: 12 },
-      { id: idC, sequenceOrder: 13 },
-    ]);
 
     const result = await reorderBooks({ orderedIds: [idC, idA, idB] });
 
@@ -373,7 +379,6 @@ describe('reorderBooks Service', () => {
       expect(result.data.sequenceOrders).toEqual([11, 12, 13]);
       expect(result.data.orderedIds).toEqual([idC, idA, idB]);
     }
-    // 3 temp moves + 3 final assigns
     expect(updateMock).toHaveBeenCalledTimes(6);
   });
 });

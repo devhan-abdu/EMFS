@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import {
   BookOpen,
   Calendar,
+  CalendarOff,
   Clock,
   Coffee,
   Send,
@@ -158,22 +159,26 @@ export default async function MeHomePage() {
                 ? "Today's reading"
                 : state.schedule.status === 'before_batch_start'
                   ? 'Batch starts soon'
-                  : state.schedule.status === 'rest_day'
-                    ? 'Rest day'
-                    : state.schedule.status === 'no_published_task'
-                      ? 'No task published yet'
-                      : 'Curriculum complete'
+                  : state.schedule.status === 'break_day'
+                    ? 'Reading pause'
+                    : state.schedule.status === 'rest_day'
+                      ? 'Rest day'
+                      : state.schedule.status === 'no_published_task'
+                        ? 'No task published yet'
+                        : 'Curriculum complete'
             }
             description={
               state.schedule.status === 'published'
                 ? `Day ${state.schedule.dayNumber} · ${state.paceGroupSize} pages/day`
                 : state.schedule.status === 'before_batch_start'
                   ? `Reading begins on ${state.schedule.startDate ?? 'the announced start date'}.`
-                  : state.schedule.status === 'rest_day'
-                    ? 'Take time to catch up, reflect, or rest before the next reading day.'
-                    : state.schedule.status === 'no_published_task'
-                      ? "Your pace admin has not published today's reading assignment yet."
-                      : 'You have completed all reading tasks for this book.'
+                  : state.schedule.status === 'break_day'
+                    ? `${state.schedule.title} · Reading resumes after ${state.schedule.endDate}.`
+                    : state.schedule.status === 'rest_day'
+                      ? 'Take time to catch up, reflect, or rest before the next reading day.'
+                      : state.schedule.status === 'no_published_task'
+                        ? "Your pace admin has not published today's reading assignment yet."
+                        : 'You have completed all reading tasks for this book.'
             }
           />
 
@@ -271,6 +276,25 @@ export default async function MeHomePage() {
                   <p className="text-xs text-muted-foreground">
                     Use this day to catch up on any missed pages or write your
                     weekly reflection.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {state.schedule.status === 'break_day' && (
+            <Card className="card-soft">
+              <CardContent className="flex items-start gap-4 p-6">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-surface-container text-foreground">
+                  <CalendarOff className="size-5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">
+                    {state.schedule.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Reading is paused through {state.schedule.endDate}. Your
+                    reading-day number resumes after the break.
                   </p>
                 </div>
               </CardContent>

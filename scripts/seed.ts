@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { hashPassword } from 'better-auth/crypto';
 
 import { db } from '../db';
@@ -11,10 +11,12 @@ import {
   batchMemberships,
   batches,
   books,
+  catalogSlots,
+  curriculumStepEditions,
+  curriculumSteps,
   paceGroups,
   paceGroupMemberships,
   profiles,
-  tasks,
   user,
   waitlist,
 } from '../db/schema';
@@ -30,6 +32,7 @@ type SeedUser = {
   grandfatherName?: string | null;
   telegramUsername?: string;
   phone?: string;
+  isSuperAdmin?: boolean;
 };
 
 const SEED_PASSWORD = 'Password123!';
@@ -56,6 +59,7 @@ const SEED_USERS: SeedUser[] = [
     grandfatherName: 'Khan',
     telegramUsername: '@jordan_admin',
     phone: '+1-555-0102',
+    isSuperAdmin: true,
   },
   {
     email: 'staff@example.com',
@@ -262,11 +266,36 @@ async function ensurePaceGroup(batchId: string, name: string, size: number) {
   }
 
   const paceGroupId = randomUUID();
+  const [initialSlot] = await db
+    .select({ id: catalogSlots.id })
+    .from(catalogSlots)
+    .where(eq(catalogSlots.sequenceOrder, 1))
+    .limit(1);
+
+  if (!initialSlot) {
+    throw new Error('Seed catalog slot 1 before creating pace groups.');
+  }
+
+  const [initialBook] = await db
+    .select({ id: books.id })
+    .from(books)
+    .where(
+      and(eq(books.catalogSlotId, initialSlot.id), eq(books.language, 'en')),
+    )
+    .limit(1);
+
+  if (!initialBook) {
+    throw new Error(
+      'Seed an English book for catalog slot 1 before creating pace groups.',
+    );
+  }
+
   await db.insert(paceGroups).values({
     id: paceGroupId,
     batchId,
     name,
     size,
+    activeCatalogSlotId: initialSlot.id,
   });
 
   return {
@@ -359,13 +388,6 @@ async function main() {
 
   await ensureBatchAdmin(ownerProfile.id, batchOne.id);
   await ensureBatchAdmin(staffProfile.id, batchOne.id);
-
-  const paceGroupOne = await ensurePaceGroup(batchOne.id, 'Nur', 20);
-  await ensurePaceGroup(batchOne.id, 'Sakina', 20);
-  await ensurePaceGroup(batchOne.id, 'Rahma', 20);
-  await ensurePaceGroup(batchTwo.id, 'Nur', 16);
-  await ensurePaceGroup(batchTwo.id, 'Sakina', 15);
-  await ensurePaceGroup(batchTwo.id, 'Rahma', 14);
 
   const existingMemberships = await db.select().from(batchMemberships);
   const hasActiveMembership = existingMemberships.some(
@@ -489,6 +511,27 @@ async function main() {
     },
   ];
 
+  const slotMap = new Map<number, string>();
+  for (const order of Array.from(
+    new Set(catalogList.map((book) => book.sequenceOrder)),
+  )) {
+    const existingSlot = await db.query.catalogSlots.findFirst({
+      where: eq(catalogSlots.sequenceOrder, order),
+    });
+
+    if (existingSlot) {
+      slotMap.set(order, existingSlot.id);
+      continue;
+    }
+
+    const [createdSlot] = await db
+      .insert(catalogSlots)
+      .values({ sequenceOrder: order })
+      .returning();
+
+    slotMap.set(order, createdSlot.id);
+  }
+
   for (const bookSeed of catalogList) {
     const bookExists = existingBooks.some(
       (book) =>
@@ -496,31 +539,77 @@ async function main() {
     );
 
     if (!bookExists) {
-      const bookId = randomUUID();
-      const [createdBook] = await db
-        .insert(books)
-        .values({
-          title: bookSeed.title,
-          language: bookSeed.language,
-          author: bookSeed.author,
-          sequenceOrder: bookSeed.sequenceOrder,
-        })
-        .returning();
+      const slotId = slotMap.get(bookSeed.sequenceOrder);
+      if (!slotId) continue;
 
-      await db.insert(tasks).values(
-        Array.from({ length: bookSeed.taskCount }, (_, index) => ({
-          bookId: createdBook.id,
-          dayNumber: index + 1,
-          content:
-            index === 0
-              ? `Read the opening chapter of ${bookSeed.title}.`
-              : `Read and reflect on day ${index + 1} of ${bookSeed.title}.`,
-        })),
-      );
+      await db.insert(books).values({
+        title: bookSeed.title,
+        language: bookSeed.language,
+        author: bookSeed.author,
+        catalogSlotId: slotId,
+      });
     }
   }
 
   const seededBooks = await db.select().from(books);
+  const paceGroupOne = await ensurePaceGroup(batchOne.id, 'Nur', 20);
+  await ensurePaceGroup(batchOne.id, 'Sakina', 20);
+  await ensurePaceGroup(batchOne.id, 'Rahma', 20);
+  await ensurePaceGroup(batchTwo.id, 'Nur', 16);
+  await ensurePaceGroup(batchTwo.id, 'Sakina', 15);
+  await ensurePaceGroup(batchTwo.id, 'Rahma', 14);
+
+  for (const bookSeed of catalogList.filter((book) => book.language === 'en')) {
+    const slot = await db
+      .select({ id: catalogSlots.id })
+      .from(catalogSlots)
+      .where(eq(catalogSlots.sequenceOrder, bookSeed.sequenceOrder))
+      .limit(1);
+
+    const slotId = slot[0]?.id;
+    if (!slotId) continue;
+
+    const slotSteps = await db
+      .select({ paceSize: curriculumSteps.paceSize })
+      .from(curriculumSteps)
+      .where(eq(curriculumSteps.catalogSlotId, slotId));
+    const existingPaceSizes = new Set(slotSteps.map((step) => step.paceSize));
+    const totalPages = bookSeed.taskCount * 5;
+
+    const englishBook = await db.query.books.findFirst({
+      where: and(eq(books.catalogSlotId, slotId), eq(books.language, 'en')),
+    });
+
+    for (const paceSize of [5, 10, 20, 40]) {
+      if (existingPaceSizes.has(paceSize)) continue;
+
+      const stepCount = Math.ceil(totalPages / paceSize);
+      const createdSteps = await db
+        .insert(curriculumSteps)
+        .values(
+          Array.from({ length: stepCount }, (_, index) => ({
+            catalogSlotId: slotId,
+            paceSize,
+            stepNumber: index + 1,
+          })),
+        )
+        .returning();
+
+      if (englishBook) {
+        await db.insert(curriculumStepEditions).values(
+          createdSteps.map((step, index) => ({
+            curriculumStepId: step.id,
+            catalogSlotId: slotId,
+            bookId: englishBook.id,
+            startPage: index * paceSize + 1,
+            endPage: Math.min((index + 1) * paceSize, totalPages),
+            caption: `Read and reflect on day ${index + 1} of ${bookSeed.title}.`,
+          })),
+        );
+      }
+    }
+  }
+
   const pairedEditions = [
     { title: 'Reclaim Your Heart', translatedLanguage: 'am' },
     { title: 'Purification of the Heart', translatedLanguage: 'om' },
@@ -583,7 +672,9 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error('Seed script failed:', error);
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error('Seed script failed:', error);
+    process.exitCode = 1;
+  })
+  .finally(() => db.$client.end());

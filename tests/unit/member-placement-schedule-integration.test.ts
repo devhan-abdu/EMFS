@@ -9,8 +9,11 @@ const {
   mockFindFirstTask,
   mockFindFirstDailyTask,
   mockFindManyDailyTasks,
+  mockFindManyBatchBreaks,
   mockFindFirstDailyProgress,
   mockFindFirstBook,
+  mockFindFirstCurriculumStep,
+  mockFindFirstStepEdition,
   mockFindManyOffsets,
   mockFindFirstWaitlist,
   mockFindFirstApplication,
@@ -29,8 +32,11 @@ const {
   const mockFindFirstTask = vi.fn();
   const mockFindFirstDailyTask = vi.fn();
   const mockFindManyDailyTasks = vi.fn();
+  const mockFindManyBatchBreaks = vi.fn();
   const mockFindFirstDailyProgress = vi.fn();
   const mockFindFirstBook = vi.fn();
+  const mockFindFirstCurriculumStep = vi.fn();
+  const mockFindFirstStepEdition = vi.fn();
   const mockFindManyOffsets = vi.fn();
   const mockFindFirstWaitlist = vi.fn();
   const mockFindFirstApplication = vi.fn();
@@ -52,11 +58,13 @@ const {
       batches: { findFirst: mockFindFirstBatch },
       paceGroupMemberships: { findMany: mockFindManyPaceGroupMemberships },
       paceGroups: { findFirst: mockFindFirstPaceGroup },
-      tasks: { findFirst: mockFindFirstTask },
-      dailyTasks: {
+      batchDailyTasks: {
         findFirst: mockFindFirstDailyTask,
         findMany: mockFindManyDailyTasks,
       },
+      batchBreaks: { findMany: mockFindManyBatchBreaks },
+      curriculumSteps: { findFirst: mockFindFirstCurriculumStep },
+      curriculumStepEditions: { findFirst: mockFindFirstStepEdition },
       books: { findFirst: mockFindFirstBook },
       batchPacingOffsets: { findMany: mockFindManyOffsets },
       dailyProgress: { findFirst: mockFindFirstDailyProgress },
@@ -75,8 +83,11 @@ const {
     mockFindFirstTask,
     mockFindFirstDailyTask,
     mockFindManyDailyTasks,
+    mockFindManyBatchBreaks,
     mockFindFirstDailyProgress,
     mockFindFirstBook,
+    mockFindFirstCurriculumStep,
+    mockFindFirstStepEdition,
     mockFindManyOffsets,
     mockFindFirstWaitlist,
     mockFindFirstApplication,
@@ -98,10 +109,13 @@ vi.mock('@/db', () => ({
       paceGroupMemberships: { findMany: mockFindManyPaceGroupMemberships },
       paceGroups: { findFirst: mockFindFirstPaceGroup },
       tasks: { findFirst: mockFindFirstTask },
-      dailyTasks: {
+      batchDailyTasks: {
         findFirst: mockFindFirstDailyTask,
         findMany: mockFindManyDailyTasks,
       },
+      batchBreaks: { findMany: mockFindManyBatchBreaks },
+      curriculumSteps: { findFirst: mockFindFirstCurriculumStep },
+      curriculumStepEditions: { findFirst: mockFindFirstStepEdition },
       books: { findFirst: mockFindFirstBook },
       batchPacingOffsets: { findMany: mockFindManyOffsets },
       dailyProgress: { findFirst: mockFindFirstDailyProgress },
@@ -147,6 +161,7 @@ describe('Member Placement, Schedule, and Daily Progress Integration', () => {
     batchId: BATCH_ID,
     name: 'Group 5A (5 p/d)',
     size: 5,
+    activeBookId: BOOK_ID,
     archived: false,
   };
 
@@ -155,19 +170,43 @@ describe('Member Placement, Schedule, and Daily Progress Integration', () => {
     batchId: BATCH_ID,
     name: 'Group 10B (10 p/d)',
     size: 10,
+    activeBookId: BOOK_ID,
     archived: false,
   };
 
   const mockBook = {
     id: BOOK_ID,
     title: 'The Sealed Nectar',
+    language: 'en',
+    sequenceOrder: 1,
     author: 'Safiur Rahman Mubarakpuri',
-    totalPages: 320,
+    pageCount: 320,
+  };
+
+  const mockCurriculumStep = {
+    id: 'step-1',
+    slotNumber: 1,
+    paceSize: 5,
+    stepNumber: 1,
+    version: 1,
+    startPage: 1,
+    endPage: 5,
+    caption: 'Read pages 1 to 5.',
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockFindManyOffsets.mockResolvedValue([]);
+    mockFindManyBatchBreaks.mockResolvedValue([]);
+    mockFindFirstBook.mockResolvedValue(mockBook);
+    mockFindFirstCurriculumStep.mockResolvedValue(mockCurriculumStep);
+    mockFindFirstStepEdition.mockResolvedValue({
+      curriculumStepId: mockCurriculumStep.id,
+      bookId: BOOK_ID,
+      startPage: 1,
+      endPage: 5,
+      caption: 'Read pages 1 to 5.',
+    });
   });
 
   describe('1. Unplaced Member Flow & Server-Level Protection', () => {
@@ -293,6 +332,63 @@ describe('Member Placement, Schedule, and Daily Progress Integration', () => {
       }
     });
 
+    it('uses the stored task reading number after a break instead of counting calendar days', async () => {
+      mockFindFirstBatchMembership.mockResolvedValue({
+        id: 'bm-1',
+        profileId: PROFILE_ID,
+        batchId: BATCH_ID,
+        status: 'active',
+      });
+      mockFindFirstBatch.mockResolvedValue(mockBatch);
+      mockFindManyPaceGroupMemberships.mockResolvedValue([
+        {
+          id: 'pgm-1',
+          profileId: PROFILE_ID,
+          paceGroupId: GROUP_A_ID,
+          status: 'active',
+        },
+      ]);
+      mockFindFirstPaceGroup.mockResolvedValue(mockPaceGroupA);
+      mockFindManyBatchBreaks.mockResolvedValueOnce([
+        {
+          title: 'Circle pause',
+          startDate: '2026-10-02',
+          endDate: '2026-10-03',
+        },
+      ]);
+
+      const pausedState = await getMemberHomeState(PROFILE_ID, '2026-10-02');
+      expect(pausedState.kind).toBe('active_placed');
+      if (pausedState.kind === 'active_placed') {
+        expect(pausedState.schedule).toEqual({
+          status: 'break_day',
+          title: 'Circle pause',
+          endDate: '2026-10-03',
+        });
+      }
+
+      mockFindManyBatchBreaks.mockResolvedValueOnce([]);
+      mockFindFirstDailyTask.mockResolvedValue({
+        id: TASK_A_ID,
+        paceGroupId: GROUP_A_ID,
+        curriculumStepId: mockCurriculumStep.id,
+        batchDayNumber: 17,
+        scheduledDate: '2026-10-04',
+        localCaptionOverride: null,
+        publicationStatus: 'published',
+      });
+      mockFindFirstDailyProgress.mockResolvedValue(null);
+
+      const resumedState = await getMemberHomeState(PROFILE_ID, '2026-10-04');
+      expect(resumedState.kind).toBe('active_placed');
+      if (resumedState.kind === 'active_placed') {
+        expect(resumedState.schedule.status).toBe('published');
+        if (resumedState.schedule.status === 'published') {
+          expect(resumedState.schedule.dayNumber).toBe(17);
+        }
+      }
+    });
+
     it('allows recording Daily Progress once placed', async () => {
       mockFindFirstBatchMembership.mockResolvedValueOnce({
         id: 'bm-1',
@@ -312,13 +408,13 @@ describe('Member Placement, Schedule, and Daily Progress Integration', () => {
       mockFindFirstPaceGroup.mockResolvedValueOnce(mockPaceGroupA);
 
       // Task exists as published daily task in Group A
-      mockFindFirstTask.mockResolvedValueOnce(null);
       mockFindFirstDailyTask.mockResolvedValueOnce({
         id: TASK_A_ID,
         paceGroupId: GROUP_A_ID,
-        bookId: BOOK_ID,
-        dayNumber: 1,
-        content: 'Read pages 1 to 5.',
+        curriculumStepId: mockCurriculumStep.id,
+        batchDayNumber: 1,
+        scheduledDate: '2026-10-01',
+        localCaptionOverride: null,
         publicationStatus: 'published',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -366,13 +462,13 @@ describe('Member Placement, Schedule, and Daily Progress Integration', () => {
       ]);
       mockFindFirstPaceGroup.mockResolvedValueOnce(mockPaceGroupA);
 
-      mockFindFirstTask.mockResolvedValueOnce(null);
       mockFindFirstDailyTask.mockResolvedValueOnce({
         id: TASK_A_ID,
         paceGroupId: GROUP_A_ID,
-        bookId: BOOK_ID,
-        dayNumber: 1,
-        content: 'Read pages 1 to 5.',
+        curriculumStepId: mockCurriculumStep.id,
+        batchDayNumber: 1,
+        scheduledDate: '2026-10-01',
+        localCaptionOverride: null,
         publicationStatus: 'published',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -429,13 +525,13 @@ describe('Member Placement, Schedule, and Daily Progress Integration', () => {
       ]);
       mockFindFirstPaceGroup.mockResolvedValueOnce(mockPaceGroupA);
 
-      mockFindFirstTask.mockResolvedValueOnce(null);
       mockFindFirstDailyTask.mockResolvedValueOnce({
         id: TASK_A_ID,
         paceGroupId: GROUP_A_ID,
-        bookId: BOOK_ID,
-        dayNumber: 1,
-        content: 'Read pages 1 to 5.',
+        curriculumStepId: mockCurriculumStep.id,
+        batchDayNumber: 1,
+        scheduledDate: '2026-10-01',
+        localCaptionOverride: null,
         publicationStatus: 'published',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -503,16 +599,27 @@ describe('Member Placement, Schedule, and Daily Progress Integration', () => {
       const mockTaskB = {
         id: TASK_B_ID,
         paceGroupId: GROUP_B_ID,
-        bookId: BOOK_ID,
-        dayNumber: 1,
-        startPage: 1,
-        endPage: 10,
-        content: 'Read pages 1 to 10 for Group B.',
+        curriculumStepId: 'step-group-b',
+        batchDayNumber: 1,
+        scheduledDate: '2026-10-01',
+        localCaptionOverride: null,
         publicationStatus: 'published',
-        book: mockBook,
       };
 
       mockFindFirstDailyTask.mockResolvedValueOnce(mockTaskB);
+      mockFindFirstCurriculumStep.mockResolvedValue({
+        ...mockCurriculumStep,
+        id: 'step-group-b',
+        paceSize: 10,
+        endPage: 10,
+      });
+      mockFindFirstStepEdition.mockResolvedValueOnce({
+        curriculumStepId: 'step-group-b',
+        bookId: BOOK_ID,
+        startPage: 1,
+        endPage: 10,
+        caption: 'Read pages 1 to 10.',
+      });
       mockFindFirstDailyProgress.mockResolvedValueOnce(null);
 
       const state = await getMemberHomeState(PROFILE_ID, '2026-10-01');
@@ -546,13 +653,13 @@ describe('Member Placement, Schedule, and Daily Progress Integration', () => {
       ]);
       mockFindFirstPaceGroup.mockResolvedValueOnce(mockPaceGroupB);
 
-      mockFindFirstTask.mockResolvedValueOnce(null);
       mockFindFirstDailyTask.mockResolvedValueOnce({
         id: TASK_A_ID,
         paceGroupId: GROUP_A_ID, // Belongs to old Group A!
-        bookId: BOOK_ID,
-        dayNumber: 1,
-        content: 'Read pages 1 to 5.',
+        curriculumStepId: mockCurriculumStep.id,
+        batchDayNumber: 1,
+        scheduledDate: '2026-10-01',
+        localCaptionOverride: null,
         publicationStatus: 'published',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -595,13 +702,13 @@ describe('Member Placement, Schedule, and Daily Progress Integration', () => {
       ]);
       mockFindFirstPaceGroup.mockResolvedValueOnce(mockPaceGroupA);
 
-      mockFindFirstTask.mockResolvedValueOnce(null);
       mockFindFirstDailyTask.mockResolvedValueOnce({
         id: TASK_A_ID,
         paceGroupId: GROUP_A_ID,
-        bookId: BOOK_ID,
-        dayNumber: 1,
-        content: 'Read pages 1 to 5.',
+        curriculumStepId: mockCurriculumStep.id,
+        batchDayNumber: 1,
+        scheduledDate: '2026-10-01',
+        localCaptionOverride: null,
         publicationStatus: 'published',
         createdAt: new Date(),
         updatedAt: new Date(),

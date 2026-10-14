@@ -1,7 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { books } from '@/db/schema';
+import { books, catalogSlots } from '@/db/schema';
 import { requireSuperAdmin } from '@/lib/auth/authorize';
 import {
   deleteFromCloudinary,
@@ -68,29 +68,39 @@ export async function createBookWithCover(
   }
 
   try {
-    const [book] = await db
-      .insert(books)
-      .values({
-        title: data.title,
-        language: data.language,
-        author: data.author,
-        coverUrl,
-        summary: data.summary,
-        pageCount: data.pageCount,
-        // Next curriculum slot: global max + 1 (shared across language editions).
-        sequenceOrder: sql`COALESCE((SELECT max(${books.sequenceOrder}) FROM ${books}), 0) + 1`,
-      })
-      .returning({
-        id: books.id,
-        title: books.title,
-        language: books.language,
-        author: books.author,
-        coverUrl: books.coverUrl,
-        summary: books.summary,
-        pageCount: books.pageCount,
-        sequenceOrder: books.sequenceOrder,
-        pairedBookId: books.pairedBookId,
-      });
+    const book = await db.transaction(async (tx) => {
+      const [slotStats] = await tx
+        .select({ maxOrder: sql<number>`max(${catalogSlots.sequenceOrder})` })
+        .from(catalogSlots);
+      const sequenceOrder = Number(slotStats?.maxOrder ?? 0) + 1;
+      const [slot] = await tx
+        .insert(catalogSlots)
+        .values({ sequenceOrder })
+        .returning({ id: catalogSlots.id });
+      const [createdBook] = await tx
+        .insert(books)
+        .values({
+          title: data.title,
+          language: data.language,
+          author: data.author,
+          coverUrl,
+          summary: data.summary,
+          pageCount: data.pageCount,
+          catalogSlotId: slot.id,
+        })
+        .returning({
+          id: books.id,
+          title: books.title,
+          language: books.language,
+          author: books.author,
+          coverUrl: books.coverUrl,
+          summary: books.summary,
+          pageCount: books.pageCount,
+          pairedBookId: books.pairedBookId,
+        });
+
+      return { ...createdBook, sequenceOrder };
+    });
 
     return {
       ok: true,
@@ -157,8 +167,13 @@ export async function updateBookWithCover(
 
   try {
     const [existing] = await db
-      .select({ id: books.id, sequenceOrder: books.sequenceOrder })
+      .select({
+        id: books.id,
+        catalogSlotId: books.catalogSlotId,
+        sequenceOrder: catalogSlots.sequenceOrder,
+      })
       .from(books)
+      .innerJoin(catalogSlots, eq(catalogSlots.id, books.catalogSlotId))
       .where(eq(books.id, data.bookId))
       .limit(1);
 
@@ -183,7 +198,7 @@ export async function updateBookWithCover(
       .from(books)
       .where(
         and(
-          eq(books.sequenceOrder, existing.sequenceOrder),
+          eq(books.catalogSlotId, existing.catalogSlotId),
           eq(books.language, data.language),
         ),
       )
@@ -225,11 +240,13 @@ export async function updateBookWithCover(
         coverUrl: books.coverUrl,
         summary: books.summary,
         pageCount: books.pageCount,
-        sequenceOrder: books.sequenceOrder,
         pairedBookId: books.pairedBookId,
       });
 
-    return { ok: true, data: updated };
+    return {
+      ok: true,
+      data: { ...updated, sequenceOrder: existing.sequenceOrder },
+    };
   } catch (error) {
     if (uploadedCoverUrl) {
       await cleanupOrphanedUpload(uploadedCoverUrl);
@@ -292,7 +309,12 @@ export async function addPairedEditionWithCover(
   try {
     const result = await db.transaction(async (tx) => {
       const [targetBook] = await tx
-        .select()
+        .select({
+          id: books.id,
+          catalogSlotId: books.catalogSlotId,
+          language: books.language,
+          pairedBookId: books.pairedBookId,
+        })
         .from(books)
         .where(eq(books.id, data.pairedBookId))
         .limit(1);
@@ -312,7 +334,12 @@ export async function addPairedEditionWithCover(
 
       if (editEditionId) {
         const [existingEdition] = await tx
-          .select()
+          .select({
+            id: books.id,
+            catalogSlotId: books.catalogSlotId,
+            language: books.language,
+            pairedBookId: books.pairedBookId,
+          })
           .from(books)
           .where(eq(books.id, editEditionId))
           .limit(1);
@@ -330,10 +357,11 @@ export async function addPairedEditionWithCover(
           };
         }
 
-        if (
-          existingEdition.sequenceOrder !== targetBook.sequenceOrder &&
-          existingEdition.pairedBookId !== targetBook.id
-        ) {
+        const sameCatalogSlot =
+          existingEdition.catalogSlotId === targetBook.catalogSlotId;
+        const pairedToTarget = existingEdition.pairedBookId === targetBook.id;
+
+        if (!sameCatalogSlot && !pairedToTarget) {
           return {
             ok: false as const,
             errors: [
@@ -347,13 +375,21 @@ export async function addPairedEditionWithCover(
           };
         }
 
+        const [targetSlot] = await tx
+          .select({ sequenceOrder: catalogSlots.sequenceOrder })
+          .from(catalogSlots)
+          .where(eq(catalogSlots.id, existingEdition.catalogSlotId))
+          .limit(1);
+
+        if (!targetSlot) throw new Error('Catalog slot not found');
+
         if (data.language !== existingEdition.language) {
           const [languageClash] = await tx
             .select({ id: books.id })
             .from(books)
             .where(
               and(
-                eq(books.sequenceOrder, targetBook.sequenceOrder),
+                eq(books.catalogSlotId, targetBook.catalogSlotId),
                 eq(books.language, data.language),
               ),
             )
@@ -365,7 +401,7 @@ export async function addPairedEditionWithCover(
               errors: [
                 {
                   field: 'language',
-                  message: `Slot ${targetBook.sequenceOrder} already has an edition for language '${data.language}'.`,
+                  message: `Slot ${targetSlot.sequenceOrder} already has an edition for language '${data.language}'.`,
                   code: 'SLOT_LANGUAGE_EXISTS',
                 },
               ],
@@ -393,13 +429,12 @@ export async function addPairedEditionWithCover(
             coverUrl: books.coverUrl,
             summary: books.summary,
             pageCount: books.pageCount,
-            sequenceOrder: books.sequenceOrder,
             pairedBookId: books.pairedBookId,
           });
 
         return {
           ok: true as const,
-          data: updated,
+          data: { ...updated, sequenceOrder: targetSlot.sequenceOrder },
         };
       }
 
@@ -416,7 +451,6 @@ export async function addPairedEditionWithCover(
         };
       }
 
-      // Create-only: surface conflicts instead of inserting a second edition.
       if (targetBook.pairedBookId) {
         return {
           ok: false as const,
@@ -432,7 +466,7 @@ export async function addPairedEditionWithCover(
         .from(books)
         .where(
           and(
-            eq(books.sequenceOrder, targetBook.sequenceOrder),
+            eq(books.catalogSlotId, targetBook.catalogSlotId),
             eq(books.language, data.language),
           ),
         )
@@ -458,7 +492,7 @@ export async function addPairedEditionWithCover(
           summary: data.summary,
           pageCount: data.pageCount,
           pairedBookId: targetBook.id,
-          sequenceOrder: targetBook.sequenceOrder,
+          catalogSlotId: targetBook.catalogSlotId,
         })
         .returning({
           id: books.id,
@@ -468,9 +502,16 @@ export async function addPairedEditionWithCover(
           coverUrl: books.coverUrl,
           summary: books.summary,
           pageCount: books.pageCount,
-          sequenceOrder: books.sequenceOrder,
           pairedBookId: books.pairedBookId,
         });
+
+      const [targetSlot] = await tx
+        .select({ sequenceOrder: catalogSlots.sequenceOrder })
+        .from(catalogSlots)
+        .where(eq(catalogSlots.id, targetBook.catalogSlotId))
+        .limit(1);
+
+      if (!targetSlot) throw new Error('Catalog slot not found');
 
       await tx
         .update(books)
@@ -482,7 +523,7 @@ export async function addPairedEditionWithCover(
 
       return {
         ok: true as const,
-        data: newBook,
+        data: { ...newBook, sequenceOrder: targetSlot.sequenceOrder },
       };
     });
 
