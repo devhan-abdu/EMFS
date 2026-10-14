@@ -14,39 +14,31 @@ vi.mock('../lib/services/catalog/cloudinary', () => ({
 }));
 
 type InsertPayload = {
-  title: string;
-  language: string;
+  title?: string;
+  language?: string;
   author?: string | null;
   coverUrl?: string | null;
-  pairedBookId?: string;
-  sequenceOrder: number;
+  catalogSlotId?: string;
+  sequenceOrder?: number;
 };
 
 const mocks = vi.hoisted(() => {
-  const insertValuesMock = vi.fn((data: InsertPayload) => ({
-    returning: vi.fn(async () => [
-      {
-        id: 'book-1',
-        title: 'The Example Book',
-        language: 'en',
-        author: 'Jane Author',
-        coverUrl: data.coverUrl,
-      },
-    ]),
-  }));
+  const insertValuesMock = vi.fn();
 
   const selectMock = vi.fn();
   const insertMock = vi.fn();
+  const transactionMock = vi.fn();
 
-  return { insertValuesMock, selectMock, insertMock };
+  return { insertValuesMock, selectMock, insertMock, transactionMock };
 });
 
-const { insertValuesMock, selectMock, insertMock } = mocks;
+const { insertValuesMock, selectMock, insertMock, transactionMock } = mocks;
 
 vi.mock('@/db', () => ({
   db: {
     select: mocks.selectMock,
     insert: mocks.insertMock,
+    transaction: mocks.transactionMock,
   },
 }));
 
@@ -67,25 +59,38 @@ describe('createBookWithCover', () => {
 
     selectMock.mockReset();
     insertMock.mockReset();
+    transactionMock.mockReset();
+    insertValuesMock.mockReset();
 
     selectMock.mockImplementation(() => ({
       from: vi.fn(() => {
-        const rows = [{ maxSequenceOrder: 3 }];
-        const promise = Promise.resolve(rows);
-        return Object.assign(promise, {
-          where: vi.fn(() => {
-            const wherePromise = Promise.resolve(rows);
-            return Object.assign(wherePromise, {
-              limit: vi.fn(async () => rows),
-            });
-          }),
-        });
+        return [{ maxOrder: 3 }];
       }),
     }));
 
     insertMock.mockReturnValue({
       values: insertValuesMock,
     });
+    insertValuesMock.mockImplementation((data: InsertPayload) => ({
+      returning: vi.fn(async () =>
+        data.catalogSlotId
+          ? [
+              {
+                id: 'book-1',
+                title: data.title ?? 'The Example Book',
+                language: data.language ?? 'en',
+                author: data.author ?? null,
+                coverUrl: data.coverUrl ?? null,
+                ...data,
+              },
+            ]
+          : [{ id: 'slot-4' }],
+      ),
+    }));
+    transactionMock.mockImplementation(
+      async (callback: (tx: unknown) => Promise<unknown>) =>
+        callback({ select: selectMock, insert: insertMock }),
+    );
   });
 
   it.each([
@@ -140,7 +145,7 @@ describe('createBookWithCover', () => {
       expect.objectContaining({
         title: 'The Example Book',
         language: 'en',
-        sequenceOrder: expect.anything(),
+        catalogSlotId: 'slot-4',
       }),
     );
     expect(result.data.coverUrl).toBe(
@@ -180,11 +185,13 @@ describe('createBookWithCover', () => {
       }),
     }));
 
-    insertMock.mockReturnValue({
-      values: vi.fn(() => {
+    insertValuesMock
+      .mockImplementationOnce(() => ({
+        returning: vi.fn().mockResolvedValue([{ id: 'slot-4' }]),
+      }))
+      .mockImplementationOnce(() => {
         throw new Error('database insert failed');
-      }),
-    });
+      });
 
     const validPng = await sharp({
       create: {

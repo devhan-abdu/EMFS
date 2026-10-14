@@ -17,7 +17,7 @@ import {
   assignPaceAdmin,
   removePaceAdminAssignment,
   PaceAdminError,
-} from '@/lib/services/pace-groups/pace-admin-assignment';
+} from '@/lib/services/admin/pace-admin-assignment';
 
 function createSelectChain(result: unknown[]) {
   return {

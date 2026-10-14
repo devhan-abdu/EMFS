@@ -67,8 +67,8 @@ import {
 } from '@/lib/auth/authorize';
 import type { CurrentUser } from '@/lib/auth/session';
 import type { Profile } from '@/db/schema';
-import { getAdminApplications } from '@/lib/services/admin';
-import { getAdminApplicationsWithHandoff } from '@/lib/services/application/admin-handoff';
+import { getAdminApplications } from '@/lib/services/admin/services';
+import { getAdminApplicationsWithHandoff } from '@/lib/services/admin/application-handoff';
 import { toggleRegistrationAction } from '@/actions/batch-toggle';
 import { reviewApplicationAction } from '@/actions/application-review';
 import { createMembershipAction } from '@/actions/membership';
