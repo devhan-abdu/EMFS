@@ -1,3 +1,5 @@
+name: emfs-book-shelf
+
 services:
   db:
     image: postgres:16-alpine
@@ -18,7 +20,7 @@ services:
       retries: 20
 
   minio:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     container_name: emfs-book-shelf-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
