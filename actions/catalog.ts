@@ -11,7 +11,9 @@ import {
   updateBookWithCover,
 } from '@/lib/services/catalog/create-book';
 import {
+  archiveCatalogSlot,
   deleteBook,
+  type ArchiveCatalogSlotResult,
   type DeleteBookResult,
 } from '@/lib/services/catalog/delete-book';
 import {
@@ -193,6 +195,35 @@ export async function deleteBookAction(input: {
   }
 }
 
+export async function archiveCatalogSlotAction(input: {
+  bookId: string;
+}): Promise<ArchiveCatalogSlotResult> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthzError) {
+      return { ok: false, errors: [authzErrorToFieldError(error)] };
+    }
+    throw error;
+  }
+
+  try {
+    return await archiveCatalogSlot(input);
+  } catch (error) {
+    console.error('archiveCatalogSlotAction error:', error);
+    return {
+      ok: false,
+      errors: [
+        {
+          field: 'form',
+          message: 'Failed to archive catalog slot.',
+          code: 'INTERNAL_ERROR',
+        },
+      ],
+    };
+  }
+}
+
 export type AddPairedEditionActionResult =
   | {
       ok: true;
@@ -205,7 +236,7 @@ export type AddPairedEditionActionResult =
         summary?: string | null;
         pageCount?: number | null;
         sequenceOrder: number;
-        pairedBookId?: string | null;
+        pairecatlogookId?: string | null;
       };
     }
   | { ok: false; errors: import('@/lib/validations/cover-image').FieldError[] }

@@ -50,6 +50,7 @@ export default async function Home() {
   const openBatches = await getOpenBatchesForPublic();
   const visibleBatches = openBatches.slice(0, FEATURED_LIMIT);
   const hasMore = openBatches.length > FEATURED_LIMIT;
+  const firstOpenBatch = visibleBatches[0];
 
   return (
     <div className="min-h-screen bg-background">
@@ -87,16 +88,26 @@ export default async function Home() {
                 go quiet.
               </p>
 
-              {visibleBatches.length === 0 ? (
-                <div className="mt-9 flex flex-wrap gap-3">
+              <div className="mt-9 flex flex-wrap gap-3">
+                <Button size="lg" asChild>
+                  <Link href="/batches">
+                    Explore
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+
+                {firstOpenBatch ? (
                   <Button size="lg" variant="outline" asChild>
-                    <Link href="/signin">
-                      Sign in
-                      <ArrowRight className="size-4" />
+                    <Link href={`/batches/${firstOpenBatch.id}/apply`}>
+                      Apply to batch
                     </Link>
                   </Button>
-                </div>
-              ) : null}
+                ) : (
+                  <Button size="lg" variant="outline" asChild>
+                    <Link href="/signin">Sign in</Link>
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </section>

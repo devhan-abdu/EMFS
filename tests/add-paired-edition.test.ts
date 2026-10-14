@@ -95,7 +95,7 @@ describe('addPairedEditionWithCover Service', () => {
       id: '550e8400-e29b-41d4-a716-446655440000',
       title: 'Atomic Habits',
       language: 'en',
-      sequenceOrder: 3,
+      catalogSlotId: 'slot-3',
       pairedBookId: null,
     };
 
@@ -106,7 +106,7 @@ describe('addPairedEditionWithCover Service', () => {
       author: 'James Clear',
       coverUrl:
         'https://res.cloudinary.com/demo/image/upload/v1/emfs-covers/amharic.webp',
-      sequenceOrder: 3, // SAME SLOT!
+      catalogSlotId: targetBook.catalogSlotId,
       pairedBookId: targetBook.id,
     };
 
@@ -126,6 +126,13 @@ describe('addPairedEditionWithCover Service', () => {
           from: vi.fn(() => ({
             where: vi.fn(() => ({
               limit: vi.fn(async () => []),
+            })),
+          })),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => [{ sequenceOrder: 3 }]),
             })),
           })),
         }),
@@ -207,7 +214,7 @@ describe('addPairedEditionWithCover Service', () => {
       id: '550e8400-e29b-41d4-a716-446655440000',
       title: 'Atomic Habits',
       language: 'en',
-      sequenceOrder: 1,
+      catalogSlotId: 'slot-1',
     };
 
     const txMock = {
@@ -247,7 +254,7 @@ describe('addPairedEditionWithCover Service', () => {
       id: '550e8400-e29b-41d4-a716-446655440000',
       title: 'Atomic Habits',
       language: 'en',
-      sequenceOrder: 1,
+      catalogSlotId: 'slot-1',
       pairedBookId: '660e8400-e29b-41d4-a716-446655440099',
     };
 
@@ -327,7 +334,7 @@ describe('addPairedEditionWithCover Service', () => {
       id: '550e8400-e29b-41d4-a716-446655440000',
       title: 'Atomic Habits',
       language: 'en',
-      sequenceOrder: 3,
+      catalogSlotId: 'slot-3',
       pairedBookId: null,
     };
 
@@ -350,6 +357,13 @@ describe('addPairedEditionWithCover Service', () => {
               limit: vi.fn(async () => []),
             })),
           })),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => [{ sequenceOrder: 3 }]),
+            })),
+          })),
         }),
       insert: vi.fn(() => ({
         values: vi.fn((data) => ({
@@ -359,7 +373,7 @@ describe('addPairedEditionWithCover Service', () => {
               title: data.title,
               language: data.language,
               coverUrl: data.coverUrl,
-              sequenceOrder: 3,
+              catalogSlotId: targetBook.catalogSlotId,
               pairedBookId: targetBook.id,
             },
           ]),

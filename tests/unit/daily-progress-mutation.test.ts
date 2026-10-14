@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const {
   mockRequireSession,
@@ -7,7 +7,8 @@ const {
   mockFindManyPaceGroupMemberships,
   mockFindFirstBatch,
   mockFindFirstPaceGroup,
-  mockFindFirstTask,
+  mockFindFirstScheduledTask,
+  mockFindFirstCurriculumStep,
   mockFindFirstBook,
   mockFindManyOffsets,
   mockFindFirstDailyProgress,
@@ -22,14 +23,19 @@ const {
   const mockFindManyPaceGroupMemberships = vi.fn();
   const mockFindFirstBatch = vi.fn();
   const mockFindFirstPaceGroup = vi.fn();
-  const mockFindFirstTask = vi.fn();
+  const mockFindFirstScheduledTask = vi.fn();
+  const mockFindFirstCurriculumStep = vi.fn();
   const mockFindFirstBook = vi.fn();
   const mockFindManyOffsets = vi.fn();
   const mockFindFirstDailyProgress = vi.fn();
 
   const mockReturning = vi.fn();
-  const mockOnConflictDoUpdate = vi.fn().mockReturnValue({ returning: mockReturning });
-  const mockInsertValues = vi.fn().mockReturnValue({ onConflictDoUpdate: mockOnConflictDoUpdate });
+  const mockOnConflictDoUpdate = vi
+    .fn()
+    .mockReturnValue({ returning: mockReturning });
+  const mockInsertValues = vi
+    .fn()
+    .mockReturnValue({ onConflictDoUpdate: mockOnConflictDoUpdate });
   const mockInsert = vi.fn().mockReturnValue({ values: mockInsertValues });
 
   const mockTx = {
@@ -38,7 +44,8 @@ const {
       paceGroupMemberships: { findMany: mockFindManyPaceGroupMemberships },
       batches: { findFirst: mockFindFirstBatch },
       paceGroups: { findFirst: mockFindFirstPaceGroup },
-      tasks: { findFirst: mockFindFirstTask },
+      batchDailyTasks: { findFirst: mockFindFirstScheduledTask },
+      curriculumSteps: { findFirst: mockFindFirstCurriculumStep },
       books: { findFirst: mockFindFirstBook },
       batchPacingOffsets: { findMany: mockFindManyOffsets },
       dailyProgress: { findFirst: mockFindFirstDailyProgress },
@@ -52,7 +59,8 @@ const {
     mockFindManyPaceGroupMemberships,
     mockFindFirstBatch,
     mockFindFirstPaceGroup,
-    mockFindFirstTask,
+    mockFindFirstScheduledTask,
+    mockFindFirstCurriculumStep,
     mockFindFirstBook,
     mockFindManyOffsets,
     mockFindFirstDailyProgress,
@@ -64,9 +72,9 @@ const {
   };
 });
 
-vi.mock("server-only", () => ({}));
+vi.mock('server-only', () => ({}));
 
-vi.mock("@/lib/auth/authorize", () => ({
+vi.mock('@/lib/auth/authorize', () => ({
   requireSession: mockRequireSession,
   AuthzError: class AuthzError extends Error {
     code: string;
@@ -77,14 +85,15 @@ vi.mock("@/lib/auth/authorize", () => ({
   },
 }));
 
-vi.mock("@/db", () => ({
+vi.mock('@/db', () => ({
   db: {
     query: {
       batchMemberships: { findFirst: mockFindFirstBatchMembership },
       paceGroupMemberships: { findMany: mockFindManyPaceGroupMemberships },
       batches: { findFirst: mockFindFirstBatch },
       paceGroups: { findFirst: mockFindFirstPaceGroup },
-      tasks: { findFirst: mockFindFirstTask },
+      batchDailyTasks: { findFirst: mockFindFirstScheduledTask },
+      curriculumSteps: { findFirst: mockFindFirstCurriculumStep },
       books: { findFirst: mockFindFirstBook },
       batchPacingOffsets: { findMany: mockFindManyOffsets },
       dailyProgress: { findFirst: mockFindFirstDailyProgress },
@@ -99,64 +108,77 @@ vi.mock("@/db", () => ({
 import {
   recordDailyProgressForProfile,
   recordDailyProgress,
-} from "@/lib/services/daily-progress";
-import { AuthzError } from "@/lib/auth/authorize";
+} from '@/lib/services/daily-progress';
+import { AuthzError } from '@/lib/auth/authorize';
 
-describe("Daily Progress Mutation Service - Idempotency, Concurrency & Security", () => {
+describe('Daily Progress Mutation Service - Idempotency, Concurrency & Security', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  const validProfileId = "550e8400-e29b-41d4-a716-446655440001";
-  const validTaskId = "550e8400-e29b-41d4-a716-446655440002";
-  const validBookId = "550e8400-e29b-41d4-a716-446655440003";
-  const validBatchId = "550e8400-e29b-41d4-a716-446655440004";
-  const validPaceGroupId = "550e8400-e29b-41d4-a716-446655440005";
+  const validProfileId = '550e8400-e29b-41d4-a716-446655440001';
+  const validTaskId = '550e8400-e29b-41d4-a716-446655440002';
+  const validBookId = '550e8400-e29b-41d4-a716-446655440003';
+  const validBatchId = '550e8400-e29b-41d4-a716-446655440004';
+  const validPaceGroupId = '550e8400-e29b-41d4-a716-446655440005';
 
   function setupValidDbMocks(overrides?: {
     batchStartDate?: string | null;
     taskDayNumber?: number;
+    scheduledDate?: string;
     offsets?: Array<{ effectiveFromDayNumber: number; offsetDays: number }>;
   }) {
     mockFindFirstBatchMembership.mockResolvedValue({
-      id: "bm-1",
+      id: 'bm-1',
       profileId: validProfileId,
       batchId: validBatchId,
-      status: "active",
+      status: 'active',
     });
     mockFindFirstBatch.mockResolvedValue({
       id: validBatchId,
-      name: "Batch Alpha",
+      name: 'Batch Alpha',
       startDate:
         overrides?.batchStartDate !== undefined
           ? overrides.batchStartDate
-          : "2026-01-15",
+          : '2026-01-15',
       readingDaysPerWeek: 6,
     });
     mockFindManyPaceGroupMemberships.mockResolvedValue([
       {
-        id: "pgm-1",
+        id: 'pgm-1',
         profileId: validProfileId,
         paceGroupId: validPaceGroupId,
-        status: "active",
+        status: 'active',
       },
     ]);
     mockFindFirstPaceGroup.mockResolvedValue({
       id: validPaceGroupId,
       batchId: validBatchId,
-      name: "Group A",
+      name: 'Group A',
       size: 10,
+      activeBookId: validBookId,
     });
-    mockFindFirstTask.mockResolvedValue({
+    mockFindFirstScheduledTask.mockResolvedValue({
       id: validTaskId,
-      bookId: validBookId,
-      dayNumber: overrides?.taskDayNumber ?? 1,
-      content: "Read chapter 1",
+      paceGroupId: validPaceGroupId,
+      curriculumStepId: 'step-1',
+      batchDayNumber: overrides?.taskDayNumber ?? 1,
+      scheduledDate: overrides?.scheduledDate ?? '2026-01-15',
+      publicationStatus: 'published',
+      localCaptionOverride: null,
+    });
+    mockFindFirstCurriculumStep.mockResolvedValue({
+      id: 'step-1',
+      slotNumber: 1,
+      paceSize: 10,
+      stepNumber: 1,
+      version: 1,
+      caption: 'Read chapter 1',
     });
     mockFindFirstBook.mockResolvedValue({
       id: validBookId,
-      title: "The Hobbit",
-      language: "en",
+      title: 'The Hobbit',
+      language: 'en',
       sequenceOrder: 1,
     });
     mockFindManyOffsets.mockResolvedValue(overrides?.offsets ?? []);
@@ -167,27 +189,27 @@ describe("Daily Progress Mutation Service - Idempotency, Concurrency & Security"
     mockFindFirstDailyProgress.mockResolvedValue(undefined); // No prior record
 
     const createdRecord = {
-      id: "dp-1",
+      id: 'dp-1',
       profileId: validProfileId,
       batchId: validBatchId,
       paceGroupId: validPaceGroupId,
       taskId: validTaskId,
-      status: "done" as const,
-      completedAt: new Date("2026-01-15T10:00:00.000Z"),
-      createdAt: new Date("2026-01-15T10:00:00.000Z"),
-      updatedAt: new Date("2026-01-15T10:00:00.000Z"),
+      status: 'done' as const,
+      completedAt: new Date('2026-01-15T10:00:00.000Z'),
+      createdAt: new Date('2026-01-15T10:00:00.000Z'),
+      updatedAt: new Date('2026-01-15T10:00:00.000Z'),
     };
     mockReturning.mockResolvedValue([createdRecord]);
 
     const result = await recordDailyProgressForProfile(
       validProfileId,
-      { taskId: validTaskId, status: "done", localDate: "2026-01-15" },
+      { taskId: validTaskId, status: 'done', localDate: '2026-01-15' },
       mockTx as any,
     );
 
     expect(result.previousStatus).toBeNull();
     expect(result.statusChanged).toBe(true);
-    expect(result.progress.status).toBe("done");
+    expect(result.progress.status).toBe('done');
     expect(result.progress.completedAt).toBeDefined();
 
     // Verify insert values
@@ -196,47 +218,47 @@ describe("Daily Progress Mutation Service - Idempotency, Concurrency & Security"
     expect(insertCall.batchId).toBe(validBatchId);
     expect(insertCall.paceGroupId).toBe(validPaceGroupId);
     expect(insertCall.taskId).toBe(validTaskId);
-    expect(insertCall.status).toBe("done");
+    expect(insertCall.status).toBe('done');
     expect(insertCall.completedAt).toBeInstanceOf(Date);
   });
 
-  it("2. Repeated DONE (DONE -> DONE) is idempotent, statusChanged is false, and preserves completedAt", async () => {
+  it('2. Repeated DONE (DONE -> DONE) is idempotent, statusChanged is false, and preserves completedAt', async () => {
     setupValidDbMocks();
-    const originalCompletedAt = new Date("2026-01-15T09:00:00.000Z");
+    const originalCompletedAt = new Date('2026-01-15T09:00:00.000Z');
     mockFindFirstDailyProgress.mockResolvedValue({
-      id: "dp-1",
+      id: 'dp-1',
       profileId: validProfileId,
       batchId: validBatchId,
       paceGroupId: validPaceGroupId,
       taskId: validTaskId,
-      status: "done",
+      status: 'done',
       completedAt: originalCompletedAt,
       createdAt: originalCompletedAt,
       updatedAt: originalCompletedAt,
     });
 
     const updatedRecord = {
-      id: "dp-1",
+      id: 'dp-1',
       profileId: validProfileId,
       batchId: validBatchId,
       paceGroupId: validPaceGroupId,
       taskId: validTaskId,
-      status: "done" as const,
+      status: 'done' as const,
       completedAt: originalCompletedAt,
       createdAt: originalCompletedAt,
-      updatedAt: new Date("2026-01-15T11:00:00.000Z"),
+      updatedAt: new Date('2026-01-15T11:00:00.000Z'),
     };
     mockReturning.mockResolvedValue([updatedRecord]);
 
     const result = await recordDailyProgressForProfile(
       validProfileId,
-      { taskId: validTaskId, status: "done", localDate: "2026-01-15" },
+      { taskId: validTaskId, status: 'done', localDate: '2026-01-15' },
       mockTx as any,
     );
 
-    expect(result.previousStatus).toBe("done");
+    expect(result.previousStatus).toBe('done');
     expect(result.statusChanged).toBe(false);
-    expect(result.progress.status).toBe("done");
+    expect(result.progress.status).toBe('done');
     expect(result.progress.completedAt).toEqual(originalCompletedAt);
 
     // Verify insert payload preserves original completedAt
@@ -249,125 +271,125 @@ describe("Daily Progress Mutation Service - Idempotency, Concurrency & Security"
     mockFindFirstDailyProgress.mockResolvedValue(undefined);
 
     const createdRecord = {
-      id: "dp-2",
+      id: 'dp-2',
       profileId: validProfileId,
       batchId: validBatchId,
       paceGroupId: validPaceGroupId,
       taskId: validTaskId,
-      status: "not_done" as const,
+      status: 'not_done' as const,
       completedAt: null,
-      createdAt: new Date("2026-01-15T10:00:00.000Z"),
-      updatedAt: new Date("2026-01-15T10:00:00.000Z"),
+      createdAt: new Date('2026-01-15T10:00:00.000Z'),
+      updatedAt: new Date('2026-01-15T10:00:00.000Z'),
     };
     mockReturning.mockResolvedValue([createdRecord]);
 
     const result = await recordDailyProgressForProfile(
       validProfileId,
-      { taskId: validTaskId, status: "not_done", localDate: "2026-01-15" },
+      { taskId: validTaskId, status: 'not_done', localDate: '2026-01-15' },
       mockTx as any,
     );
 
     expect(result.previousStatus).toBeNull();
     expect(result.statusChanged).toBe(true);
-    expect(result.progress.status).toBe("not_done");
+    expect(result.progress.status).toBe('not_done');
     expect(result.progress.completedAt).toBeNull();
 
     const insertCall = mockInsertValues.mock.calls[0][0];
     expect(insertCall.completedAt).toBeNull();
   });
 
-  it("4. Repeated NOT_DONE (NOT_DONE -> NOT_DONE) is idempotent and statusChanged is false", async () => {
+  it('4. Repeated NOT_DONE (NOT_DONE -> NOT_DONE) is idempotent and statusChanged is false', async () => {
     setupValidDbMocks();
     mockFindFirstDailyProgress.mockResolvedValue({
-      id: "dp-2",
+      id: 'dp-2',
       profileId: validProfileId,
       batchId: validBatchId,
       paceGroupId: validPaceGroupId,
       taskId: validTaskId,
-      status: "not_done",
+      status: 'not_done',
       completedAt: null,
-      createdAt: new Date("2026-01-15T09:00:00.000Z"),
-      updatedAt: new Date("2026-01-15T09:00:00.000Z"),
+      createdAt: new Date('2026-01-15T09:00:00.000Z'),
+      updatedAt: new Date('2026-01-15T09:00:00.000Z'),
     });
 
     const updatedRecord = {
-      id: "dp-2",
+      id: 'dp-2',
       profileId: validProfileId,
       batchId: validBatchId,
       paceGroupId: validPaceGroupId,
       taskId: validTaskId,
-      status: "not_done" as const,
+      status: 'not_done' as const,
       completedAt: null,
-      createdAt: new Date("2026-01-15T09:00:00.000Z"),
-      updatedAt: new Date("2026-01-15T11:00:00.000Z"),
+      createdAt: new Date('2026-01-15T09:00:00.000Z'),
+      updatedAt: new Date('2026-01-15T11:00:00.000Z'),
     };
     mockReturning.mockResolvedValue([updatedRecord]);
 
     const result = await recordDailyProgressForProfile(
       validProfileId,
-      { taskId: validTaskId, status: "not_done", localDate: "2026-01-15" },
+      { taskId: validTaskId, status: 'not_done', localDate: '2026-01-15' },
       mockTx as any,
     );
 
-    expect(result.previousStatus).toBe("not_done");
+    expect(result.previousStatus).toBe('not_done');
     expect(result.statusChanged).toBe(false);
-    expect(result.progress.status).toBe("not_done");
+    expect(result.progress.status).toBe('not_done');
     expect(result.progress.completedAt).toBeNull();
   });
 
-  it("5. DONE -> NOT_DONE toggles status and resets completedAt to null", async () => {
+  it('5. DONE -> NOT_DONE toggles status and resets completedAt to null', async () => {
     setupValidDbMocks();
     mockFindFirstDailyProgress.mockResolvedValue({
-      id: "dp-1",
+      id: 'dp-1',
       profileId: validProfileId,
       batchId: validBatchId,
       paceGroupId: validPaceGroupId,
       taskId: validTaskId,
-      status: "done",
-      completedAt: new Date("2026-01-15T08:00:00.000Z"),
-      createdAt: new Date("2026-01-15T08:00:00.000Z"),
-      updatedAt: new Date("2026-01-15T08:00:00.000Z"),
+      status: 'done',
+      completedAt: new Date('2026-01-15T08:00:00.000Z'),
+      createdAt: new Date('2026-01-15T08:00:00.000Z'),
+      updatedAt: new Date('2026-01-15T08:00:00.000Z'),
     });
 
     const updatedRecord = {
-      id: "dp-1",
+      id: 'dp-1',
       profileId: validProfileId,
       batchId: validBatchId,
       paceGroupId: validPaceGroupId,
       taskId: validTaskId,
-      status: "not_done" as const,
+      status: 'not_done' as const,
       completedAt: null,
-      createdAt: new Date("2026-01-15T08:00:00.000Z"),
-      updatedAt: new Date("2026-01-15T12:00:00.000Z"),
+      createdAt: new Date('2026-01-15T08:00:00.000Z'),
+      updatedAt: new Date('2026-01-15T12:00:00.000Z'),
     };
     mockReturning.mockResolvedValue([updatedRecord]);
 
     const result = await recordDailyProgressForProfile(
       validProfileId,
-      { taskId: validTaskId, status: "not_done", localDate: "2026-01-15" },
+      { taskId: validTaskId, status: 'not_done', localDate: '2026-01-15' },
       mockTx as any,
     );
 
-    expect(result.previousStatus).toBe("done");
+    expect(result.previousStatus).toBe('done');
     expect(result.statusChanged).toBe(true);
-    expect(result.progress.status).toBe("not_done");
+    expect(result.progress.status).toBe('not_done');
     expect(result.progress.completedAt).toBeNull();
 
     const insertCall = mockInsertValues.mock.calls[0][0];
     expect(insertCall.completedAt).toBeNull();
   });
 
-  it("6. Concurrency safety: uses ON CONFLICT (profileId, taskId) DO UPDATE", async () => {
+  it('6. Concurrency safety: uses ON CONFLICT (profileId, taskId) DO UPDATE', async () => {
     setupValidDbMocks();
     mockFindFirstDailyProgress.mockResolvedValue(undefined);
 
     const record = {
-      id: "dp-1",
+      id: 'dp-1',
       profileId: validProfileId,
       batchId: validBatchId,
       paceGroupId: validPaceGroupId,
       taskId: validTaskId,
-      status: "done" as const,
+      status: 'done' as const,
       completedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -376,7 +398,7 @@ describe("Daily Progress Mutation Service - Idempotency, Concurrency & Security"
 
     await recordDailyProgressForProfile(
       validProfileId,
-      { taskId: validTaskId, status: "done", localDate: "2026-01-15" },
+      { taskId: validTaskId, status: 'done', localDate: '2026-01-15' },
       mockTx as any,
     );
 
@@ -385,60 +407,60 @@ describe("Daily Progress Mutation Service - Idempotency, Concurrency & Security"
     const onConflictConfig = mockOnConflictDoUpdate.mock.calls[0][0];
     expect(onConflictConfig.target).toBeDefined();
     expect(onConflictConfig.set).toBeDefined();
-    expect(onConflictConfig.set.status).toBe("done");
+    expect(onConflictConfig.set.status).toBe('done');
   });
 
-  it("7. High-level recordDailyProgress rejects unauthenticated requests", async () => {
+  it('7. High-level recordDailyProgress rejects unauthenticated requests', async () => {
     mockRequireSession.mockRejectedValue(
-      new AuthzError("UNAUTHENTICATED", "You must be signed in."),
+      new AuthzError('UNAUTHENTICATED', 'You must be signed in.'),
     );
 
     await expect(
       recordDailyProgress(
-        { taskId: validTaskId, status: "done", localDate: "2026-01-15" },
+        { taskId: validTaskId, status: 'done', localDate: '2026-01-15' },
         mockTx as any,
       ),
     ).rejects.toThrow(AuthzError);
   });
 
-  it("8. Rejects mutation when member has inactive batch", async () => {
+  it('8. Rejects mutation when member has inactive batch', async () => {
     setupValidDbMocks();
     mockFindFirstBatchMembership.mockResolvedValue(undefined);
 
     await expect(
       recordDailyProgressForProfile(
         validProfileId,
-        { taskId: validTaskId, status: "done", localDate: "2026-01-15" },
+        { taskId: validTaskId, status: 'done', localDate: '2026-01-15' },
         mockTx as any,
       ),
     ).rejects.toMatchObject({
-      code: "NO_ACTIVE_BATCH",
+      code: 'NO_ACTIVE_BATCH',
     });
   });
 
-  it("9. Rejects mutation when member has inactive pace-group membership", async () => {
+  it('9. Rejects mutation when member has inactive pace-group membership', async () => {
     setupValidDbMocks();
     mockFindManyPaceGroupMemberships.mockResolvedValue([]);
 
     await expect(
       recordDailyProgressForProfile(
         validProfileId,
-        { taskId: validTaskId, status: "done", localDate: "2026-01-15" },
+        { taskId: validTaskId, status: 'done', localDate: '2026-01-15' },
         mockTx as any,
       ),
     ).rejects.toMatchObject({
-      code: "NO_ACTIVE_PACE_GROUP",
+      code: 'NO_ACTIVE_PACE_GROUP',
     });
   });
 
-  it("10. Rejects mutation when pace group belongs to another batch", async () => {
+  it('10. Rejects mutation when pace group belongs to another batch', async () => {
     setupValidDbMocks();
     mockFindManyPaceGroupMemberships.mockResolvedValue([
       {
-        id: "pgm-1",
+        id: 'pgm-1',
         profileId: validProfileId,
-        paceGroupId: "group-other-batch",
-        status: "active",
+        paceGroupId: 'group-other-batch',
+        status: 'active',
       },
     ]);
     mockFindFirstPaceGroup.mockResolvedValue(undefined);
@@ -446,109 +468,116 @@ describe("Daily Progress Mutation Service - Idempotency, Concurrency & Security"
     await expect(
       recordDailyProgressForProfile(
         validProfileId,
-        { taskId: validTaskId, status: "done", localDate: "2026-01-15" },
+        { taskId: validTaskId, status: 'done', localDate: '2026-01-15' },
         mockTx as any,
       ),
     ).rejects.toMatchObject({
-      code: "NO_ACTIVE_PACE_GROUP",
+      code: 'NO_ACTIVE_PACE_GROUP',
     });
   });
 
-  it("11. Rejects mutation when task is unpublished (future day step)", async () => {
+  it('11. Rejects mutation when task is unpublished (future day step)', async () => {
     // Task is step 10, scheduled for Jan 26, but localDate is Jan 15
-    setupValidDbMocks({ batchStartDate: "2026-01-15", taskDayNumber: 10 });
+    setupValidDbMocks({
+      batchStartDate: '2026-01-15',
+      taskDayNumber: 10,
+      scheduledDate: '2026-01-26',
+    });
 
     await expect(
       recordDailyProgressForProfile(
         validProfileId,
-        { taskId: validTaskId, status: "done", localDate: "2026-01-15" },
+        { taskId: validTaskId, status: 'done', localDate: '2026-01-15' },
         mockTx as any,
       ),
     ).rejects.toMatchObject({
-      code: "TASK_NOT_PUBLISHED",
+      code: 'TASK_NOT_PUBLISHED',
     });
   });
 
-  it("12. Rejects mutation when batch has not started yet", async () => {
-    setupValidDbMocks({ batchStartDate: "2026-02-01" });
+  it('12. Rejects mutation when batch has not started yet', async () => {
+    setupValidDbMocks({ batchStartDate: '2026-02-01' });
 
     await expect(
       recordDailyProgressForProfile(
         validProfileId,
-        { taskId: validTaskId, status: "done", localDate: "2026-01-15" },
+        { taskId: validTaskId, status: 'done', localDate: '2026-01-15' },
         mockTx as any,
       ),
     ).rejects.toMatchObject({
-      code: "BATCH_NOT_STARTED",
+      code: 'BATCH_NOT_STARTED',
     });
   });
 
-  it("14. DONE -> NOT_DONE is permitted for past/current published tasks", async () => {
-    setupValidDbMocks({ batchStartDate: "2026-01-15", taskDayNumber: 1 });
+  it('14. DONE -> NOT_DONE is permitted for past/current published tasks', async () => {
+    setupValidDbMocks({ batchStartDate: '2026-01-15', taskDayNumber: 1 });
     mockFindFirstDailyProgress.mockResolvedValue({
-      id: "dp-1",
+      id: 'dp-1',
       profileId: validProfileId,
       batchId: validBatchId,
       paceGroupId: validPaceGroupId,
       taskId: validTaskId,
-      status: "done",
-      completedAt: new Date("2026-01-15T10:00:00.000Z"),
-      createdAt: new Date("2026-01-15T10:00:00.000Z"),
-      updatedAt: new Date("2026-01-15T10:00:00.000Z"),
+      status: 'done',
+      completedAt: new Date('2026-01-15T10:00:00.000Z'),
+      createdAt: new Date('2026-01-15T10:00:00.000Z'),
+      updatedAt: new Date('2026-01-15T10:00:00.000Z'),
     });
 
     const revertedRecord = {
-      id: "dp-1",
+      id: 'dp-1',
       profileId: validProfileId,
       batchId: validBatchId,
       paceGroupId: validPaceGroupId,
       taskId: validTaskId,
-      status: "not_done" as const,
+      status: 'not_done' as const,
       completedAt: null,
-      createdAt: new Date("2026-01-15T10:00:00.000Z"),
-      updatedAt: new Date("2026-01-18T10:00:00.000Z"),
+      createdAt: new Date('2026-01-15T10:00:00.000Z'),
+      updatedAt: new Date('2026-01-18T10:00:00.000Z'),
     };
     mockReturning.mockResolvedValue([revertedRecord]);
 
     const result = await recordDailyProgressForProfile(
       validProfileId,
-      { taskId: validTaskId, status: "not_done", localDate: "2026-01-18" },
+      { taskId: validTaskId, status: 'not_done', localDate: '2026-01-18' },
       mockTx as any,
     );
 
-    expect(result.previousStatus).toBe("done");
-    expect(result.progress.status).toBe("not_done");
+    expect(result.previousStatus).toBe('done');
+    expect(result.progress.status).toBe('not_done');
     expect(result.progress.completedAt).toBeNull();
     expect(result.statusChanged).toBe(true);
   });
 
-  it("15. DONE -> NOT_DONE is rejected when task is unpublished", async () => {
-    setupValidDbMocks({ batchStartDate: "2026-01-15", taskDayNumber: 10 });
+  it('15. DONE -> NOT_DONE is rejected when task is unpublished', async () => {
+    setupValidDbMocks({
+      batchStartDate: '2026-01-15',
+      taskDayNumber: 10,
+      scheduledDate: '2026-01-26',
+    });
 
     await expect(
       recordDailyProgressForProfile(
         validProfileId,
-        { taskId: validTaskId, status: "not_done", localDate: "2026-01-15" },
+        { taskId: validTaskId, status: 'not_done', localDate: '2026-01-15' },
         mockTx as any,
       ),
     ).rejects.toMatchObject({
-      code: "TASK_NOT_PUBLISHED",
+      code: 'TASK_NOT_PUBLISHED',
     });
   });
 
-  it("16. DONE -> NOT_DONE is rejected when member membership is no longer active", async () => {
+  it('16. DONE -> NOT_DONE is rejected when member membership is no longer active', async () => {
     setupValidDbMocks();
     mockFindFirstBatchMembership.mockResolvedValue(undefined);
 
     await expect(
       recordDailyProgressForProfile(
         validProfileId,
-        { taskId: validTaskId, status: "not_done", localDate: "2026-01-15" },
+        { taskId: validTaskId, status: 'not_done', localDate: '2026-01-15' },
         mockTx as any,
       ),
     ).rejects.toMatchObject({
-      code: "NO_ACTIVE_BATCH",
+      code: 'NO_ACTIVE_BATCH',
     });
   });
 });
-
