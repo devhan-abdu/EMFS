@@ -3,40 +3,36 @@ import { describe, expect, it } from 'vitest';
 import {
   buildWorkspaceCookie,
   parseWorkspaceCookie,
-} from '@/lib/admin-workspace';
-import { resolveAdminLanding } from '@/lib/admin/landing';
-import type { AdminBatch, AdminPaceGroup } from '@/lib/services/admin';
+} from '@/lib/services/admin/workspace';
+import { resolveAdminLanding } from '@/lib/services/admin/workspace-landing';
 
 const profileId = 'profile-1';
 const user = { profile: { id: profileId, isSuperAdmin: false } };
 
-function batch(id: string, overrides: Partial<AdminBatch> = {}): AdminBatch {
+function batch(
+  id: string,
+  overrides: {
+    registrationOpen?: boolean;
+    startDate?: string | null;
+    createdAt?: Date;
+  } = {},
+) {
   return {
     id,
     name: id,
-    maxMembers: 50,
-    enrolled: 0,
-    paceGroupCount: 2,
     startDate: null,
-    readingDaysPerWeek: 5,
     registrationOpen: false,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
-    admins: [],
     ...overrides,
   };
 }
 
-function group(id: string, createdAt: string): AdminPaceGroup {
+function group(id: string, createdAt: string) {
   return {
     id,
     name: id,
-    batch: 'Batch A',
-    members: 0,
     createdAt: new Date(createdAt),
-    admin: 'Unassigned',
-    currentBook: 'No book assigned',
-    dayProgress: 0,
-    totalDays: 0,
+    archived: false,
   };
 }
 
@@ -113,6 +109,21 @@ describe('admin workspace landing', () => {
         ],
       ),
     ).toBe('/admin/g/newer-group');
+  });
+
+  it('does not land in an archived pace group', () => {
+    expect(
+      resolveAdminLanding(
+        user,
+        [],
+        [
+          {
+            ...group('archived-group', '2026-02-01T00:00:00.000Z'),
+            archived: true,
+          },
+        ],
+      ),
+    ).toBe('/me');
   });
 
   it('sends users with no workspaces to /me', () => {

@@ -1,14 +1,14 @@
-import { eq, and, asc } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   batchMemberships,
   batches,
   paceGroupMemberships,
   paceGroups,
-  tasks,
-  dailyTasks,
+  batchDailyTasks,
+  curriculumStepEditions,
+  curriculumSteps,
   books,
-  batchPacingOffsets,
   dailyProgress,
 } from '@/db/schema';
 import type { DbOrTx } from '@/lib/services/membership';
@@ -185,7 +185,14 @@ export type ProgressValidationContext = {
   paceGroupId: string;
   paceGroup: typeof paceGroups.$inferSelect;
   taskId: string;
-  task: typeof tasks.$inferSelect;
+  task: {
+    id: string;
+    bookId: string;
+    dayNumber: number;
+    content: string;
+    createdAt: Date;
+    updatedAt: Date;
+  };
   book: typeof books.$inferSelect;
   effectiveDate: string;
   isPublished: boolean;
@@ -241,79 +248,85 @@ export async function validateDailyProgressEligibility(
     executor,
   );
 
-  // 3. Resolve curriculum task (or local daily task) and book
-  let task = await executor.query.tasks.findFirst({
-    where: eq(tasks.id, taskId),
+  // 3. Resolve the scheduled task, its edition-specific curriculum step, and book
+  const dailyTask = await executor.query.batchDailyTasks.findFirst({
+    where: eq(batchDailyTasks.id, taskId),
   });
 
-  let book = task
-    ? await executor.query.books.findFirst({
-        where: eq(books.id, task.bookId),
-      })
-    : null;
-
-  if (!task && executor.query.dailyTasks?.findFirst) {
-    const dailyTask = await executor.query.dailyTasks.findFirst({
-      where: eq(dailyTasks.id, taskId),
-    });
-
-    if (dailyTask) {
-      if (dailyTask.paceGroupId !== paceGroup.id) {
-        throw new DailyProgressError(
-          'TASK_GROUP_MISMATCH',
-          'This daily task belongs to another pace group.',
-        );
-      }
-
-      if (dailyTask.publicationStatus !== 'published') {
-        throw new DailyProgressError(
-          'TASK_NOT_PUBLISHED',
-          'This daily task has not been published yet.',
-        );
-      }
-
-      book = await executor.query.books.findFirst({
-        where: eq(books.id, dailyTask.bookId),
-      });
-
-      task = {
-        id: dailyTask.id,
-        bookId: dailyTask.bookId,
-        dayNumber: dailyTask.dayNumber,
-        content: dailyTask.content,
-        createdAt: dailyTask.createdAt,
-        updatedAt: dailyTask.updatedAt,
-      };
-    }
-  }
-
-  if (!task) {
+  if (!dailyTask) {
     throw new DailyProgressError(
       'TASK_NOT_FOUND',
       `Task with ID '${taskId}' was not found.`,
     );
   }
 
-  if (!book) {
+  if (dailyTask.paceGroupId !== paceGroup.id) {
     throw new DailyProgressError(
-      'TASK_NOT_FOUND',
-      `Book associated with task '${taskId}' was not found.`,
+      'TASK_GROUP_MISMATCH',
+      'This daily task belongs to another pace group.',
     );
   }
 
-  // 4. Fetch any pacing offsets configured for this batch
-  const offsets = await executor.query.batchPacingOffsets.findMany({
-    where: eq(batchPacingOffsets.batchId, batch.id),
-    orderBy: [asc(batchPacingOffsets.effectiveFromDayNumber)],
+  if (dailyTask.publicationStatus !== 'published') {
+    throw new DailyProgressError(
+      'TASK_NOT_PUBLISHED',
+      'This daily task has not been published yet.',
+    );
+  }
+
+  const curriculumStep = await executor.query.curriculumSteps.findFirst({
+    where: eq(curriculumSteps.id, dailyTask.curriculumStepId),
   });
 
-  // 5. Calculate task effective date and publication status
-  const effectiveDate = calculateTaskEffectiveDate(
-    batchStartDate,
-    task.dayNumber,
-    batch.readingDaysPerWeek,
-    offsets,
-  );
+  if (!curriculumStep) {
+    throw new DailyProgressError(
+      'TASK_NOT_FOUND',
+      `Curriculum step for task '${taskId}' was not found.`,
+    );
+  }
+
+  const book = await executor.query.books.findFirst({
+    where: and(
+      eq(books.catalogSlotId, paceGroup.activeCatalogSlotId),
+      eq(books.language, 'en'),
+    ),
+  });
+
+  if (!book) {
+    throw new DailyProgressError(
+      'TASK_NOT_FOUND',
+      `Book associated with pace group '${paceGroup.id}' was not found.`,
+    );
+  }
+
+  const stepEdition = await executor.query.curriculumStepEditions.findFirst({
+    where: and(
+      eq(curriculumStepEditions.curriculumStepId, curriculumStep.id),
+      eq(curriculumStepEditions.bookId, book.id),
+    ),
+  });
+
+  if (
+    curriculumStep.catalogSlotId !== book.catalogSlotId ||
+    curriculumStep.paceSize !== paceGroup.size
+  ) {
+    throw new DailyProgressError(
+      'TASK_GROUP_MISMATCH',
+      'This task does not match the pace group edition and pace size.',
+    );
+  }
+
+  const task = {
+    id: dailyTask.id,
+    bookId: book.id,
+    dayNumber: dailyTask.batchDayNumber,
+    content: dailyTask.localCaptionOverride ?? stepEdition?.caption ?? '',
+    createdAt: dailyTask.createdAt,
+    updatedAt: dailyTask.updatedAt,
+  };
+
+  // 4. Validate against the date assigned to this scheduled task.
+  const effectiveDate = formatDateKey(dailyTask.scheduledDate);
 
   if (batchStartDate > localDate) {
     throw new DailyProgressError(
