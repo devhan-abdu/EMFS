@@ -14,6 +14,8 @@ import {
   catalogSlots,
   curriculumStepEditions,
   curriculumSteps,
+  PACE_ADMIN_DUTIES,
+  paceAdminAssignments,
   paceGroups,
   paceGroupMemberships,
   profiles,
@@ -26,13 +28,12 @@ type SeedUser = {
   email: string;
   name: string;
   password: string;
-  role: 'super_admin' | 'batch_admin' | 'member';
+  role: 'super_admin' | 'batch_admin' | 'pace_admin' | 'member';
   firstName: string;
   fatherName: string;
   grandfatherName?: string | null;
   telegramUsername?: string;
   phone?: string;
-  isSuperAdmin?: boolean;
 };
 
 const SEED_PASSWORD = 'Password123!';
@@ -59,18 +60,27 @@ const SEED_USERS: SeedUser[] = [
     grandfatherName: 'Khan',
     telegramUsername: '@jordan_admin',
     phone: '+1-555-0102',
-    isSuperAdmin: true,
   },
   {
-    email: 'staff@example.com',
-    name: 'Nora Staff',
+    email: 'batch-admin@example.com',
+    name: 'Nora Batch Admin',
     password: 'Password123!',
     role: 'batch_admin',
     firstName: 'Nora',
     fatherName: 'Smith',
     grandfatherName: 'Patel',
-    telegramUsername: '@nora_staff',
+    telegramUsername: '@nora_batch_admin',
     phone: '+1-555-0103',
+  },
+  {
+    email: 'pace-admin@example.com',
+    name: 'Pace Admin',
+    password: SEED_PASSWORD,
+    role: 'pace_admin',
+    firstName: 'Pace',
+    fatherName: 'Admin',
+    telegramUsername: '@pace_admin',
+    phone: '+1-555-0104',
   },
   {
     email: 'amina.y@example.com',
@@ -115,6 +125,7 @@ const SEED_USERS: SeedUser[] = [
 ];
 
 async function ensureUserAndProfile(seedUser: SeedUser) {
+  const isSuperAdmin = seedUser.role === 'super_admin';
   const existingUser = await db.query.user.findFirst({
     where: eq(user.email, seedUser.email),
   });
@@ -133,9 +144,18 @@ async function ensureUserAndProfile(seedUser: SeedUser) {
         fatherName: seedUser.fatherName,
         grandfatherName: seedUser.grandfatherName ?? null,
         role: seedUser.role,
+        isSuperAdmin,
         telegramUsername: seedUser.telegramUsername ?? null,
         phone: seedUser.phone ?? null,
       });
+    } else {
+      await db
+        .update(profiles)
+        .set({
+          role: seedUser.role,
+          isSuperAdmin,
+        })
+        .where(eq(profiles.id, existingProfile.id));
     }
 
     return { authUserId: existingUser.id };
@@ -168,6 +188,7 @@ async function ensureUserAndProfile(seedUser: SeedUser) {
     fatherName: seedUser.fatherName,
     grandfatherName: seedUser.grandfatherName ?? null,
     role: seedUser.role,
+    isSuperAdmin,
     telegramUsername: seedUser.telegramUsername ?? null,
     phone: seedUser.phone ?? null,
   });
@@ -251,6 +272,39 @@ async function ensureBatchAdmin(profileId: string, batchId: string) {
       profileId,
       batchId,
     });
+  }
+}
+
+async function ensurePaceAdmin(
+  profileId: string,
+  paceGroupId: string,
+  assignedBy: string,
+) {
+  const existingAssignments = await db
+    .select({ duty: paceAdminAssignments.duty })
+    .from(paceAdminAssignments)
+    .where(
+      and(
+        eq(paceAdminAssignments.profileId, profileId),
+        eq(paceAdminAssignments.paceGroupId, paceGroupId),
+      ),
+    );
+  const existingDuties = new Set(
+    existingAssignments.map((assignment) => assignment.duty),
+  );
+  const missingDuties = PACE_ADMIN_DUTIES.filter(
+    (duty) => !existingDuties.has(duty),
+  );
+
+  if (missingDuties.length > 0) {
+    await db.insert(paceAdminAssignments).values(
+      missingDuties.map((duty) => ({
+        profileId,
+        paceGroupId,
+        duty,
+        assignedBy,
+      })),
+    );
   }
 }
 
@@ -344,7 +398,8 @@ async function main() {
   );
   const customerProfile = await getProfileByEmail('member@example.com');
   const ownerProfile = await getProfileByEmail('admin@example.com');
-  const staffProfile = await getProfileByEmail('staff@example.com');
+  const batchAdminProfile = await getProfileByEmail('batch-admin@example.com');
+  const paceAdminProfile = await getProfileByEmail('pace-admin@example.com');
 
   const batchOne = await ensureBatch('Batch 04 — Winter Circle', {
     maxMembers: 60,
@@ -386,8 +441,7 @@ async function main() {
     createdBy: ownerProfile.id,
   });
 
-  await ensureBatchAdmin(ownerProfile.id, batchOne.id);
-  await ensureBatchAdmin(staffProfile.id, batchOne.id);
+  await ensureBatchAdmin(batchAdminProfile.id, batchOne.id);
 
   const existingMemberships = await db.select().from(batchMemberships);
   const hasActiveMembership = existingMemberships.some(
@@ -414,20 +468,20 @@ async function main() {
   if (existingWaitlist.length === 0) {
     await db.insert(waitlist).values({
       batchId: batchTwo.id,
-      userId: staffProfile.id,
+      userId: customerProfile.id,
       queuePosition: 1,
       joinedAt: new Date('2026-05-10T00:00:00.000Z'),
     });
 
-    const staffMembershipExists = existingMemberships.some(
+    const customerMembershipExists = existingMemberships.some(
       (membership) =>
-        membership.profileId === staffProfile.id &&
+        membership.profileId === customerProfile.id &&
         membership.batchId === batchTwo.id,
     );
 
-    if (!staffMembershipExists) {
+    if (!customerMembershipExists) {
       await db.insert(batchMemberships).values({
-        profileId: staffProfile.id,
+        profileId: customerProfile.id,
         batchId: batchTwo.id,
         status: 'waitlisted',
         startDate: new Date('2026-05-10T00:00:00.000Z'),
@@ -555,6 +609,7 @@ async function main() {
   const paceGroupOne = await ensurePaceGroup(batchOne.id, 'Nur', 20);
   await ensurePaceGroup(batchOne.id, 'Sakina', 20);
   await ensurePaceGroup(batchOne.id, 'Rahma', 20);
+  await ensurePaceAdmin(paceAdminProfile.id, paceGroupOne.id, ownerProfile.id);
   await ensurePaceGroup(batchTwo.id, 'Nur', 16);
   await ensurePaceGroup(batchTwo.id, 'Sakina', 15);
   await ensurePaceGroup(batchTwo.id, 'Rahma', 14);
