@@ -44,6 +44,24 @@ describe('Batch Server Actions - Authorization & Execution', () => {
     vi.clearAllMocks();
   });
 
+  const mockSuperAdminUser = {
+    authUserId: 'auth-super-1',
+    email: 'super@example.com',
+    profile: {
+      id: superAdminProfileId,
+      authUserId: 'auth-super-1',
+      role: 'super_admin' as const,
+      isSuperAdmin: true,
+      firstName: 'Super',
+      fatherName: 'Admin',
+      grandfatherName: null,
+      telegramUsername: null,
+      phone: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  };
+
   it('accepts weekday selections and derives the reading cadence from selected reading days', () => {
     const parsed = updateBatchCadenceSchema.parse({
       batchId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
@@ -58,22 +76,9 @@ describe('Batch Server Actions - Authorization & Execution', () => {
   });
 
   it('permits Super Admin to create a batch from FormData and returns the created batch', async () => {
-    vi.mocked(authorizeModule.requireRole).mockResolvedValue({
-      authUserId: 'auth-super-1',
-      email: 'super@example.com',
-      profile: {
-        id: superAdminProfileId,
-        authUserId: 'auth-super-1',
-        role: 'super_admin',
-        firstName: 'Super',
-        fatherName: 'Admin',
-        grandfatherName: null,
-        telegramUsername: null,
-        phone: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+    vi.mocked(authorizeModule.requireRole).mockResolvedValue(
+      mockSuperAdminUser,
+    );
 
     const mockBatchRecord = {
       id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
@@ -123,23 +128,49 @@ describe('Batch Server Actions - Authorization & Execution', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('accepts plain object payload and returns the created batch', async () => {
-    vi.mocked(authorizeModule.requireRole).mockResolvedValue({
-      authUserId: 'auth-super-1',
-      email: 'super@example.com',
-      profile: {
-        id: superAdminProfileId,
-        authUserId: 'auth-super-1',
-        role: 'super_admin',
-        firstName: 'Super',
-        fatherName: 'Admin',
-        grandfatherName: null,
-        telegramUsername: null,
-        phone: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+  it('does not set or pass registrationOpen even if supplied in FormData', async () => {
+    vi.mocked(authorizeModule.requireRole).mockResolvedValue(
+      mockSuperAdminUser,
+    );
+
+    const mockBatchRecord = {
+      id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
+      name: 'No Registration Toggle Batch',
+      maxMembers: 50,
+      paceGroupCount: 1,
+      registrationOpen: false,
+      autoApprove: true,
+      startDate: '2099-01-15',
+      readingDaysPerWeek: 6,
+      createdBy: superAdminProfileId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    vi.mocked(batchService.createBatch).mockResolvedValue({
+      batch: mockBatchRecord,
+      assignedAdminIds: [superAdminProfileId],
     });
+
+    const formData = new FormData();
+    formData.append('name', 'No Registration Toggle Batch');
+    formData.append('maxMembers', '50');
+    formData.append('paceGroupCount', '1');
+    formData.append('startDate', '2099-01-15');
+    formData.append('readingDaysPerWeek', '6');
+    formData.append('registrationOpen', 'true');
+
+    const result = await createBatchAction(null, formData);
+
+    expect(result?.ok).toBe(true);
+    const passedInput = vi.mocked(batchService.createBatch).mock.calls[0][1];
+    expect(passedInput).not.toHaveProperty('registrationOpen');
+  });
+
+  it('accepts plain object payload and returns the created batch', async () => {
+    vi.mocked(authorizeModule.requireRole).mockResolvedValue(
+      mockSuperAdminUser,
+    );
 
     const mockBatchRecord = {
       id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
@@ -212,22 +243,9 @@ describe('Batch Server Actions - Authorization & Execution', () => {
   });
 
   it('returns validation error object on invalid input without redirecting', async () => {
-    vi.mocked(authorizeModule.requireRole).mockResolvedValue({
-      authUserId: 'auth-super-1',
-      email: 'super@example.com',
-      profile: {
-        id: superAdminProfileId,
-        authUserId: 'auth-super-1',
-        role: 'super_admin',
-        firstName: 'Super',
-        fatherName: 'Admin',
-        grandfatherName: null,
-        telegramUsername: null,
-        phone: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+    vi.mocked(authorizeModule.requireRole).mockResolvedValue(
+      mockSuperAdminUser,
+    );
 
     const formData = new FormData();
     formData.append('name', ''); // Empty name
@@ -250,22 +268,9 @@ describe('Batch Server Actions - Authorization & Execution', () => {
   });
 
   it('handles BatchError gracefully and returns formatted form error', async () => {
-    vi.mocked(authorizeModule.requireRole).mockResolvedValue({
-      authUserId: 'auth-super-1',
-      email: 'super@example.com',
-      profile: {
-        id: superAdminProfileId,
-        authUserId: 'auth-super-1',
-        role: 'super_admin',
-        firstName: 'Super',
-        fatherName: 'Admin',
-        grandfatherName: null,
-        telegramUsername: null,
-        phone: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+    vi.mocked(authorizeModule.requireRole).mockResolvedValue(
+      mockSuperAdminUser,
+    );
 
     vi.mocked(batchService.createBatch).mockRejectedValue(
       new batchService.BatchError(

@@ -91,7 +91,7 @@ export async function createBatch(
         name: input.name.trim(),
         maxMembers: input.maxMembers,
         paceGroupCount: input.paceGroupCount,
-        registrationOpen: input.registrationOpen,
+        registrationOpen: false,
         autoApprove: true,
         startDate: formattedStartDate,
         readingDaysPerWeek: input.readingDaysPerWeek,
@@ -173,7 +173,7 @@ export async function updateBatch(
         name: input.name.trim(),
         maxMembers: input.maxMembers,
         paceGroupCount: input.paceGroupCount,
-        registrationOpen: input.registrationOpen,
+        registrationOpen: false,
         autoApprove: true,
         startDate: formattedStartDate,
         readingDaysPerWeek: input.readingDaysPerWeek,
@@ -185,7 +185,6 @@ export async function updateBatch(
           name: input.name.trim(),
           maxMembers: input.maxMembers,
           paceGroupCount: input.paceGroupCount,
-          registrationOpen: input.registrationOpen,
           autoApprove: true,
           startDate: formattedStartDate,
           readingDaysPerWeek: input.readingDaysPerWeek,
@@ -251,4 +250,22 @@ export async function getEligibleBatchAdmins(
     email: a.email,
     previouslyAssigned: previouslyAssignedIds.has(a.profileId),
   }));
+}
+
+export async function toggleBatchRegistration(
+  batchId: string,
+  open: boolean,
+  executor: DbOrTx = db,
+): Promise<Batch> {
+  const [updated] = await executor
+    .update(batches)
+    .set({ registrationOpen: open, updatedAt: new Date() })
+    .where(eq(batches.id, batchId))
+    .returning();
+
+  if (!updated) {
+    throw new BatchError('INVALID_INPUT', 'Batch not found.');
+  }
+
+  return updated;
 }
