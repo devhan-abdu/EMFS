@@ -92,6 +92,20 @@
       "when": 1791058876497,
       "tag": "0012_talented_forgotten_one",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792048630889,
+      "tag": "0013_ancient_vivisector",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792049407101,
+      "tag": "0014_absent_wolf_cub",
+      "breakpoints": true
     }
   ]
 }
