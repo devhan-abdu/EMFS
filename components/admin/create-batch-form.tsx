@@ -55,7 +55,6 @@ export type AdminOption = {
   previouslyAssigned: boolean;
 };
 
-const MAX_ADMINS = 3;
 const initialState: CreateBatchActionState = null;
 
 export function CreateBatchForm({
@@ -94,8 +93,6 @@ export function CreateBatchForm({
     }
   }, [state, router, isEditing]);
 
-  const isMaxReached = selectedIds.length >= MAX_ADMINS;
-
   const selectedAdmins = selectedIds.map((id) => {
     const matchedOption = admins.find((a) => a.profileId === id);
     if (matchedOption) return matchedOption;
@@ -114,7 +111,6 @@ export function CreateBatchForm({
   function toggleAdmin(id: string) {
     setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= MAX_ADMINS) return prev;
       return [...prev, id];
     });
   }
@@ -282,7 +278,7 @@ export function CreateBatchForm({
             </CardTitle>
 
             <CardDescription>
-              Pick 1 to 3. People previously assigned show up first.
+              Pick at least 1. People previously assigned show up first.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -305,9 +301,7 @@ export function CreateBatchForm({
                     aria-expanded={pickerOpen}
                     className="w-full justify-between font-normal"
                   >
-                    {isMaxReached
-                      ? 'Maximum admins selected'
-                      : 'Search admins…'}
+                    Search admins…
                     <ChevronsUpDown className="size-4 opacity-50" />
                   </Button>
                 }
@@ -328,10 +322,7 @@ export function CreateBatchForm({
                             key={admin.profileId}
                             admin={admin}
                             isSelected={selectedIds.includes(admin.profileId)}
-                            disabled={
-                              isMaxReached &&
-                              !selectedIds.includes(admin.profileId)
-                            }
+                            disabled={false}
                             onSelect={() => toggleAdmin(admin.profileId)}
                           />
                         ))}
@@ -344,10 +335,7 @@ export function CreateBatchForm({
                             key={admin.profileId}
                             admin={admin}
                             isSelected={selectedIds.includes(admin.profileId)}
-                            disabled={
-                              isMaxReached &&
-                              !selectedIds.includes(admin.profileId)
-                            }
+                            disabled={false}
                             onSelect={() => toggleAdmin(admin.profileId)}
                           />
                         ))}
