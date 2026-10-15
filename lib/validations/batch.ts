@@ -32,7 +32,6 @@ export const createBatchSchema = z
     adminIds: z
       .array(z.string().uuid('Invalid admin UUID'))
       .min(1, 'At least 1 batch admin is required')
-      .max(3, 'At most 3 batch admins can be assigned')
       .optional(),
   })
   .refine(
