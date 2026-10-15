@@ -14,7 +14,6 @@ export type BatchErrorCode =
   | 'UNAUTHORIZED'
   | 'INVALID_INPUT'
   | 'ADMIN_NOT_FOUND'
-  | 'ADMIN_LIMIT_EXCEEDED'
   | 'INVALID_ADMIN_ROLE'
   | 'TRANSACTION_FAILED';
 
@@ -33,9 +32,10 @@ export type CreateBatchResult = {
 };
 
 /**
- * Creates a fully configured not-yet-open batch and assigns 1-3 batch admins
- * inside a single database transaction.
+ * Creates a fully configured not-yet-open batch and assigns one or more batch
+ * admins inside a single database transaction.
  *
+ * At least one admin must be provided; there is no upper limit.
  * If admin assignment fails, the entire batch creation rolls back.
  */
 export async function createBatch(
@@ -43,7 +43,7 @@ export async function createBatch(
   input: CreateBatchInput,
   executor: DbOrTx = db,
 ): Promise<CreateBatchResult> {
-  // Determine admin profile IDs to assign (1 to 3 admins)
+  // Determine admin profile IDs to assign (at least 1; no upper limit)
   const candidateAdminIds =
     input.adminIds && input.adminIds.length > 0
       ? Array.from(new Set(input.adminIds))
@@ -53,13 +53,6 @@ export async function createBatch(
     throw new BatchError(
       'INVALID_INPUT',
       'At least one batch admin must be assigned.',
-    );
-  }
-
-  if (candidateAdminIds.length > 3) {
-    throw new BatchError(
-      'ADMIN_LIMIT_EXCEEDED',
-      'A batch cannot have more than 3 assigned batch admins.',
     );
   }
 
@@ -125,7 +118,7 @@ export async function updateBatch(
   input: CreateBatchInput,
   executor: DbOrTx = db,
 ): Promise<CreateBatchResult> {
-  // Determine admin profile IDs to assign (1 to 3 admins)
+  // Determine admin profile IDs to assign (at least 1; no upper limit)
   const candidateAdminIds =
     input.adminIds && input.adminIds.length > 0
       ? Array.from(new Set(input.adminIds))
@@ -135,13 +128,6 @@ export async function updateBatch(
     throw new BatchError(
       'INVALID_INPUT',
       'At least one batch admin must be assigned.',
-    );
-  }
-
-  if (candidateAdminIds.length > 3) {
-    throw new BatchError(
-      'ADMIN_LIMIT_EXCEEDED',
-      'A batch cannot have more than 3 assigned batch admins.',
     );
   }
 
