@@ -9,6 +9,7 @@ import {
   History,
   TrendingUp,
   Settings,
+  Send,
 } from 'lucide-react';
 import {
   AppSidebar,
@@ -68,6 +69,11 @@ export function BatchSidebar({
       title: 'Move History',
       url: `/admin/b/${batchId}/history`,
       icon: History,
+    },
+    {
+      title: 'Telegram',
+      url: `/admin/b/${batchId}/telegram`,
+      icon: Send,
     },
     {
       title: 'Settings & Offsets',
