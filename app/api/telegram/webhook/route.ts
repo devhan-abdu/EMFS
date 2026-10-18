@@ -1,45 +1,33 @@
-// app/api/webhook/route.ts
 import { revalidatePath } from 'next/cache';
-import bot, { botEventEmitter } from '@/lib/services/bot';
+import { webhookCallback } from 'grammy';
+import { createBot } from '@/lib/telegram/bot';
 
-export async function POST(req: Request) {
-  if (!bot) {
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+type Handler = (request: Request) => Promise<Response>;
+let handler: Handler | null = null;
+
+function getHandler(token: string, secretToken: string): Handler {
+  if (!handler) {
+    const bot = createBot(token, {
+      onMembershipActivated: () => {
+        revalidatePath('/me');
+        revalidatePath('/');
+      },
+    });
+    // grammY verifies the X-Telegram-Bot-Api-Secret-Token header and answers 401 itself.
+    handler = webhookCallback(bot, 'std/http', { secretToken });
+  }
+  return handler;
+}
+
+export async function POST(request: Request) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const secretToken = process.env.TELEGRAM_WEBHOOK_SECRET_TOKEN;
+  // Fail closed: never accept updates without a configured secret.
+  if (!token || !secretToken) {
     return new Response('Bot service unconfigured', { status: 500 });
   }
-
-  try {
-    const telegramHeaderToken = req.headers.get(
-      'x-telegram-bot-api-secret-token',
-    );
-    const localSecretToken = process.env.TELEGRAM_WEBHOOK_SECRET_TOKEN;
-
-    if (!localSecretToken || telegramHeaderToken !== localSecretToken) {
-      console.warn('Unauthorized webhook access attempt dropped.');
-      return new Response('Unauthorized', { status: 401 });
-    }
-
-    const update = await req.json();
-
-    let shouldRevalidate = false;
-    const handleActivationEvent = () => {
-      shouldRevalidate = true;
-    };
-    botEventEmitter.once('activated', handleActivationEvent);
-
-    await bot.handleUpdate(update);
-
-    botEventEmitter.off('activated', handleActivationEvent);
-
-    if (shouldRevalidate) {
-      revalidatePath('/me');
-      revalidatePath('/');
-      console.log('🛡️ Webhook: Securely revalidated routing paths.');
-    }
-
-    return new Response('OK', { status: 200 });
-  } catch (error) {
-    console.error('❌ Secure Webhook Pipeline Failure:', error);
-
-    return new Response('Handled Webhook Error', { status: 200 });
-  }
+  return getHandler(token, secretToken)(request);
 }
