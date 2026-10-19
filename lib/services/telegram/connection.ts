@@ -1,11 +1,5 @@
-import { and, asc, eq, isNull, gt } from 'drizzle-orm';
-import {
-  batches,
-  paceGroups,
-  telegramChats,
-  telegramChatTopics,
-  telegramLinkCodes,
-} from '@/db/schema';
+import { and, eq, isNull, gt } from 'drizzle-orm';
+import { batches, telegramChats, telegramLinkCodes } from '@/db/schema';
 import type { DbOrTx } from '@/lib/services/membership';
 import {
   batchIdSchema,
@@ -23,9 +17,10 @@ import {
   type TelegramApiPort,
 } from './api-port';
 import { findActiveLinkCode } from './link-codes';
+import type { PaceTopicStatus } from './topic-evaluation';
+import { loadPaceTopicState } from './topic-state';
 
-/** Documented cap: a batch has a handful of pace groups. */
-export const MAX_PACE_GROUPS_LISTED = 200;
+export { MAX_PACE_GROUPS_LISTED } from './topic-state';
 
 /**
  * Bot side: `/link CODE` was sent in a group. Burns the code and binds the chat
@@ -139,7 +134,14 @@ export type TelegramConnectionView =
       paceGroups: {
         id: string;
         name: string;
+        /** The exact topic name the group needs, e.g. "Nur · 20 pages". */
+        expectedName: string;
+        status: PaceTopicStatus;
         messageThreadId: number | null;
+        /** The topic's current name as the bot last read it. */
+        observedName: string | null;
+        /** What the admin must do, or null when nothing is needed. */
+        hint: string | null;
       }[];
     };
 
@@ -171,25 +173,9 @@ export async function getConnection(
     };
   }
 
-  const [groups, topics] = await Promise.all([
-    executor.query.paceGroups.findMany({
-      where: and(
-        eq(paceGroups.batchId, batchId),
-        eq(paceGroups.archived, false),
-      ),
-      columns: { id: true, name: true },
-      orderBy: asc(paceGroups.name),
-      limit: MAX_PACE_GROUPS_LISTED,
-    }),
-    executor.query.telegramChatTopics.findMany({
-      where: eq(telegramChatTopics.telegramChatId, chat.id),
-    }),
-  ]);
-
-  const threadByGroup = new Map(
-    topics
-      .filter((t) => t.paceGroupId !== null)
-      .map((t) => [t.paceGroupId as string, t.messageThreadId]),
+  const { evaluations, announcementThreadId } = await loadPaceTopicState(
+    executor,
+    chat,
   );
 
   return {
@@ -201,12 +187,15 @@ export async function getConnection(
       canManageTopics: chat.canManageTopics,
       linkedAt: chat.linkedAt,
     },
-    announcementThreadId:
-      topics.find((t) => t.kind === 'announcement')?.messageThreadId ?? null,
-    paceGroups: groups.map((g) => ({
-      id: g.id,
-      name: g.name,
-      messageThreadId: threadByGroup.get(g.id) ?? null,
+    announcementThreadId,
+    paceGroups: evaluations.map((e) => ({
+      id: e.paceGroupId,
+      name: e.groupName,
+      expectedName: e.expectedName,
+      status: e.status,
+      messageThreadId: e.messageThreadId,
+      observedName: e.observedName,
+      hint: e.hint,
     })),
   };
 }

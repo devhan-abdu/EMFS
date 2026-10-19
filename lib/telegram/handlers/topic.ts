@@ -11,7 +11,7 @@ import { isChatAdmin, isGroupChat } from '../guards';
 
 const USAGE = [
   'Send this inside the topic you want to map:',
-  '/topic pace <pace group name>',
+  '/topic pace  (uses the topic\'s name, e.g. "Nur · 20 pages")',
   '/topic announcement',
   '/topic unmap',
 ].join('\n');
@@ -44,12 +44,17 @@ export function registerTopicHandler(bot: Bot) {
     const chatId = BigInt(ctx.chat.id);
     try {
       if (command.kind === 'pace') {
-        const { paceGroupName } = await mapPaceTopic(db, {
+        const { paceGroupName, nameVerified } = await mapPaceTopic(db, {
           chatId,
           messageThreadId: threadId,
           paceGroupName: command.name,
+          topicName: ctx.msg.reply_to_message?.forum_topic_created?.name,
         });
-        await ctx.reply(`✅ This topic is now the topic for ${paceGroupName}.`);
+        await ctx.reply(
+          nameVerified
+            ? `✅ This topic is now the topic for ${paceGroupName}.`
+            : `✅ This topic is now the topic for ${paceGroupName}.\n⚠️ I could not read this topic's name, so I could not check it. Use "Match topics" in the system after renaming it to the exact name.`,
+        );
       } else if (command.kind === 'announcement') {
         await mapAnnouncementTopic(db, { chatId, messageThreadId: threadId });
         await ctx.reply('✅ This topic is now the announcements topic.');

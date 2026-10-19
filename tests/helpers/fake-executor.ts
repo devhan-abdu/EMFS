@@ -20,6 +20,7 @@ type TableName =
   | 'paceGroups'
   | 'telegramChats'
   | 'telegramChatTopics'
+  | 'telegramObservedTopics'
   | 'telegramLinkCodes';
 
 const TABLES: TableName[] = [
@@ -27,6 +28,7 @@ const TABLES: TableName[] = [
   'paceGroups',
   'telegramChats',
   'telegramChatTopics',
+  'telegramObservedTopics',
   'telegramLinkCodes',
 ];
 
@@ -41,6 +43,7 @@ function builder(result: unknown, onValues?: (v: unknown) => void) {
     'orderBy',
     'limit',
     'onConflictDoNothing',
+    'onConflictDoUpdate',
   ]) {
     self[method] = () => self;
   }

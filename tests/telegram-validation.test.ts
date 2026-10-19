@@ -39,12 +39,14 @@ describe('parseTopicCommand', () => {
     expect(parseTopicCommand('UNMAP')).toEqual({ kind: 'unmap' });
   });
 
-  it.each(['', 'pace', 'pace   ', 'delete', 'announcement now'])(
-    'rejects %j',
-    (raw) => {
-      expect(parseTopicCommand(raw)).toBeNull();
-    },
-  );
+  it.each(['', 'delete', 'announcement now'])('rejects %j', (raw) => {
+    expect(parseTopicCommand(raw)).toBeNull();
+  });
+
+  it('treats "pace" alone as "use this topic\'s own name"', () => {
+    expect(parseTopicCommand('pace')).toEqual({ kind: 'pace', name: null });
+    expect(parseTopicCommand('  PACE  ')).toEqual({ kind: 'pace', name: null });
+  });
 
   it('rejects an over-long pace name', () => {
     expect(parseTopicCommand(`pace ${'x'.repeat(200)}`)).toBeNull();

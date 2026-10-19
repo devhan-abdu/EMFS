@@ -198,17 +198,88 @@ describe('/topic', () => {
     expect(mocks.mapPaceTopic).not.toHaveBeenCalled();
   });
 
+  const topicRoot = (name: string, thread: number) => ({
+    reply_to_message: {
+      message_id: thread,
+      date: 0,
+      chat: { id: CHAT, type: 'supergroup' },
+      forum_topic_created: { name, icon_color: 1 },
+    },
+  });
+
   it('maps a pace topic using the thread id Telegram sent', async () => {
-    mocks.mapPaceTopic.mockResolvedValue({ paceGroupName: 'Alpha' });
+    mocks.mapPaceTopic.mockResolvedValue({
+      paceGroupName: 'Alpha',
+      nameVerified: true,
+    });
     const { bot, sent } = makeBot();
     await bot.handleUpdate(
       command('/topic pace Alpha', 5, inTopic(10)) as never,
     );
     expect(mocks.mapPaceTopic).toHaveBeenCalledWith(
       {},
-      { chatId: BigInt(CHAT), messageThreadId: 10, paceGroupName: 'Alpha' },
+      {
+        chatId: BigInt(CHAT),
+        messageThreadId: 10,
+        paceGroupName: 'Alpha',
+        topicName: undefined,
+      },
     );
-    expect(sent[0]).toContain('topic for Alpha');
+    expect(sent[0]).toBe('✅ This topic is now the topic for Alpha.');
+  });
+
+  it('bare "/topic pace" uses the topic name Telegram attached to the message', async () => {
+    mocks.mapPaceTopic.mockResolvedValue({
+      paceGroupName: 'Alpha',
+      nameVerified: true,
+    });
+    const { bot } = makeBot();
+    await bot.handleUpdate(
+      command('/topic pace', 5, {
+        ...inTopic(10),
+        ...topicRoot('Alpha · 20 pages', 10),
+      }) as never,
+    );
+    expect(mocks.mapPaceTopic).toHaveBeenCalledWith(
+      {},
+      {
+        chatId: BigInt(CHAT),
+        messageThreadId: 10,
+        paceGroupName: null,
+        topicName: 'Alpha · 20 pages',
+      },
+    );
+  });
+
+  it('warns when the topic name could not be verified', async () => {
+    mocks.mapPaceTopic.mockResolvedValue({
+      paceGroupName: 'Alpha',
+      nameVerified: false,
+    });
+    const { bot, sent } = makeBot();
+    await bot.handleUpdate(
+      command('/topic pace Alpha', 5, inTopic(10)) as never,
+    );
+    expect(sent[0]).toContain('could not read this topic');
+    expect(sent[0]).toContain('Match topics');
+  });
+
+  it('shows the exact name to use when the topic is misnamed', async () => {
+    mocks.mapPaceTopic.mockRejectedValue(
+      new TelegramConnectionError(
+        'TOPIC_NAME_MISMATCH',
+        'This topic is named "Alpha · 10 pages" but Alpha must use "Alpha · 20 pages".',
+      ),
+    );
+    const { bot, sent } = makeBot();
+    await bot.handleUpdate(
+      command('/topic pace', 5, {
+        ...inTopic(10),
+        ...topicRoot('Alpha · 10 pages', 10),
+      }) as never,
+    );
+    expect(sent[0]).toContain('❌');
+    expect(sent[0]).toContain('"Alpha · 20 pages"');
   });
 
   it('maps announcement and unmaps', async () => {

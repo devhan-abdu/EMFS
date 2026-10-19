@@ -139,8 +139,8 @@ describe('getConnection', () => {
       many: {
         paceGroups: [
           [
-            { id: 'g1', name: 'Alpha' },
-            { id: 'g2', name: 'Beta' },
+            { id: 'g1', name: 'Alpha', size: 20 },
+            { id: 'g2', name: 'Beta', size: 10 },
           ],
         ],
         telegramChatTopics: [
@@ -148,6 +148,9 @@ describe('getConnection', () => {
             { kind: 'pace_group', paceGroupId: 'g1', messageThreadId: 11 },
             { kind: 'announcement', paceGroupId: null, messageThreadId: 5 },
           ],
+        ],
+        telegramObservedTopics: [
+          [{ messageThreadId: 11, name: 'Alpha · 20 pages' }],
         ],
       },
     });
@@ -157,8 +160,24 @@ describe('getConnection', () => {
     expect(view.connected).toBe(true);
     if (!view.connected) return;
     expect(view.paceGroups).toEqual([
-      { id: 'g1', name: 'Alpha', messageThreadId: 11 },
-      { id: 'g2', name: 'Beta', messageThreadId: null },
+      {
+        id: 'g1',
+        name: 'Alpha',
+        expectedName: 'Alpha · 20 pages',
+        status: 'mapped',
+        messageThreadId: 11,
+        observedName: 'Alpha · 20 pages',
+        hint: null,
+      },
+      {
+        id: 'g2',
+        name: 'Beta',
+        expectedName: 'Beta · 10 pages',
+        status: 'missing',
+        messageThreadId: null,
+        observedName: null,
+        hint: expect.stringContaining('"Beta · 10 pages"'),
+      },
     ]);
     expect(view.announcementThreadId).toBe(5);
     expect(

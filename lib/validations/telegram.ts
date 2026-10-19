@@ -25,6 +25,13 @@ export const groupChatIdSchema = z
 
 export const threadIdSchema = z.number().int().positive();
 
+/** Telegram topic names are 1-128 characters. */
+export const topicNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(MAX_TOPIC_NAME_LENGTH);
+
 export const batchActionSchema = z.object({ batchId: batchIdSchema });
 export type BatchActionInput = z.infer<typeof batchActionSchema>;
 
@@ -49,19 +56,25 @@ export function parseLinkArgument(raw: string): string | null {
 }
 
 export type TopicCommand =
-  { kind: 'pace'; name: string } | { kind: 'announcement' } | { kind: 'unmap' };
+  | { kind: 'pace'; name: string | null }
+  | { kind: 'announcement' }
+  | { kind: 'unmap' };
 
 /**
  * Argument of `/topic ...`:
- *   pace <pace group name> | announcement | unmap
+ *   pace [pace group name] | announcement | unmap
  */
 export function parseTopicCommand(raw: string): TopicCommand | null {
   const text = raw.trim().replace(/\s+/g, ' ');
   if (/^announcement$/i.test(text)) return { kind: 'announcement' };
   if (/^unmap$/i.test(text)) return { kind: 'unmap' };
-  const pace = /^pace (.+)$/i.exec(text);
-  if (pace && pace[1].length <= MAX_TOPIC_NAME_LENGTH) {
-    return { kind: 'pace', name: pace[1] };
+  // `pace` alone means "use this topic's own name"; `pace <name>` names the group.
+  const pace = /^pace(?: (.+))?$/i.exec(text);
+  if (pace) {
+    const name = pace[1] ?? null;
+    if (name === null || name.length <= MAX_TOPIC_NAME_LENGTH) {
+      return { kind: 'pace', name };
+    }
   }
   return null;
 }

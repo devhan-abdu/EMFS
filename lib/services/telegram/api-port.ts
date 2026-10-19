@@ -14,6 +14,11 @@ export type TelegramApiPort = {
     chatId: number,
     name: string,
   ): Promise<{ messageThreadId: number }>;
+  editForumTopic(
+    chatId: number,
+    messageThreadId: number,
+    name: string,
+  ): Promise<void>;
   sendMessage(
     chatId: number,
     text: string,

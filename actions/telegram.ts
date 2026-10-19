@@ -9,6 +9,8 @@ import { disconnect, syncChatInfo } from '@/lib/services/telegram/connection';
 import { createLinkCode } from '@/lib/services/telegram/link-codes';
 import {
   createMissingPaceTopics,
+  matchPaceTopics,
+  renamePaceTopics,
   sendTestMessage,
 } from '@/lib/services/telegram/topics';
 import { TelegramConnectionError } from '@/lib/services/telegram/errors';
@@ -70,6 +72,26 @@ export async function generateTelegramLinkCodeAction(
   });
 }
 
+/** One short sentence on what is still open, for the action's status line. */
+function attentionNote(count: number) {
+  return count === 0
+    ? ''
+    : ` ${count} pace group${count === 1 ? '' : 's'} still need${count === 1 ? 's' : ''} attention: see the list below.`;
+}
+
+export async function matchTelegramTopicsAction(
+  _prev: TelegramActionState,
+  formData: FormData,
+): Promise<TelegramActionState> {
+  return runBatchAction(formData, async ({ batchId }) => {
+    const result = await matchPaceTopics(db, batchId);
+    const matched = result.matched.length
+      ? `Matched ${result.matched.length} topic${result.matched.length === 1 ? '' : 's'}: ${result.matched.join(', ')}.`
+      : 'No new topics to match.';
+    return `${matched} ${result.okCount} pace group${result.okCount === 1 ? ' is' : 's are'} connected.${attentionNote(result.attention.length)}`;
+  });
+}
+
 export async function createTelegramTopicsAction(
   _prev: TelegramActionState,
   formData: FormData,
@@ -86,12 +108,40 @@ export async function createTelegramTopicsAction(
       partialFailure = `Stopped at "${outcome.failed.name}": ${outcome.failed.reason}. ${outcome.created.length} topic(s) were created before that.`;
       return partialFailure;
     }
-    return outcome.created.length
-      ? `Created ${outcome.created.length} topic(s): ${outcome.created.join(', ')}.`
-      : 'Every pace group already has a topic.';
+    const parts: string[] = [];
+    if (outcome.matched.length) {
+      parts.push(`Matched ${outcome.matched.length} existing topic(s).`);
+    }
+    if (outcome.created.length) {
+      parts.push(
+        `Created ${outcome.created.length} topic(s): ${outcome.created.join(', ')}.`,
+      );
+    }
+    if (parts.length === 0) parts.push('Nothing to create.');
+    return `${parts.join(' ')}${attentionNote(outcome.attention.length)}`;
   });
 
   // Topics made before the failure are saved; surface the failure as an error.
+  return partialFailure ? fail(partialFailure) : result;
+}
+
+export async function renameTelegramTopicsAction(
+  _prev: TelegramActionState,
+  formData: FormData,
+): Promise<TelegramActionState> {
+  let partialFailure: string | null = null;
+
+  const result = await runBatchAction(formData, async ({ batchId }) => {
+    const outcome = await renamePaceTopics(db, getTelegramApiPort(), batchId);
+    if (outcome.failed) {
+      partialFailure = `Stopped at "${outcome.failed.name}": ${outcome.failed.reason}. ${outcome.renamed.length} topic(s) were renamed before that.`;
+      return partialFailure;
+    }
+    return outcome.renamed.length
+      ? `Renamed ${outcome.renamed.length} topic(s): ${outcome.renamed.join(', ')}.`
+      : 'Every mapped topic already has the right name.';
+  });
+
   return partialFailure ? fail(partialFailure) : result;
 }
 

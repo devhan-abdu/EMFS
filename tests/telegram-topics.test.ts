@@ -3,6 +3,8 @@ import {
   createMissingPaceTopics,
   mapAnnouncementTopic,
   mapPaceTopic,
+  matchPaceTopics,
+  renamePaceTopics,
   sendTestMessage,
   unmapTopic,
 } from '../lib/services/telegram/topics';
@@ -32,6 +34,7 @@ const makePort = (
     canManageTopics: true,
   }),
   createForumTopic: vi.fn(async () => ({ messageThreadId: 1 })),
+  editForumTopic: vi.fn(async () => {}),
   sendMessage: vi.fn(async () => {}),
   ...overrides,
 });
@@ -73,22 +76,28 @@ describe('createMissingPaceTopics', () => {
     ).rejects.toMatchObject({ code: 'TELEGRAM_API_ERROR' });
   });
 
-  it('creates topics only for pace groups that have none, and saves each', async () => {
+  it('matches existing topics by name, then creates only the truly missing ones with canonical names', async () => {
     const createForumTopic = vi
       .fn<TelegramApiPort['createForumTopic']>()
-      .mockResolvedValueOnce({ messageThreadId: 21 })
       .mockResolvedValueOnce({ messageThreadId: 22 });
     const executor = makeFakeExecutor({
       first: { telegramChats: [readyChat] },
       many: {
         paceGroups: [
           [
-            { id: 'g1', name: 'Alpha' },
-            { id: 'g2', name: 'Beta' },
-            { id: 'g3', name: 'Gamma' },
+            { id: 'g1', name: 'Alpha', size: 20 },
+            { id: 'g2', name: 'Beta', size: 10 },
+            { id: 'g3', name: 'Gamma', size: 5 },
           ],
         ],
-        telegramChatTopics: [[{ paceGroupId: 'g1' }]],
+        telegramChatTopics: [[{ paceGroupId: 'g1', messageThreadId: 11 }]],
+        // Beta's topic already exists in Telegram with the exact name.
+        telegramObservedTopics: [
+          [
+            { messageThreadId: 11, name: 'Alpha · 20 pages' },
+            { messageThreadId: 12, name: 'beta - 10 pages' },
+          ],
+        ],
       },
     });
 
@@ -98,19 +107,48 @@ describe('createMissingPaceTopics', () => {
       BATCH_ID,
     );
 
-    expect(result).toEqual({ created: ['Beta', 'Gamma'], failed: null });
-    expect(createForumTopic).toHaveBeenCalledTimes(2);
-    expect(createForumTopic).toHaveBeenNthCalledWith(1, -1001234567890, 'Beta');
+    expect(result.matched).toEqual(['Beta']);
+    expect(result.created).toEqual(['Gamma · 5 pages']);
+    expect(result.failed).toBeNull();
+    expect(result.attention).toEqual([]);
+    expect(createForumTopic).toHaveBeenCalledTimes(1);
+    expect(createForumTopic).toHaveBeenCalledWith(
+      -1001234567890,
+      'Gamma · 5 pages',
+    );
     expect(executor.inserted).toEqual([
+      expect.objectContaining({ paceGroupId: 'g2', messageThreadId: 12 }),
+      expect.objectContaining({ paceGroupId: 'g3', messageThreadId: 22 }),
+      // the created topic's name is remembered so it is not re-created
+      expect.objectContaining({ messageThreadId: 22, name: 'Gamma · 5 pages' }),
+    ]);
+  });
+
+  it('does not create topics for groups that need a human decision', async () => {
+    const createForumTopic = vi.fn<TelegramApiPort['createForumTopic']>();
+    const executor = makeFakeExecutor({
+      first: { telegramChats: [readyChat] },
+      many: {
+        paceGroups: [[{ id: 'g1', name: 'Alpha', size: 20 }]],
+        telegramChatTopics: [[]],
+        telegramObservedTopics: [
+          [{ messageThreadId: 12, name: 'Alpha · 10 pages' }],
+        ],
+      },
+    });
+
+    const result = await createMissingPaceTopics(
+      executor,
+      makePort({ createForumTopic }),
+      BATCH_ID,
+    );
+
+    expect(createForumTopic).not.toHaveBeenCalled();
+    expect(result.created).toEqual([]);
+    expect(result.attention).toEqual([
       expect.objectContaining({
-        paceGroupId: 'g2',
-        messageThreadId: 21,
-        kind: 'pace_group',
-      }),
-      expect.objectContaining({
-        paceGroupId: 'g3',
-        messageThreadId: 22,
-        kind: 'pace_group',
+        groupName: 'Alpha',
+        hint: expect.stringContaining('wrong pace'),
       }),
     ]);
   });
@@ -125,9 +163,9 @@ describe('createMissingPaceTopics', () => {
       many: {
         paceGroups: [
           [
-            { id: 'g1', name: 'Alpha' },
-            { id: 'g2', name: 'Beta' },
-            { id: 'g3', name: 'Gamma' },
+            { id: 'g1', name: 'Alpha', size: 20 },
+            { id: 'g2', name: 'Beta', size: 20 },
+            { id: 'g3', name: 'Gamma', size: 20 },
           ],
         ],
         telegramChatTopics: [[]],
@@ -140,13 +178,15 @@ describe('createMissingPaceTopics', () => {
       BATCH_ID,
     );
 
-    expect(result.created).toEqual(['Alpha']);
+    expect(result.created).toEqual(['Alpha · 20 pages']);
     expect(result.failed).toEqual({
-      name: 'Beta',
+      name: 'Beta · 20 pages',
       reason: 'Bad Request: not enough rights',
     });
     expect(createForumTopic).toHaveBeenCalledTimes(2);
-    expect(executor.inserted).toHaveLength(1);
+    // one mapping + one remembered name, nothing for Beta or Gamma
+    expect(executor.inserted).toHaveLength(2);
+    expect(result.attention.map((a) => a.groupName)).toEqual(['Beta', 'Gamma']);
   });
 
   it('serializes concurrent runs with an advisory lock', async () => {
@@ -165,6 +205,7 @@ describe('mapPaceTopic', () => {
     messageThreadId: 7,
     paceGroupName: 'alpha',
   };
+  const alpha = { id: 'g1', name: 'Alpha', size: 20 };
 
   it('fails when the group is not linked yet', async () => {
     const executor = makeFakeExecutor({
@@ -175,14 +216,41 @@ describe('mapPaceTopic', () => {
     });
   });
 
-  it('lists the available names when the pace group is not found', async () => {
+  it('lists the exact topic names when the pace group is not found', async () => {
     const executor = makeFakeExecutor({
-      first: { telegramChats: [readyChat], paceGroups: [undefined] },
-      many: { paceGroups: [[{ name: 'Alpha' }, { name: 'Beta' }]] },
+      first: {
+        telegramChats: [readyChat],
+        telegramObservedTopics: [undefined],
+      },
+      many: {
+        paceGroups: [
+          [],
+          [
+            { id: 'g1', name: 'Alpha', size: 20 },
+            { id: 'g2', name: 'Beta', size: 10 },
+          ],
+        ],
+      },
     });
     await expect(mapPaceTopic(executor, input)).rejects.toMatchObject({
       code: 'PACE_GROUP_NOT_FOUND',
-      message: expect.stringContaining('Alpha, Beta'),
+      message: expect.stringContaining('Alpha · 20 pages, Beta · 10 pages'),
+    });
+  });
+
+  it('asks for the full name when two pace groups share a name', async () => {
+    const executor = makeFakeExecutor({
+      first: {
+        telegramChats: [readyChat],
+        telegramObservedTopics: [undefined],
+      },
+      many: {
+        paceGroups: [[alpha, { id: 'g9', name: 'Alpha', size: 10 }]],
+      },
+    });
+    await expect(mapPaceTopic(executor, input)).rejects.toMatchObject({
+      code: 'PACE_GROUP_AMBIGUOUS',
+      message: expect.stringContaining('Alpha · 20 pages'),
     });
   });
 
@@ -190,25 +258,47 @@ describe('mapPaceTopic', () => {
     const executor = makeFakeExecutor({
       first: {
         telegramChats: [readyChat],
-        paceGroups: [{ id: 'g1', name: 'Alpha' }],
+        telegramObservedTopics: [undefined],
         telegramChatTopics: [{ paceGroupId: 'g2', kind: 'pace_group' }],
       },
+      many: { paceGroups: [[alpha]] },
     });
     await expect(mapPaceTopic(executor, input)).rejects.toMatchObject({
       code: 'TOPIC_ALREADY_MAPPED',
     });
   });
 
-  it('maps the topic and returns the canonical pace group name', async () => {
+  it('enforces the topic name: a wrongly named topic is rejected with the exact name to use', async () => {
     const executor = makeFakeExecutor({
-      first: {
-        telegramChats: [readyChat],
-        paceGroups: [{ id: 'g1', name: 'Alpha' }],
-        telegramChatTopics: [undefined],
+      first: { telegramChats: [readyChat] },
+      many: { paceGroups: [[alpha]] },
+    });
+    await expect(
+      mapPaceTopic(executor, { ...input, topicName: 'Alpha · 10 pages' }),
+    ).rejects.toMatchObject({
+      code: 'TOPIC_NAME_MISMATCH',
+      message: expect.stringContaining('"Alpha · 20 pages"'),
+    });
+  });
+
+  it("maps by the topic's own name when no group name is given", async () => {
+    const executor = makeFakeExecutor({
+      first: { telegramChats: [readyChat], telegramChatTopics: [undefined] },
+      many: {
+        paceGroups: [[alpha, { id: 'g2', name: 'Beta', size: 10 }]],
       },
     });
-    const result = await mapPaceTopic(executor, input);
-    expect(result.paceGroupName).toBe('Alpha');
+    const result = await mapPaceTopic(executor, {
+      chatId: CHAT_ID,
+      messageThreadId: 7,
+      paceGroupName: null,
+      topicName: 'alpha - 20',
+    });
+    expect(result).toMatchObject({
+      paceGroupName: 'Alpha',
+      expectedName: 'Alpha · 20 pages',
+      nameVerified: true,
+    });
     expect(executor.inserted[0]).toMatchObject({
       paceGroupId: 'g1',
       messageThreadId: 7,
@@ -216,11 +306,195 @@ describe('mapPaceTopic', () => {
     });
   });
 
+  it('refuses to guess when the topic name matches no pace group', async () => {
+    const executor = makeFakeExecutor({
+      first: { telegramChats: [readyChat] },
+      many: { paceGroups: [[alpha]] },
+    });
+    await expect(
+      mapPaceTopic(executor, {
+        chatId: CHAT_ID,
+        messageThreadId: 7,
+        paceGroupName: null,
+        topicName: 'Book talk',
+      }),
+    ).rejects.toMatchObject({
+      code: 'PACE_GROUP_NOT_FOUND',
+      message: expect.stringContaining('Alpha · 20 pages'),
+    });
+  });
+
+  it('maps with a warning when the topic name was never seen', async () => {
+    const executor = makeFakeExecutor({
+      first: {
+        telegramChats: [readyChat],
+        telegramObservedTopics: [undefined],
+        telegramChatTopics: [undefined],
+      },
+      many: { paceGroups: [[alpha]] },
+    });
+    const result = await mapPaceTopic(executor, input);
+    expect(result.paceGroupName).toBe('Alpha');
+    expect(result.nameVerified).toBe(false);
+  });
+
   it('rejects an invalid thread id', async () => {
     const executor = makeFakeExecutor();
     await expect(
       mapPaceTopic(executor, { ...input, messageThreadId: 0 }),
     ).rejects.toThrow();
+  });
+});
+
+describe('matchPaceTopics', () => {
+  it('maps exact-name topics and reports what the admin must fix', async () => {
+    const executor = makeFakeExecutor({
+      first: { telegramChats: [readyChat] },
+      many: {
+        paceGroups: [
+          [
+            { id: 'g1', name: 'Alpha', size: 20 },
+            { id: 'g2', name: 'Beta', size: 10 },
+            { id: 'g3', name: 'Gamma', size: 5 },
+          ],
+        ],
+        telegramChatTopics: [[]],
+        telegramObservedTopics: [
+          [
+            { messageThreadId: 11, name: 'Alpha · 20 pages' },
+            { messageThreadId: 12, name: 'Beta · 20 pages' },
+            { messageThreadId: 99, name: 'Book talk' },
+          ],
+        ],
+      },
+    });
+
+    const result = await matchPaceTopics(executor, BATCH_ID);
+
+    expect(result.matched).toEqual(['Alpha']);
+    expect(result.okCount).toBe(1);
+    expect(result.attention.map((a) => a.groupName)).toEqual(['Beta', 'Gamma']);
+    expect(result.attention[0].hint).toContain('"Beta · 10 pages"');
+    expect(result.attention[1].hint).toContain(
+      'Create a topic named "Gamma · 5 pages"',
+    );
+    expect(executor.inserted).toEqual([
+      expect.objectContaining({ paceGroupId: 'g1', messageThreadId: 11 }),
+    ]);
+  });
+
+  it('is idempotent: already-mapped groups are not mapped again', async () => {
+    const executor = makeFakeExecutor({
+      first: { telegramChats: [readyChat] },
+      many: {
+        paceGroups: [[{ id: 'g1', name: 'Alpha', size: 20 }]],
+        telegramChatTopics: [[{ paceGroupId: 'g1', messageThreadId: 11 }]],
+        telegramObservedTopics: [
+          [{ messageThreadId: 11, name: 'Alpha · 20 pages' }],
+        ],
+      },
+    });
+    const result = await matchPaceTopics(executor, BATCH_ID);
+    expect(result).toEqual({ matched: [], attention: [], okCount: 1 });
+    expect(executor.inserted).toEqual([]);
+  });
+
+  it('fails with NOT_CONNECTED when the batch has no chat', async () => {
+    const executor = makeFakeExecutor({
+      first: { telegramChats: [undefined] },
+    });
+    await expect(matchPaceTopics(executor, BATCH_ID)).rejects.toMatchObject({
+      code: 'NOT_CONNECTED',
+    });
+  });
+});
+
+describe('renamePaceTopics', () => {
+  it('renames drifted and wrong-pace topics to the canonical name and maps wrong-pace ones', async () => {
+    const editForumTopic = vi.fn<TelegramApiPort['editForumTopic']>(
+      async () => {},
+    );
+    const executor = makeFakeExecutor({
+      first: { telegramChats: [readyChat] },
+      many: {
+        paceGroups: [
+          [
+            { id: 'g1', name: 'Alpha', size: 20 },
+            { id: 'g2', name: 'Beta', size: 10 },
+            { id: 'g3', name: 'Gamma', size: 5 },
+          ],
+        ],
+        telegramChatTopics: [[{ paceGroupId: 'g1', messageThreadId: 11 }]],
+        telegramObservedTopics: [
+          [
+            { messageThreadId: 11, name: 'Alpha (old)' },
+            { messageThreadId: 12, name: 'Beta · 20 pages' },
+          ],
+        ],
+      },
+    });
+
+    const result = await renamePaceTopics(
+      executor,
+      makePort({ editForumTopic }),
+      BATCH_ID,
+    );
+
+    expect(result).toEqual({
+      renamed: ['Alpha · 20 pages', 'Beta · 10 pages'],
+      failed: null,
+    });
+    expect(editForumTopic).toHaveBeenNthCalledWith(
+      1,
+      -1001234567890,
+      11,
+      'Alpha · 20 pages',
+    );
+    expect(editForumTopic).toHaveBeenNthCalledWith(
+      2,
+      -1001234567890,
+      12,
+      'Beta · 10 pages',
+    );
+    // names remembered as edited; only the wrong-pace topic gets a new mapping
+    expect(executor.inserted).toEqual([
+      expect.objectContaining({ messageThreadId: 11, nameSource: 'edited' }),
+      expect.objectContaining({ messageThreadId: 12, nameSource: 'edited' }),
+      expect.objectContaining({ paceGroupId: 'g2', messageThreadId: 12 }),
+    ]);
+  });
+
+  it('stops at the first Telegram error', async () => {
+    const editForumTopic = vi
+      .fn<TelegramApiPort['editForumTopic']>()
+      .mockRejectedValue({ description: 'Bad Request: TOPIC_NOT_MODIFIED' });
+    const executor = makeFakeExecutor({
+      first: { telegramChats: [readyChat] },
+      many: {
+        paceGroups: [[{ id: 'g1', name: 'Alpha', size: 20 }]],
+        telegramChatTopics: [[{ paceGroupId: 'g1', messageThreadId: 11 }]],
+        telegramObservedTopics: [[{ messageThreadId: 11, name: 'Other' }]],
+      },
+    });
+    const result = await renamePaceTopics(
+      executor,
+      makePort({ editForumTopic }),
+      BATCH_ID,
+    );
+    expect(result.renamed).toEqual([]);
+    expect(result.failed).toEqual({
+      name: 'Alpha · 20 pages',
+      reason: 'Bad Request: TOPIC_NOT_MODIFIED',
+    });
+  });
+
+  it('refuses when the bot cannot manage topics', async () => {
+    const executor = makeFakeExecutor({
+      first: { telegramChats: [{ ...readyChat, canManageTopics: false }] },
+    });
+    await expect(
+      renamePaceTopics(executor, makePort(), BATCH_ID),
+    ).rejects.toMatchObject({ code: 'TELEGRAM_API_ERROR' });
   });
 });
 

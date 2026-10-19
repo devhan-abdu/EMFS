@@ -2,6 +2,8 @@ import {
   createTelegramTopicsAction,
   disconnectTelegramAction,
   generateTelegramLinkCodeAction,
+  matchTelegramTopicsAction,
+  renameTelegramTopicsAction,
   sendTelegramTestMessageAction,
   syncTelegramChatAction,
 } from '@/actions/telegram';
@@ -9,6 +11,23 @@ import { TelegramActionButton } from '@/components/admin/telegram-action-button'
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { TelegramConnectionView } from '@/lib/services/telegram/connection';
+import type { PaceTopicStatus } from '@/lib/services/telegram/topic-evaluation';
+
+const STATUS_BADGE: Record<
+  PaceTopicStatus,
+  {
+    label: string;
+    variant: 'default' | 'secondary' | 'destructive' | 'outline';
+  }
+> = {
+  mapped: { label: 'Connected', variant: 'secondary' },
+  ready_to_match: { label: 'Ready to match', variant: 'default' },
+  name_mismatch: { label: 'Name changed', variant: 'destructive' },
+  wrong_pace: { label: 'Wrong pace', variant: 'destructive' },
+  ambiguous: { label: 'Duplicate topics', variant: 'destructive' },
+  duplicate_name: { label: 'Duplicate group name', variant: 'destructive' },
+  missing: { label: 'Topic missing', variant: 'outline' },
+};
 
 export function TelegramConnectionCard({
   batchId,
@@ -72,7 +91,13 @@ export function TelegramConnectionCard({
   }
 
   const { chat, paceGroups, announcementThreadId } = connection;
-  const missing = paceGroups.filter((g) => g.messageThreadId === null).length;
+  const missing = paceGroups.filter((g) => g.status === 'missing').length;
+  const needsRename = paceGroups.filter(
+    (g) => g.status === 'name_mismatch' || g.status === 'wrong_pace',
+  ).length;
+  const matchable = paceGroups.filter(
+    (g) => g.status === 'ready_to_match',
+  ).length;
   const ready =
     chat.status === 'active' && chat.isForum && chat.canManageTopics;
 
@@ -136,22 +161,33 @@ export function TelegramConnectionCard({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          <p className="text-sm text-muted-foreground">
+            Each pace group needs a topic in the Telegram group named exactly as
+            shown below (the group name and its pages per day). Create the
+            topics in Telegram, then press <strong>Match topics</strong>.
+          </p>
+
           <ul className="divide-y divide-border rounded-lg border border-border">
-            {paceGroups.map((group) => (
-              <li
-                key={group.id}
-                className="flex items-center justify-between gap-4 px-4 py-2 text-sm"
-              >
-                <span className="font-medium">{group.name}</span>
-                {group.messageThreadId === null ? (
-                  <Badge variant="outline">Not mapped</Badge>
-                ) : (
-                  <Badge variant="secondary">
-                    Topic #{group.messageThreadId}
-                  </Badge>
-                )}
-              </li>
-            ))}
+            {paceGroups.map((group) => {
+              const badge = STATUS_BADGE[group.status];
+              return (
+                <li key={group.id} className="space-y-1 px-4 py-3 text-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="font-medium">{group.name}</span>
+                    <Badge variant={badge.variant}>{badge.label}</Badge>
+                  </div>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    Topic name: {group.expectedName}
+                    {group.messageThreadId !== null
+                      ? ` · topic #${group.messageThreadId}`
+                      : ''}
+                  </p>
+                  {group.hint ? (
+                    <p className="text-xs text-destructive">{group.hint}</p>
+                  ) : null}
+                </li>
+              );
+            })}
             {paceGroups.length === 0 ? (
               <li className="px-4 py-2 text-sm text-muted-foreground">
                 This batch has no pace groups yet.
@@ -164,21 +200,45 @@ export function TelegramConnectionCard({
             {announcementThreadId === null
               ? 'not mapped (send /topic announcement inside it)'
               : `topic #${announcementThreadId}`}
-            . Already have topics? Send /topic pace &lt;pace group name&gt;
-            inside each one.
+            . Other topics (book talk, open chat) can be named anything.
           </p>
 
-          <TelegramActionButton
-            action={createTelegramTopicsAction}
-            batchId={batchId}
-            label={
-              missing > 0
-                ? `Create ${missing} missing topic${missing === 1 ? '' : 's'}`
-                : 'All topics created'
-            }
-            pendingLabel="Creating topics..."
-            disabled={!ready || missing === 0}
-          />
+          <div className="flex flex-wrap items-start gap-4">
+            <TelegramActionButton
+              action={matchTelegramTopicsAction}
+              batchId={batchId}
+              label={
+                matchable > 0
+                  ? `Match ${matchable} topic${matchable === 1 ? '' : 's'}`
+                  : 'Match topics'
+              }
+              pendingLabel="Matching..."
+            />
+            <TelegramActionButton
+              action={createTelegramTopicsAction}
+              batchId={batchId}
+              label={
+                missing > 0
+                  ? `Create ${missing} missing topic${missing === 1 ? '' : 's'}`
+                  : 'No missing topics'
+              }
+              pendingLabel="Creating topics..."
+              variant="outline"
+              disabled={!ready || missing === 0}
+            />
+            <TelegramActionButton
+              action={renameTelegramTopicsAction}
+              batchId={batchId}
+              label={
+                needsRename > 0
+                  ? `Fix ${needsRename} topic name${needsRename === 1 ? '' : 's'}`
+                  : 'Fix topic names'
+              }
+              pendingLabel="Renaming..."
+              variant="outline"
+              disabled={!ready || needsRename === 0}
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

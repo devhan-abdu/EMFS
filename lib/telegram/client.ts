@@ -45,6 +45,9 @@ export function toApiPort(api: Api): TelegramApiPort {
       const topic = await api.createForumTopic(chatId, name);
       return { messageThreadId: topic.message_thread_id };
     },
+    async editForumTopic(chatId, messageThreadId, name) {
+      await api.editForumTopic(chatId, messageThreadId, { name });
+    },
     async sendMessage(chatId, text, messageThreadId) {
       await api.sendMessage(
         chatId,

@@ -55,8 +55,8 @@ export function registerLinkHandler(bot: Bot) {
         );
       }
       lines.push(
-        'Next: in the system, open the batch Telegram card and create the pace group topics.',
-        'Already have topics? Send /topic pace <pace group name> inside each one.',
+        'Next: name each pace group topic exactly as the system shows it (for example "Nur · 20 pages"), then press "Match topics" on the batch Telegram page.',
+        'No topics yet? Press "Create missing topics" in the system and I will create them.',
       );
       await ctx.reply(lines.join('\n'));
     } catch (error) {

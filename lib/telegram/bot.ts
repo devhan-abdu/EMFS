@@ -4,6 +4,7 @@ import { autoRetry } from '@grammyjs/auto-retry';
 import { registerChatEventHandlers } from './handlers/chat-events';
 import { registerLinkHandler } from './handlers/link';
 import { registerStartHandler } from './handlers/start';
+import { registerTopicObserver } from './handlers/topic-observer';
 import { registerTopicHandler } from './handlers/topic';
 
 /** Only subscribe to what we handle; Telegram sends nothing else. */
@@ -24,6 +25,8 @@ export function createBot(token: string, deps: BotDeps = {}): Bot {
   const bot = new Bot(token);
   bot.api.config.use(autoRetry({ maxRetryAttempts: 3, maxDelaySeconds: 10 }));
 
+  // First, so topic names are recorded before any command runs.
+  registerTopicObserver(bot);
   registerStartHandler(bot, deps.onMembershipActivated ?? (() => {}));
   registerLinkHandler(bot);
   registerTopicHandler(bot);
