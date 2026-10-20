@@ -1,11 +1,12 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
-import { db } from '@/db';
-import { batches } from '@/db/schema';
 import { AuthzError, requireBatchAccess } from '@/lib/auth/authorize';
+import {
+  BatchError,
+  updateBatchRegistration,
+} from '@/lib/services/batches/batch';
 
 export async function toggleRegistrationAction(input: {
   batchId: string;
@@ -21,10 +22,7 @@ export async function toggleRegistrationAction(input: {
   try {
     await requireBatchAccess(input.batchId);
 
-    await db
-      .update(batches)
-      .set({ registrationOpen: input.open, updatedAt: new Date() })
-      .where(eq(batches.id, input.batchId));
+    await updateBatchRegistration(input.batchId, input.open);
 
     revalidatePath(`/admin/b/${input.batchId}`);
     revalidatePath('/admin/platform/batches');
@@ -33,11 +31,20 @@ export async function toggleRegistrationAction(input: {
     if (e instanceof AuthzError) {
       return {
         ok: false as const,
+        error: e.code,
         errors: { formErrors: [e.message], fieldErrors: {} },
+      };
+    }
+    if (e instanceof BatchError) {
+      return {
+        ok: false as const,
+        error: e.code,
+        errors: { formErrors: [e.code], fieldErrors: {} },
       };
     }
     return {
       ok: false as const,
+      error: 'UNEXPECTED_ERROR',
       errors: {
         formErrors: ['An unexpected error occurred.'],
         fieldErrors: {},

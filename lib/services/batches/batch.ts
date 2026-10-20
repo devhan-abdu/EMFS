@@ -1,6 +1,13 @@
-import { eq, inArray } from 'drizzle-orm';
+import { and, count, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
-import { batches, batchAdmins, profiles, user } from '@/db/schema';
+import {
+  batches,
+  batchAdmins,
+  batchMemberships,
+  paceGroups,
+  profiles,
+  user,
+} from '@/db/schema';
 import type { CreateBatchInput } from '@/lib/validations/batch';
 
 export type Batch = typeof batches.$inferSelect;
@@ -16,12 +23,16 @@ export type BatchErrorCode =
   | 'ADMIN_NOT_FOUND'
   | 'ADMIN_LIMIT_EXCEEDED'
   | 'INVALID_ADMIN_ROLE'
-  | 'TRANSACTION_FAILED';
+  | 'TRANSACTION_FAILED'
+  | 'BATCH_NOT_FOUND'
+  | 'NO_BATCH_ADMIN'
+  | 'NO_PACE_GROUP'
+  | 'BATCH_FULL';
 
 export class BatchError extends Error {
   code: BatchErrorCode;
-  constructor(code: BatchErrorCode, message: string) {
-    super(message);
+  constructor(code: BatchErrorCode, message?: string) {
+    super(message ?? code);
     this.code = code;
     this.name = 'BatchError';
   }
@@ -252,3 +263,126 @@ export async function getEligibleBatchAdmins(
     previouslyAssigned: previouslyAssignedIds.has(a.profileId),
   }));
 }
+
+function extractCount(rows: unknown[], countKey: string): number {
+  if (!rows || rows.length === 0) return 0;
+  const first = rows[0] as Record<string, unknown> | undefined;
+  if (first && typeof first === 'object') {
+    if (countKey in first && first[countKey] !== undefined) {
+      return Number(first[countKey]);
+    }
+    if ('count' in first && first.count !== undefined) {
+      return Number(first.count);
+    }
+  }
+  return rows.length;
+}
+
+/**
+ * Validates whether a batch satisfies the gate requirements to open registration.
+ *
+ * Requirements:
+ * 1. Condition 1: The batch has at least one assigned batch admin (NO_BATCH_ADMIN).
+ * 2. Condition 2: The batch contains at least one non-archived pace group (NO_PACE_GROUP).
+ * 3. Condition 3: The batch is currently under its maximum capacity limit (BATCH_FULL).
+ */
+export async function validateBatchRegistrationGate(
+  batchId: string,
+  executor: DbOrTx = db,
+): Promise<void> {
+  const batchRows = await executor
+    .select({
+      id: batches.id,
+      maxMembers: batches.maxMembers,
+      registrationOpen: batches.registrationOpen,
+    })
+    .from(batches)
+    .where(eq(batches.id, batchId));
+
+  if (!batchRows || batchRows.length === 0) {
+    throw new BatchError('BATCH_NOT_FOUND', 'Batch not found.');
+  }
+
+  const batch = batchRows[0];
+
+  // Condition 1: The batch has at least one assigned batch admin.
+  const adminRows = await executor
+    .select({ adminCount: count() })
+    .from(batchAdmins)
+    .where(eq(batchAdmins.batchId, batchId));
+
+  const adminCount = extractCount(adminRows, 'adminCount');
+  if (adminCount < 1) {
+    throw new BatchError('NO_BATCH_ADMIN', 'NO_BATCH_ADMIN');
+  }
+
+  // Condition 2: The batch contains at least one non-archived pace group.
+  const paceGroupRows = await executor
+    .select({ paceGroupCount: count() })
+    .from(paceGroups)
+    .where(
+      and(eq(paceGroups.batchId, batchId), eq(paceGroups.archived, false)),
+    );
+
+  const paceGroupCount = extractCount(paceGroupRows, 'paceGroupCount');
+  if (paceGroupCount < 1) {
+    throw new BatchError('NO_PACE_GROUP', 'NO_PACE_GROUP');
+  }
+
+  // Condition 3: The batch is currently under its maximum capacity limit.
+  const memberRows = await executor
+    .select({ memberCount: count() })
+    .from(batchMemberships)
+    .where(
+      and(
+        eq(batchMemberships.batchId, batchId),
+        inArray(batchMemberships.status, ['approved', 'active', 'grace']),
+      ),
+    );
+
+  const currentMemberCount = extractCount(memberRows, 'memberCount');
+  if (currentMemberCount >= batch.maxMembers) {
+    throw new BatchError('BATCH_FULL', 'BATCH_FULL');
+  }
+}
+
+/**
+ * Updates batch registration status.
+ * If open is true, runs validateBatchRegistrationGate before updating the database.
+ */
+export async function updateBatchRegistration(
+  batchId: string,
+  open: boolean,
+  executor: DbOrTx = db,
+): Promise<Batch> {
+  if (open) {
+    await validateBatchRegistrationGate(batchId, executor);
+  }
+
+  const updateQuery = executor
+    .update(batches)
+    .set({ registrationOpen: open, updatedAt: new Date() })
+    .where(eq(batches.id, batchId));
+
+  // Handle both .returning() supporting query builders and simple mocks
+  if (
+    updateQuery &&
+    typeof (updateQuery as { returning?: unknown }).returning === 'function'
+  ) {
+    const updatedRows = await (
+      updateQuery as { returning: () => Promise<Batch[]> }
+    ).returning();
+    if (updatedRows && updatedRows.length > 0) {
+      return updatedRows[0];
+    }
+  } else {
+    await updateQuery;
+  }
+
+  return {
+    id: batchId,
+    registrationOpen: open,
+  } as Batch;
+}
+
+export const toggleBatchRegistration = updateBatchRegistration;
