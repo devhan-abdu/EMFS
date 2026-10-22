@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, Users } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-layout';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SuperAdminToggle } from '@/components/admin/super-admin-toggle';
 import { getAdminStaff } from '@/lib/services/admin/services';
@@ -35,6 +36,14 @@ export default async function RolesPage() {
         eyebrow="Platform access"
         title="Grant assignments"
         description="Global access is independent from batch and pace-group assignments."
+        actions={
+          <Button asChild>
+            <Link href="/admin/platform/users">
+              <Users className="size-4" />
+              User Management
+            </Link>
+          </Button>
+        }
       />
 
       <section className="space-y-4">
