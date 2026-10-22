@@ -23,3 +23,4 @@ export * from './curriculum-steps';
 export * from './curriculum-step-editions';
 export * from './member-slot-editions';
 export * from './invitations';
+export * from './role-audit-logs';
