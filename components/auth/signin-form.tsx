@@ -84,7 +84,15 @@ export function SignInForm({ next }: { next?: string | null }) {
 
         {/* Password */}
         <Field data-invalid={!!formState.errors?.password?.length}>
-          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="password">Password</FieldLabel>
+            <Link
+              href="/forgot-password"
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <div className="relative">
             <Input
               id="password"

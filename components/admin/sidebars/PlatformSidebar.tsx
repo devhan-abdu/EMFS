@@ -1,6 +1,12 @@
 'use client';
 
-import { LayoutDashboard, Layers, BookOpen, ShieldCheck } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Layers,
+  BookOpen,
+  ShieldCheck,
+  TicketCheck,
+} from 'lucide-react';
 import {
   AppSidebar,
   type AdminWorkspaceOption,
@@ -12,6 +18,11 @@ const platformNavItems: NavItem[] = [
   { title: 'Batches', url: '/admin/platform/batches', icon: Layers },
   { title: 'Catalog', url: '/admin/platform/catalog', icon: BookOpen },
   { title: 'Roles & Access', url: '/admin/platform/roles', icon: ShieldCheck },
+  {
+    title: 'Invitations',
+    url: '/admin/platform/invitations',
+    icon: TicketCheck,
+  },
   //   { title: 'Audit Log', url: '/admin/platform/audit', icon: History },
 ];
 

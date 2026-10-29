@@ -2,6 +2,11 @@ import { Telegraf } from 'telegraf';
 import { eq, and, isNull } from 'drizzle-orm';
 import { handoffRecords } from '@/db/schema';
 import { activateMembership } from './membership';
+import {
+  buildInvitationAcceptanceUrl,
+  InvitationError,
+  recordTelegramInvitation,
+} from './invitations';
 import { EventEmitter } from 'events';
 
 export function buildTelegramStartLink(
@@ -33,6 +38,38 @@ if (bot) {
       await ctx.reply(
         'Welcome! Please use the link provided after your application was approved.',
       );
+      return;
+    }
+
+    if (payload.startsWith('invite_')) {
+      const token = payload.slice('invite_'.length);
+      try {
+        await recordTelegramInvitation(token, {
+          id: chatId,
+          username: ctx.from.username,
+        });
+        await ctx.reply(
+          'Your invitation is ready. Sign in or create an account to accept it:',
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text: 'Continue to EMFS',
+                    url: buildInvitationAcceptanceUrl(token),
+                  },
+                ],
+              ],
+            },
+          },
+        );
+      } catch (error) {
+        const message =
+          error instanceof InvitationError
+            ? error.message
+            : 'Could not verify this invitation. Please request a new link.';
+        await ctx.reply(message);
+      }
       return;
     }
 
