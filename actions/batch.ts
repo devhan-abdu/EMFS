@@ -16,7 +16,6 @@ export type CreateBatchFormFields = {
   paceGroupCount?: number;
   startDate?: string;
   readingDaysPerWeek?: number;
-  registrationOpen?: boolean;
   adminIds?: string[];
 };
 export type CreateBatchActionState = {
@@ -55,7 +54,6 @@ export async function createBatchAction(
     paceGroupCount: parseNumber(formData.get('paceGroupCount')),
     startDate: formData.get('startDate') || undefined,
     readingDaysPerWeek: parseNumber(formData.get('readingDaysPerWeek')),
-    registrationOpen: formData.get('registrationOpen') === 'true',
     ...(adminIds.length > 0 ? { adminIds } : {}),
   };
 
@@ -72,7 +70,6 @@ export async function createBatchAction(
         startDate:
           typeof raw.startDate === 'string' ? raw.startDate : undefined,
         readingDaysPerWeek: raw.readingDaysPerWeek,
-        registrationOpen: raw.registrationOpen,
         adminIds: raw.adminIds,
       },
     };
@@ -140,7 +137,6 @@ export async function updateBatchAction(
     paceGroupCount: parseNumber(formData.get('paceGroupCount')),
     startDate: formData.get('startDate') || undefined,
     readingDaysPerWeek: parseNumber(formData.get('readingDaysPerWeek')),
-    registrationOpen: formData.get('registrationOpen') === 'true',
     ...(adminIds.length > 0 ? { adminIds } : {}),
   };
 
@@ -157,7 +153,6 @@ export async function updateBatchAction(
         startDate:
           typeof raw.startDate === 'string' ? raw.startDate : undefined,
         readingDaysPerWeek: raw.readingDaysPerWeek,
-        registrationOpen: raw.registrationOpen,
         adminIds: raw.adminIds,
       },
     };

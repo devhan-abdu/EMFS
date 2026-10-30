@@ -84,6 +84,17 @@ describe('Batch Validation - createBatchSchema', () => {
     }
   });
 
+  it('omits registrationOpen from schema parsing output even if passed', () => {
+    const result = createBatchSchema.safeParse({
+      ...validBatch,
+      registrationOpen: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).not.toHaveProperty('registrationOpen');
+    }
+  });
+
   it('defaults readingDaysPerWeek to 6 when omitted', () => {
     const withoutReadingDays: Record<string, unknown> = { ...validBatch };
     delete withoutReadingDays.readingDaysPerWeek;
@@ -281,7 +292,6 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       paceGroupCount: 1,
       startDate: new Date('2026-09-01'),
       readingDaysPerWeek: 6,
-      registrationOpen: false,
     });
 
     expect(mockTransaction).toHaveBeenCalledTimes(1);
@@ -336,7 +346,6 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       paceGroupCount: 1,
       startDate: new Date('2026-09-01'),
       readingDaysPerWeek: 6,
-      registrationOpen: false,
       adminIds: [memberProfileId],
     });
 
@@ -375,7 +384,6 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       paceGroupCount: 3,
       startDate: new Date('2026-10-01'),
       readingDaysPerWeek: 3,
-      registrationOpen: false,
       adminIds: [admin1, admin2],
     });
 
@@ -409,7 +417,6 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       paceGroupCount: 1,
       startDate: new Date('2026-09-01'),
       readingDaysPerWeek: 6,
-      registrationOpen: false,
       adminIds: [adminId],
     });
 
@@ -502,7 +509,6 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       paceGroupCount: 4,
       startDate: new Date('2026-09-01'),
       readingDaysPerWeek: 6,
-      registrationOpen: false,
     });
 
     expect(result.batch.name).toBe('Clean Batch');
@@ -513,5 +519,44 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
     expect(batchInsertArgs).not.toHaveProperty('currentBook');
     expect(batchInsertArgs).not.toHaveProperty('current_book');
     expect(mockInsertValues).toHaveBeenCalledTimes(2); // exactly 1 batch insert + 1 admin insert, NO pace_groups table insert
+  });
+
+  it('always initializes registrationOpen to false upon creation even if registrationOpen: true is passed', async () => {
+    mockSelectWhere.mockResolvedValueOnce([
+      { id: creatorId, role: 'super_admin' },
+    ]);
+    mockInsertReturning.mockResolvedValueOnce([
+      {
+        id: createdBatchId,
+        name: 'Always Closed Batch',
+        maxMembers: 50,
+        paceGroupCount: 1,
+        registrationOpen: false,
+        autoApprove: true,
+        startDate: '2026-09-01',
+        readingDaysPerWeek: 6,
+        createdBy: creatorId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+
+    const result = await createBatch(creatorId, {
+      name: 'Always Closed Batch',
+      maxMembers: 50,
+      paceGroupCount: 1,
+      startDate: new Date('2026-09-01'),
+      readingDaysPerWeek: 6,
+      // @ts-expect-error - testing runtime resilience against extra property
+      registrationOpen: true,
+    });
+
+    expect(result.batch.registrationOpen).toBe(false);
+    expect(mockInsertValues).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        registrationOpen: false,
+      }),
+    );
   });
 });
