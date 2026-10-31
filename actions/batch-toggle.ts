@@ -7,24 +7,29 @@ import {
   BatchError,
   updateBatchRegistration,
 } from '@/lib/services/batches/batch';
+import { toggleRegistrationSchema } from '@/lib/validations/batch';
 
 export async function toggleRegistrationAction(input: {
   batchId: string;
   open: boolean;
 }) {
-  if (!input?.batchId || typeof input.open !== 'boolean') {
+  const parsed = toggleRegistrationSchema.safeParse(input);
+  if (!parsed.success) {
     return {
       ok: false as const,
-      errors: { formErrors: ['Invalid request.'], fieldErrors: {} },
+      errors: {
+        formErrors: ['Invalid request.'],
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      },
     };
   }
 
   try {
-    await requireBatchAccess(input.batchId);
+    await requireBatchAccess(parsed.data.batchId);
 
     await updateBatchRegistration(input.batchId, input.open);
 
-    revalidatePath(`/admin/b/${input.batchId}`);
+    revalidatePath(`/admin/b/${parsed.data.batchId}`);
     revalidatePath('/admin/platform/batches');
     return { ok: true as const };
   } catch (e) {
