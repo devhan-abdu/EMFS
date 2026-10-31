@@ -1,4 +1,4 @@
-import { Telegraf } from 'telegraf';
+import { Bot } from 'grammy';
 import { eq, and, isNull } from 'drizzle-orm';
 import { handoffRecords } from '@/db/schema';
 import { activateMembership } from './membership';
@@ -13,18 +13,21 @@ export function buildTelegramStartLink(
 
 export function getBot() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
+
   if (!token) {
     return null;
   }
 
-  return new Telegraf(token);
+  return new Bot(token);
 }
+
 export const botEventEmitter = new EventEmitter();
+
 const bot = getBot();
 
 if (bot) {
-  bot.start(async (ctx) => {
-    const payload = ctx.startPayload;
+  bot.command('start', async (ctx) => {
+    const payload = ctx.match;
     const chatId = ctx.chat.id;
 
     const { db } = await import('@/db');
@@ -75,6 +78,7 @@ if (bot) {
       );
     } catch (err) {
       console.error('Bot activation failed:', err);
+
       await ctx.reply(
         'Something went wrong activating your membership. Please contact your batch admin.',
       );
