@@ -4,8 +4,8 @@ import { revalidatePath } from 'next/cache';
 
 import { AuthzError, requireBatchAccess } from '@/lib/auth/authorize';
 import {
-  toggleBatchRegistration,
   BatchError,
+  updateBatchRegistration,
 } from '@/lib/services/batches/batch';
 import { toggleRegistrationSchema } from '@/lib/validations/batch';
 
@@ -27,7 +27,7 @@ export async function toggleRegistrationAction(input: {
   try {
     await requireBatchAccess(parsed.data.batchId);
 
-    await toggleBatchRegistration(parsed.data.batchId, parsed.data.open);
+    await updateBatchRegistration(input.batchId, input.open);
 
     revalidatePath(`/admin/b/${parsed.data.batchId}`);
     revalidatePath('/admin/platform/batches');
@@ -36,17 +36,20 @@ export async function toggleRegistrationAction(input: {
     if (e instanceof AuthzError) {
       return {
         ok: false as const,
+        error: e.code,
         errors: { formErrors: [e.message], fieldErrors: {} },
       };
     }
     if (e instanceof BatchError) {
       return {
         ok: false as const,
-        errors: { formErrors: [e.message], fieldErrors: {} },
+        error: e.code,
+        errors: { formErrors: [e.code], fieldErrors: {} },
       };
     }
     return {
       ok: false as const,
+      error: 'UNEXPECTED_ERROR',
       errors: {
         formErrors: ['An unexpected error occurred.'],
         fieldErrors: {},
