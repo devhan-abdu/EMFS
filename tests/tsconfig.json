@@ -2,8 +2,11 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals"],
+    "paths": {
+      "@/*": ["../*"]
+    }
   },
   "include": ["./**/*.ts", "./**/*.tsx"],
-  "exclude": []
+  "exclude": ["../node_modules"]
 }
