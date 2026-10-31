@@ -5,9 +5,11 @@ if (!bot) {
   process.exit(1);
 }
 
-bot.launch(() => {
-  console.log('🤖 Bot is polling for updates...');
+bot.start({
+  onStart: () => {
+    console.log('🤖 Bot is polling for updates...');
+  },
 });
 
-process.once('SIGINT', () => bot?.stop('SIGINT'));
-process.once('SIGTERM', () => bot?.stop('SIGTERM'));
+process.once('SIGINT', () => bot?.stop());
+process.once('SIGTERM', () => bot?.stop());
