@@ -3,7 +3,6 @@ import { Api } from 'grammy';
 import { autoRetry } from '@grammyjs/auto-retry';
 import type { TelegramApiPort } from '@/lib/services/telegram/api-port';
 
-
 export function toApiPort(api: Api): TelegramApiPort {
   return {
     async getMe() {

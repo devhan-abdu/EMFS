@@ -94,7 +94,6 @@ async function mapPace(
     .onConflictDoNothing();
 }
 
-
 export async function syncTopics(
   executor: DbOrTx,
   api: TelegramApiPort,

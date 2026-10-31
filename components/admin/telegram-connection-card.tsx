@@ -30,7 +30,6 @@ const STATUS_BADGE: Record<
   missing: { label: 'Topic will be created', variant: 'outline' },
 };
 
-
 export function TelegramConnectionCard({
   batchId,
   batchName,
