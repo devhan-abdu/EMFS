@@ -4,11 +4,13 @@
 export type DateKey = string;
 
 /**
- * 1-indexed inclusive page interval within a book edition [startPage, endPage].
+ * 1-indexed inclusive page interval within a book edition [start, end] / [startPage, endPage].
  */
 export type PageRange = {
-  startPage: number;
-  endPage: number;
+  start: number;
+  end: number;
+  startPage?: number;
+  endPage?: number;
 };
 
 /**
