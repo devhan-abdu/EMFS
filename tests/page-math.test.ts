@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { proposeRange, totalReadingDays } from '../lib/curriculum/page-math';
+import {
+  proposeRange,
+  totalReadingDays,
+  PAGE_UNIT,
+} from '../lib/curriculum/page-math';
 import { PACE_SIZES } from '../lib/curriculum/constants';
 
 describe('Curriculum Page-Math Domain Logic', () => {
@@ -11,7 +15,10 @@ describe('Curriculum Page-Math Domain Logic', () => {
         pageCount: 999,
         delta: 0,
       });
-      expect(result).toEqual({ startPage: 211, endPage: 220 });
+      expect(result).toEqual({ start: 211, end: 220 });
+      // Backward compatibility getters
+      expect(result?.startPage).toBe(211);
+      expect(result?.endPage).toBe(220);
     });
 
     it('defaults delta to 0 when omitted', () => {
@@ -20,7 +27,7 @@ describe('Curriculum Page-Math Domain Logic', () => {
         size: 10,
         pageCount: 999,
       });
-      expect(result).toEqual({ startPage: 211, endPage: 220 });
+      expect(result).toEqual({ start: 211, end: 220 });
     });
   });
 
@@ -32,7 +39,7 @@ describe('Curriculum Page-Math Domain Logic', () => {
         pageCount: 320,
         delta: 0,
       });
-      expect(result).toEqual({ startPage: 316, endPage: 320 });
+      expect(result).toEqual({ start: 316, end: 320 });
     });
   });
 
@@ -66,7 +73,7 @@ describe('Curriculum Page-Math Domain Logic', () => {
         pageCount: 999,
         delta: -10,
       });
-      expect(result).toEqual({ startPage: 211, endPage: 215 });
+      expect(result).toEqual({ start: 211, end: 215 });
     });
 
     it('clamps minimum span to 5 for large pace sizes with heavy negative delta (size = 40, delta = -50)', () => {
@@ -76,11 +83,11 @@ describe('Curriculum Page-Math Domain Logic', () => {
         pageCount: 200,
         delta: -50,
       });
-      expect(result).toEqual({ startPage: 1, endPage: 5 });
+      expect(result).toEqual({ start: 1, end: 5 });
     });
   });
 
-  describe('5. Invalid adjustment validation', () => {
+  describe('5. Invalid adjustment validation (delta multiple of PAGE_UNIT)', () => {
     it('throws RangeError when delta is not a multiple of PAGE_UNIT (delta = 3)', () => {
       expect(() =>
         proposeRange({
@@ -106,7 +113,60 @@ describe('Curriculum Page-Math Domain Logic', () => {
     });
   });
 
-  describe('6. Larger valid adjustment & Maximum span clamping', () => {
+  describe('6. Input Validation Guardrails (size <= 0, pageCount <= 0, cursor < 0)', () => {
+    it('throws RangeError if size <= 0', () => {
+      expect(() =>
+        proposeRange({
+          cursor: 0,
+          size: 0,
+          pageCount: 100,
+          delta: 0,
+        }),
+      ).toThrow(RangeError);
+
+      expect(() =>
+        proposeRange({
+          cursor: 0,
+          size: -10,
+          pageCount: 100,
+          delta: 0,
+        }),
+      ).toThrow(RangeError);
+    });
+
+    it('throws RangeError if pageCount <= 0', () => {
+      expect(() =>
+        proposeRange({
+          cursor: 0,
+          size: 10,
+          pageCount: 0,
+          delta: 0,
+        }),
+      ).toThrow(RangeError);
+
+      expect(() =>
+        proposeRange({
+          cursor: 0,
+          size: 10,
+          pageCount: -50,
+          delta: 0,
+        }),
+      ).toThrow(RangeError);
+    });
+
+    it('throws RangeError if cursor is negative', () => {
+      expect(() =>
+        proposeRange({
+          cursor: -1,
+          size: 10,
+          pageCount: 100,
+          delta: 0,
+        }),
+      ).toThrow(RangeError);
+    });
+  });
+
+  describe('7. Larger valid adjustment & Maximum span clamping', () => {
     it('verifies that span cannot exceed size * 2 (size = 10, delta = 30 -> max span = 20)', () => {
       const result = proposeRange({
         cursor: 210,
@@ -115,7 +175,7 @@ describe('Curriculum Page-Math Domain Logic', () => {
         delta: 30,
       });
       // size * 2 = 20, so start = 211, end = 230
-      expect(result).toEqual({ startPage: 211, endPage: 230 });
+      expect(result).toEqual({ start: 211, end: 230 });
     });
 
     it('allows valid expansion up to size * 2 (size = 20, delta = 20 -> span = 40)', () => {
@@ -125,7 +185,7 @@ describe('Curriculum Page-Math Domain Logic', () => {
         pageCount: 500,
         delta: 20,
       });
-      expect(result).toEqual({ startPage: 1, endPage: 40 });
+      expect(result).toEqual({ start: 1, end: 40 });
     });
 
     it('clamps expansion beyond size * 2 (size = 20, delta = 35 -> clamped to span = 40)', () => {
@@ -135,11 +195,11 @@ describe('Curriculum Page-Math Domain Logic', () => {
         pageCount: 500,
         delta: 35,
       });
-      expect(result).toEqual({ startPage: 1, endPage: 40 });
+      expect(result).toEqual({ start: 1, end: 40 });
     });
   });
 
-  describe('7. Final-day clamping', () => {
+  describe('8. Final-day clamping', () => {
     it('verifies end never exceeds pageCount even with large pace size or expansion', () => {
       const result = proposeRange({
         cursor: 318,
@@ -147,11 +207,11 @@ describe('Curriculum Page-Math Domain Logic', () => {
         pageCount: 320,
         delta: 10,
       });
-      expect(result).toEqual({ startPage: 319, endPage: 320 });
+      expect(result).toEqual({ start: 319, end: 320 });
     });
   });
 
-  describe('8. totalReadingDays', () => {
+  describe('9. totalReadingDays', () => {
     it('calculates exact total reading days (320 pages / 10 pages/day === 32 days)', () => {
       expect(totalReadingDays(320, 10)).toBe(32);
     });
@@ -162,15 +222,18 @@ describe('Curriculum Page-Math Domain Logic', () => {
       expect(totalReadingDays(1, 10)).toBe(1);
     });
 
-    it('handles zero or negative pageCount or size gracefully', () => {
+    it('returns 0 for zero pageCount', () => {
       expect(totalReadingDays(0, 10)).toBe(0);
-      expect(totalReadingDays(-50, 10)).toBe(0);
-      expect(totalReadingDays(100, 0)).toBe(0);
-      expect(totalReadingDays(100, -5)).toBe(0);
+    });
+
+    it('throws RangeError for invalid size <= 0 or negative counts', () => {
+      expect(() => totalReadingDays(100, 0)).toThrow(RangeError);
+      expect(() => totalReadingDays(100, -5)).toThrow(RangeError);
+      expect(() => totalReadingDays(-50, 10)).toThrow(RangeError);
     });
   });
 
-  describe('9. Additional boundary cases & Pace presets', () => {
+  describe('10. Additional boundary cases & Pace presets', () => {
     it('handles cursor immediately before pageCount (cursor = 319, pageCount = 320)', () => {
       const result = proposeRange({
         cursor: 319,
@@ -178,7 +241,7 @@ describe('Curriculum Page-Math Domain Logic', () => {
         pageCount: 320,
         delta: 0,
       });
-      expect(result).toEqual({ startPage: 320, endPage: 320 });
+      expect(result).toEqual({ start: 320, end: 320 });
     });
 
     it('handles cursor at start of book (cursor = 0)', () => {
@@ -188,7 +251,7 @@ describe('Curriculum Page-Math Domain Logic', () => {
         pageCount: 100,
         delta: 0,
       });
-      expect(result).toEqual({ startPage: 1, endPage: 10 });
+      expect(result).toEqual({ start: 1, end: 10 });
     });
 
     it('handles positive valid delta (+5)', () => {
@@ -198,7 +261,7 @@ describe('Curriculum Page-Math Domain Logic', () => {
         pageCount: 500,
         delta: 5,
       });
-      expect(result).toEqual({ startPage: 101, endPage: 125 });
+      expect(result).toEqual({ start: 101, end: 125 });
     });
 
     it('handles negative valid delta (-5)', () => {
@@ -208,7 +271,7 @@ describe('Curriculum Page-Math Domain Logic', () => {
         pageCount: 500,
         delta: -5,
       });
-      expect(result).toEqual({ startPage: 101, endPage: 115 });
+      expect(result).toEqual({ start: 101, end: 115 });
     });
 
     it('works cleanly across all canonical PACE_SIZES presets [5, 10, 20, 40]', () => {
@@ -221,7 +284,7 @@ describe('Curriculum Page-Math Domain Logic', () => {
           pageCount: 200,
           delta: 0,
         });
-        expect(result).toEqual({ startPage: 1, endPage: size });
+        expect(result).toEqual({ start: 1, end: size });
       }
     });
 
@@ -232,7 +295,7 @@ describe('Curriculum Page-Math Domain Logic', () => {
         pageCount: 100,
         delta: -5,
       });
-      expect(result).toEqual({ startPage: 1, endPage: 5 });
+      expect(result).toEqual({ start: 1, end: 5 });
     });
 
     it('handles pace size 40 with positive delta clamping to max span 80', () => {
@@ -242,7 +305,11 @@ describe('Curriculum Page-Math Domain Logic', () => {
         pageCount: 500,
         delta: 60,
       });
-      expect(result).toEqual({ startPage: 1, endPage: 80 });
+      expect(result).toEqual({ start: 1, end: 80 });
+    });
+
+    it('verifies PAGE_UNIT is 5', () => {
+      expect(PAGE_UNIT).toBe(5);
     });
   });
 });
