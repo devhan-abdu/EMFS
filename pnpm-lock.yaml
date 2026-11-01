@@ -47,6 +47,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(kysely@0.29.5)(postgres@3.4.9)
+      grammy:
+        specifier: ^1.46.0
+        version: 1.46.0
       image-size:
         specifier: ^2.0.2
         version: 2.0.2
@@ -953,6 +956,9 @@ packages:
 
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
+
+  '@grammyjs/types@5.0.0':
+    resolution: {integrity: sha512-iq1Qrq1iPKkB8yAa0qSuIURMZOCuqTY5pWy5gHpCeL1oQ+GPadGhw/cDTVE8waJwuCzacUzuIjRv1sESvk7u7A==}
 
   '@hono/node-server@2.1.1':
     resolution: {integrity: sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==}
@@ -2997,6 +3003,10 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  grammy@1.46.0:
+    resolution: {integrity: sha512-/8Qw+iisrUdOMk+p2mjEHouMm/BBdBEN1DHh16wiTpRUZkxDG3PxexdjCvR+wvK3LWPdrEvnQbdrwpU954sPhg==}
+    engines: {node: ^12.20.0 || >=14.13.1}
 
   has-bigints@1.1.0:
     resolution: {integrity: sha512-R3pbpkcIqv2Pm3dUwgjclDRVmWpTJW2DcMzcIhEXEx1oh/CEMObMm3KLmRJOdvhM7o4uQBnwr8pzRK2sJWIqfg==}
@@ -5300,6 +5310,8 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
+  '@grammyjs/types@5.0.0': {}
+
   '@hono/node-server@2.1.1(hono@4.13.2)':
     dependencies:
       hono: 4.13.2
@@ -7228,6 +7240,16 @@ snapshots:
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
+
+  grammy@1.46.0:
+    dependencies:
+      '@grammyjs/types': 5.0.0
+      abort-controller: 3.0.0
+      debug: 4.4.3
+      node-fetch: 2.7.0
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
 
   has-bigints@1.1.0: {}
 
