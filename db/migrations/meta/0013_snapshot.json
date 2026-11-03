@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "id": "682ee672-6a96-4421-8b86-9372e9ae8dec",
+=======
+  "id": "d36118a4-4709-44d0-ac7d-9bc296f6a351",
+>>>>>>> main
   "prevId": "d0ccc35e-7343-49a7-930c-e953ae2c62c9",
   "version": "7",
   "dialect": "postgresql",
@@ -566,6 +570,149 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+<<<<<<< HEAD
+=======
+    "public.batch_breaks": {
+      "name": "batch_breaks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pace_group_id": {
+          "name": "pace_group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "batch_breaks_batch_id_idx": {
+          "name": "batch_breaks_batch_id_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "batch_breaks_date_range_idx": {
+          "name": "batch_breaks_date_range_idx",
+          "columns": [
+            {
+              "expression": "start_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "end_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "batch_breaks_batch_id_batches_id_fk": {
+          "name": "batch_breaks_batch_id_batches_id_fk",
+          "tableFrom": "batch_breaks",
+          "tableTo": "batches",
+          "columnsFrom": [
+            "batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "batch_breaks_pace_group_id_pace_groups_id_fk": {
+          "name": "batch_breaks_pace_group_id_pace_groups_id_fk",
+          "tableFrom": "batch_breaks",
+          "tableTo": "pace_groups",
+          "columnsFrom": [
+            "pace_group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "batch_breaks_created_by_profiles_id_fk": {
+          "name": "batch_breaks_created_by_profiles_id_fk",
+          "tableFrom": "batch_breaks",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+>>>>>>> main
     "public.pace_groups": {
       "name": "pace_groups",
       "schema": "",
@@ -3415,6 +3562,7 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+<<<<<<< HEAD
     },
     "public.telegram_chats": {
       "name": "telegram_chats",
@@ -3788,6 +3936,8 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+=======
+>>>>>>> main
     }
   },
   "enums": {
@@ -3868,6 +4018,7 @@
         "rejected",
         "cancelled"
       ]
+<<<<<<< HEAD
     },
     "public.telegram_chat_status": {
       "name": "telegram_chat_status",
@@ -3884,6 +4035,8 @@
         "pace_group",
         "announcement"
       ]
+=======
+>>>>>>> main
     }
   },
   "schemas": {},

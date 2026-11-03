@@ -1,6 +1,7 @@
 export * from './auth';
 export * from './users';
 export * from './batches';
+export * from './batch_breaks';
 export * from './pace-groups';
 export * from './pace-admin-assignments';
 export * from './admin-assignments';

@@ -19,6 +19,12 @@ export type TelegramApiPort = {
     text: string,
     messageThreadId?: number,
   ): Promise<void>;
+  setChatTitle(chatId: number, title: string): Promise<void>;
+  editForumTopic(
+    chatId: number,
+    messageThreadId: number,
+    name: string,
+  ): Promise<void>;
 };
 
 /** Telegram group ids (-100xxxxxxxxxx) are well inside Number.MAX_SAFE_INTEGER. */

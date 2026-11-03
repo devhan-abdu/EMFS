@@ -1,6 +1,13 @@
-import { eq, inArray } from 'drizzle-orm';
+import { and, count, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
-import { batches, batchAdmins, profiles, user } from '@/db/schema';
+import {
+  batches,
+  batchAdmins,
+  batchMemberships,
+  paceGroups,
+  profiles,
+  user,
+} from '@/db/schema';
 import type { CreateBatchInput } from '@/lib/validations/batch';
 
 export type Batch = typeof batches.$inferSelect;
@@ -14,14 +21,19 @@ export type BatchErrorCode =
   | 'UNAUTHORIZED'
   | 'INVALID_INPUT'
   | 'ADMIN_NOT_FOUND'
-  | 'ADMIN_LIMIT_EXCEEDED'
   | 'INVALID_ADMIN_ROLE'
-  | 'TRANSACTION_FAILED';
+  | 'TRANSACTION_FAILED'
+  | 'BATCH_NOT_FOUND'
+  | 'NO_BATCH_ADMIN'
+  | 'NO_PACE_GROUP'
+  | 'BATCH_FULL';
+
+export const CAPACITY_STATUSES = ['approved', 'active'] as const;
 
 export class BatchError extends Error {
   code: BatchErrorCode;
-  constructor(code: BatchErrorCode, message: string) {
-    super(message);
+  constructor(code: BatchErrorCode, message?: string) {
+    super(message ?? code);
     this.code = code;
     this.name = 'BatchError';
   }
@@ -33,9 +45,10 @@ export type CreateBatchResult = {
 };
 
 /**
- * Creates a fully configured not-yet-open batch and assigns 1-3 batch admins
- * inside a single database transaction.
+ * Creates a fully configured not-yet-open batch and assigns one or more batch
+ * admins inside a single database transaction.
  *
+ * At least one admin must be provided; there is no upper limit.
  * If admin assignment fails, the entire batch creation rolls back.
  */
 export async function createBatch(
@@ -43,7 +56,7 @@ export async function createBatch(
   input: CreateBatchInput,
   executor: DbOrTx = db,
 ): Promise<CreateBatchResult> {
-  // Determine admin profile IDs to assign (1 to 3 admins)
+  // Determine admin profile IDs to assign (at least 1; no upper limit)
   const candidateAdminIds =
     input.adminIds && input.adminIds.length > 0
       ? Array.from(new Set(input.adminIds))
@@ -53,13 +66,6 @@ export async function createBatch(
     throw new BatchError(
       'INVALID_INPUT',
       'At least one batch admin must be assigned.',
-    );
-  }
-
-  if (candidateAdminIds.length > 3) {
-    throw new BatchError(
-      'ADMIN_LIMIT_EXCEEDED',
-      'A batch cannot have more than 3 assigned batch admins.',
     );
   }
 
@@ -91,7 +97,7 @@ export async function createBatch(
         name: input.name.trim(),
         maxMembers: input.maxMembers,
         paceGroupCount: input.paceGroupCount,
-        registrationOpen: input.registrationOpen,
+        registrationOpen: false,
         autoApprove: true,
         startDate: formattedStartDate,
         readingDaysPerWeek: input.readingDaysPerWeek,
@@ -125,7 +131,7 @@ export async function updateBatch(
   input: CreateBatchInput,
   executor: DbOrTx = db,
 ): Promise<CreateBatchResult> {
-  // Determine admin profile IDs to assign (1 to 3 admins)
+  // Determine admin profile IDs to assign (at least 1; no upper limit)
   const candidateAdminIds =
     input.adminIds && input.adminIds.length > 0
       ? Array.from(new Set(input.adminIds))
@@ -135,13 +141,6 @@ export async function updateBatch(
     throw new BatchError(
       'INVALID_INPUT',
       'At least one batch admin must be assigned.',
-    );
-  }
-
-  if (candidateAdminIds.length > 3) {
-    throw new BatchError(
-      'ADMIN_LIMIT_EXCEEDED',
-      'A batch cannot have more than 3 assigned batch admins.',
     );
   }
 
@@ -173,7 +172,7 @@ export async function updateBatch(
         name: input.name.trim(),
         maxMembers: input.maxMembers,
         paceGroupCount: input.paceGroupCount,
-        registrationOpen: input.registrationOpen,
+        registrationOpen: false,
         autoApprove: true,
         startDate: formattedStartDate,
         readingDaysPerWeek: input.readingDaysPerWeek,
@@ -185,7 +184,6 @@ export async function updateBatch(
           name: input.name.trim(),
           maxMembers: input.maxMembers,
           paceGroupCount: input.paceGroupCount,
-          registrationOpen: input.registrationOpen,
           autoApprove: true,
           startDate: formattedStartDate,
           readingDaysPerWeek: input.readingDaysPerWeek,
@@ -252,3 +250,131 @@ export async function getEligibleBatchAdmins(
     previouslyAssigned: previouslyAssignedIds.has(a.profileId),
   }));
 }
+
+/**
+ * Validates whether a batch satisfies the gate requirements to open registration.
+ *
+ * Requirements:
+ * 1. Condition 1: The batch has at least one assigned batch admin (NO_BATCH_ADMIN).
+ * 2. Condition 2: The batch contains at least one non-archived pace group (NO_PACE_GROUP).
+ * 3. Condition 3: The batch is currently under its maximum capacity limit (BATCH_FULL).
+ */
+export async function validateBatchRegistrationGate(
+  batchId: string,
+  executor: DbOrTx = db,
+): Promise<void> {
+  // Condition 1: At least one assigned batch admin.
+  const [adminResult] = await executor
+    .select({
+      total: count(),
+    })
+    .from(batchAdmins)
+    .where(eq(batchAdmins.batchId, batchId));
+
+  const adminCount = Number(adminResult?.total ?? 0);
+
+  if (adminCount < 1) {
+    throw new BatchError('NO_BATCH_ADMIN');
+  }
+
+  // Condition 2: At least one non-archived pace group.
+  const [paceGroupResult] = await executor
+    .select({
+      total: count(),
+    })
+    .from(paceGroups)
+    .where(
+      and(eq(paceGroups.batchId, batchId), eq(paceGroups.archived, false)),
+    );
+
+  const paceGroupCount = Number(paceGroupResult?.total ?? 0);
+
+  if (paceGroupCount < 1) {
+    throw new BatchError('NO_PACE_GROUP');
+  }
+
+  // Condition 3: Available batch capacity.
+  const [memberResult] = await executor
+    .select({
+      total: count(),
+    })
+    .from(batchMemberships)
+    .where(
+      and(
+        eq(batchMemberships.batchId, batchId),
+        inArray(batchMemberships.status, CAPACITY_STATUSES),
+      ),
+    );
+
+  const currentMemberCount = Number(memberResult?.total ?? 0);
+
+  // Retrieve maximum capacity.
+  const [batch] = await executor
+    .select({
+      maxMembers: batches.maxMembers,
+    })
+    .from(batches)
+    .where(eq(batches.id, batchId));
+
+  if (!batch) {
+    throw new BatchError('BATCH_NOT_FOUND', 'Batch not found.');
+  }
+
+  if (currentMemberCount >= batch.maxMembers) {
+    throw new BatchError('BATCH_FULL');
+  }
+}
+
+/**
+ * Updates batch registration status.
+ * If open is true, runs validateBatchRegistrationGate before updating the database.
+ */
+export async function updateBatchRegistration(
+  batchId: string,
+  open: boolean,
+  executor: DbOrTx = db,
+): Promise<Batch> {
+  const updateRegistration = async (tx: DbOrTx): Promise<Batch> => {
+    // Lock the batch row to coordinate concurrent operations.
+    const [batch] = await tx
+      .select()
+      .from(batches)
+      .where(eq(batches.id, batchId))
+      .for('update');
+
+    if (!batch) {
+      throw new BatchError('BATCH_NOT_FOUND', 'Batch not found.');
+    }
+
+    // Validate only when opening registration.
+    if (open) {
+      await validateBatchRegistrationGate(batchId, tx);
+    }
+
+    // Update registration status.
+    const [updatedBatch] = await tx
+      .update(batches)
+      .set({
+        registrationOpen: open,
+        updatedAt: new Date(),
+      })
+      .where(eq(batches.id, batchId))
+      .returning();
+
+    if (!updatedBatch) {
+      throw new BatchError('BATCH_NOT_FOUND', 'Batch not found.');
+    }
+
+    return updatedBatch;
+  };
+
+  // Reuse an existing transaction instead of creating a nested one.
+  if (executor !== db) {
+    return updateRegistration(executor);
+  }
+
+  // Create a transaction when called independently.
+  return db.transaction(updateRegistration);
+}
+
+export const toggleBatchRegistration = updateBatchRegistration;

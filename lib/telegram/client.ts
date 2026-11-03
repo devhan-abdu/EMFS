@@ -54,6 +54,12 @@ export function toApiPort(api: Api): TelegramApiPort {
           : { message_thread_id: messageThreadId },
       );
     },
+    async setChatTitle(chatId, title) {
+      await api.setChatTitle(chatId, title);
+    },
+    async editForumTopic(chatId, messageThreadId, name) {
+      await api.editForumTopic(chatId, messageThreadId, { name });
+    },
   };
 }
 

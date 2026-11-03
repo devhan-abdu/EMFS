@@ -28,8 +28,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
   Popover,
@@ -55,7 +53,6 @@ export type AdminOption = {
   previouslyAssigned: boolean;
 };
 
-const MAX_ADMINS = 3;
 const initialState: CreateBatchActionState = null;
 
 export function CreateBatchForm({
@@ -77,9 +74,6 @@ export function CreateBatchForm({
     initialData?.admins?.map((a) => a.profileId) ?? [],
   );
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [registrationOpen, setRegistrationOpen] = useState(
-    initialData?.registrationOpen ?? true,
-  );
   const fieldErrors = state?.errors?.fieldErrors ?? {};
   const formattedDefaultDate = initialData?.startDate
     ? new Date(initialData.startDate).toISOString().split('T')[0]
@@ -93,8 +87,6 @@ export function CreateBatchForm({
       router.push(`/admin/b/${state.data.batch.id}`);
     }
   }, [state, router, isEditing]);
-
-  const isMaxReached = selectedIds.length >= MAX_ADMINS;
 
   const selectedAdmins = selectedIds.map((id) => {
     const matchedOption = admins.find((a) => a.profileId === id);
@@ -114,17 +106,9 @@ export function CreateBatchForm({
   function toggleAdmin(id: string) {
     setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= MAX_ADMINS) return prev;
       return [...prev, id];
     });
   }
-
-  useEffect(() => {
-    if (state?.ok && state.data?.batch?.id) {
-      toast.success('Batch created successfully');
-      router.push(`/admin/b/${state.data.batch.id}`);
-    }
-  }, [state, router]);
 
   return (
     <form action={formAction} className="grid gap-6 lg:grid-cols-3">
@@ -242,34 +226,6 @@ export function CreateBatchForm({
       <div className="space-y-6">
         <Card className="card-soft">
           <CardHeader>
-            <CardTitle className="font-display text-xl">Registration</CardTitle>
-            <CardDescription>
-              Registration starts closed. When you open it, applicants are
-              approved automatically and get a Telegram bot link
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between rounded-xl bg-surface-container p-4">
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  Open registration
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Members can apply and receive a bot link immediately
-                </p>
-              </div>
-              <Switch
-                name="registrationOpen"
-                value="true"
-                checked={registrationOpen}
-                onCheckedChange={setRegistrationOpen}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="card-soft">
-          <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <p className="font-display text-xl">Batch admins</p>
 
@@ -282,7 +238,7 @@ export function CreateBatchForm({
             </CardTitle>
 
             <CardDescription>
-              Pick 1 to 3. People previously assigned show up first.
+              Pick at least 1. People previously assigned show up first.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -305,9 +261,7 @@ export function CreateBatchForm({
                     aria-expanded={pickerOpen}
                     className="w-full justify-between font-normal"
                   >
-                    {isMaxReached
-                      ? 'Maximum admins selected'
-                      : 'Search admins…'}
+                    Search admins…
                     <ChevronsUpDown className="size-4 opacity-50" />
                   </Button>
                 }
@@ -328,10 +282,7 @@ export function CreateBatchForm({
                             key={admin.profileId}
                             admin={admin}
                             isSelected={selectedIds.includes(admin.profileId)}
-                            disabled={
-                              isMaxReached &&
-                              !selectedIds.includes(admin.profileId)
-                            }
+                            disabled={false}
                             onSelect={() => toggleAdmin(admin.profileId)}
                           />
                         ))}
@@ -344,10 +295,7 @@ export function CreateBatchForm({
                             key={admin.profileId}
                             admin={admin}
                             isSelected={selectedIds.includes(admin.profileId)}
-                            disabled={
-                              isMaxReached &&
-                              !selectedIds.includes(admin.profileId)
-                            }
+                            disabled={false}
                             onSelect={() => toggleAdmin(admin.profileId)}
                           />
                         ))}
