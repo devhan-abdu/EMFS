@@ -18,6 +18,13 @@ export function createBot(token: string, deps: BotDeps = {}): Bot {
   const bot = new Bot(token);
   bot.api.config.use(autoRetry({ maxRetryAttempts: 3, maxDelaySeconds: 10 }));
 
+  bot.use(async (ctx, next) => {
+    console.log('[tg]', ctx.update.update_id, Object.keys(ctx.update), {
+      text: ctx.message?.text,
+      newMembers: ctx.message?.new_chat_members?.map((m) => m.username),
+    });
+    await next();
+  });
   registerStartHandler(bot, deps.onMembershipActivated ?? (() => {}));
   registerChatEventHandlers(bot);
   registerTopicHandler(bot);

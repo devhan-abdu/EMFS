@@ -1,10 +1,12 @@
 import { z } from 'zod';
+import { createPaceGroupSchema } from '@/lib/validations/pace-group';
 
 /** Unambiguous alphabet (no 0/O, 1/I/L) so codes are easy to type in a chat. */
 export const LINK_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 export const LINK_CODE_LENGTH = 8;
 export const LINK_CODE_TTL_MINUTES = 15;
 export const MAX_TOPIC_NAME_LENGTH = 128;
+export const LinkMode = z.enum(['managed', 'manual']);
 
 const linkCodeRegex = new RegExp(
   `^[${LINK_CODE_ALPHABET}]{${LINK_CODE_LENGTH}}$`,
@@ -24,9 +26,31 @@ export const groupChatIdSchema = z
   .refine((id) => id < BigInt(0), 'Only group chats can be linked.');
 
 export const threadIdSchema = z.number().int().positive();
+export const telegramTopicNameSchema = z
+  .string()
+  .trim()
+  .min(1, 'Enter the Telegram topic name.')
+  .max(
+    MAX_TOPIC_NAME_LENGTH,
+    'Telegram topic names must be 128 characters or fewer.',
+  );
 
 export const batchActionSchema = z.object({ batchId: batchIdSchema });
 export type BatchActionInput = z.infer<typeof batchActionSchema>;
+
+export const mapDiscoveredTopicActionSchema = batchActionSchema.extend({
+  discoveryId: z.string().uuid('Invalid topic registration.'),
+  paceGroupId: z.string().uuid('Invalid pace group.'),
+});
+
+export const createPaceGroupForDiscoveredTopicActionSchema =
+  createPaceGroupSchema
+    .omit({ overridePlannedCount: true })
+    .extend({ discoveryId: z.string().uuid('Invalid topic registration.') });
+
+export const createLinkCodeActionSchema = batchActionSchema.extend({
+  topicSyncMode: LinkMode.default('managed'),
+});
 
 export const consumeLinkCodeSchema = z.object({
   code: linkCodeSchema,

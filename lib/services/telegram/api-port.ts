@@ -25,6 +25,7 @@ export type TelegramApiPort = {
     messageThreadId: number,
     name: string,
   ): Promise<void>;
+  leaveChat(chatId: number | string): Promise<void>;
 };
 
 /** Telegram group ids (-100xxxxxxxxxx) are well inside Number.MAX_SAFE_INTEGER. */

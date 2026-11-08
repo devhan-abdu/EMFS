@@ -6,6 +6,7 @@ import {
   registerDiscoveredTopic,
   TelegramTopicDiscoveryError,
 } from '@/lib/services/telegram/topic-discovery';
+import { telegramTopicNameSchema } from '@/lib/validations/telegram';
 
 import { isChatAdmin, isGroupChat } from '../guards';
 
@@ -32,7 +33,16 @@ export function registerTopicHandler(bot: Bot) {
 
     if (messageThreadId === undefined) {
       await ctx.reply(
-        'Please run /register_topic inside the topic you want to register.',
+        'Please run /register_topic <topic name> inside the topic you want to register.',
+      );
+      return;
+    }
+
+    const parsedTopicName = telegramTopicNameSchema.safeParse(ctx.match);
+    if (!parsedTopicName.success) {
+      await ctx.reply(
+        'Usage: /register_topic <topic name>. Send it inside the topic you want to register.',
+        { message_thread_id: messageThreadId },
       );
       return;
     }
@@ -41,11 +51,12 @@ export function registerTopicHandler(bot: Bot) {
       const result = await registerDiscoveredTopic(db, {
         chatId: BigInt(chat.id),
         messageThreadId,
+        topicName: parsedTopicName.data,
       });
 
       await ctx.reply(
         result.registered
-          ? `Topic #${messageThreadId} registered successfully! You can now map it to a pace group in EMFS.`
+          ? `“${parsedTopicName.data}” registered. You can now create its pace group in EMFS.`
           : result.message,
         {
           message_thread_id: messageThreadId,

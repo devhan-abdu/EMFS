@@ -53,13 +53,6 @@ async function loadUsableChat(
     );
   }
 
-  if (chat.topicSyncMode !== 'managed') {
-    throw new TelegramConnectionError(
-      'TELEGRAM_API_ERROR',
-      'Automatic topic synchronization is disabled for this batch.',
-    );
-  }
-
   return chat;
 }
 

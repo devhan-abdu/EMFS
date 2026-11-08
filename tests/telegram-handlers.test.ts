@@ -24,7 +24,7 @@ vi.mock('@/lib/services/telegram/topics', () => ({
 }));
 
 import { registerLinkHandler } from '../lib/telegram/handlers/link';
-import { registerTopicHandler } from '../lib/telegram/handlers/topic';
+import { registerTopicHandler } from '../lib/telegram/handlers/topic-sync';
 import { registerChatEventHandlers } from '../lib/telegram/handlers/chat-events';
 
 const CHAT = -1001234567890;

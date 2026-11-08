@@ -1,33 +1,60 @@
-import { revalidatePath } from 'next/cache';
-import { webhookCallback } from 'grammy';
-import { createBot } from '@/lib/telegram/bot';
+import { getBot } from '@/lib/telegram/bot-instance';
+import { isTransientError, isBadTokenError } from '@/lib/telegram/errors';
+import { BotError, webhookCallback } from 'grammy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-type Handler = (request: Request) => Promise<Response>;
-let handler: Handler | null = null;
+const g = globalThis as unknown as {
+  __tgWebhookHandler?: (request: Request) => Promise<Response>;
+};
 
-function getHandler(token: string, secretToken: string): Handler {
-  if (!handler) {
-    const bot = createBot(token, {
-      onMembershipActivated: () => {
-        revalidatePath('/me');
-        revalidatePath('/');
-      },
-    });
-    // grammY verifies the X-Telegram-Bot-Api-Secret-Token header and answers 401 itself.
-    handler = webhookCallback(bot, 'std/http', { secretToken });
-  }
-  return handler;
+function describe(error: unknown) {
+  const inner = error instanceof BotError ? error.error : error;
+  return {
+    updateId:
+      error instanceof BotError ? error.ctx.update.update_id : undefined,
+    name: inner instanceof Error ? inner.name : typeof inner,
+    message: inner instanceof Error ? inner.message : String(inner),
+  };
 }
 
 export async function POST(request: Request) {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
   const secretToken = process.env.TELEGRAM_WEBHOOK_SECRET_TOKEN;
-  // Fail closed: never accept updates without a configured secret.
-  if (!token || !secretToken) {
-    return new Response('Bot service unconfigured', { status: 500 });
+
+  if (!secretToken) {
+    console.error('TELEGRAM_WEBHOOK_SECRET_TOKEN is missing');
+    return new Response('Webhook secret not configured', { status: 500 });
   }
-  return getHandler(token, secretToken)(request);
+
+  try {
+    const handler = (g.__tgWebhookHandler ??= webhookCallback(
+      getBot(),
+      'std/http',
+      { secretToken },
+    ));
+
+    return await handler(request);
+  } catch (error) {
+    if (isTransientError(error)) {
+      console.error(
+        '[webhook] transient failure, Telegram will retry',
+        describe(error),
+      );
+      return new Response('retry', { status: 500 });
+    }
+    if (isBadTokenError(error)) {
+      console.error(
+        '[webhook] BOT TOKEN REJECTED (401). Fix env and redeploy.',
+        describe(error),
+      );
+      return new Response('misconfigured', { status: 500 });
+    }
+
+    console.error(
+      '[webhook] permanent failure, dropping update',
+      describe(error),
+    );
+    return new Response('ok', { status: 200 });
+  }
 }

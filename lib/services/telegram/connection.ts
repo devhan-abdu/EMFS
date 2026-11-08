@@ -5,6 +5,7 @@ import {
   telegramChats,
   telegramChatTopics,
   telegramLinkCodes,
+  telegramTopicDiscoveries,
 } from '@/db/schema';
 import type { DbOrTx } from '@/lib/services/membership';
 import {
@@ -27,8 +28,21 @@ import { findActiveLinkCode } from './link-codes';
 /** Documented cap: a batch has a handful of pace groups. */
 export const MAX_PACE_GROUPS_LISTED = 200;
 
+const INVALID_CODE_MESSAGE =
+  'This link code is invalid, expired or already used.';
+
+/** Telegram member statuses that mean the bot is still in the chat. */
+function isBotStillIn(status: string) {
+  return (
+    status === 'creator' ||
+    status === 'administrator' ||
+    status === 'member' ||
+    status === 'restricted'
+  );
+}
+
 /**
- * Bot side: `/link CODE` was sent in a group. Burns the code and binds the chat
+ * Bot side: `/start CODE` was sent in a group. Burns the code and binds the chat
  * to the code's batch in ONE transaction, so a failed bind never consumes the code.
  */
 export async function consumeLinkCode(
@@ -40,75 +54,138 @@ export async function consumeLinkCode(
     consumeLinkCodeSchema.parse(input);
 
   return executor.transaction(async (tx) => {
+    // 1. Find which batch this code belongs to.
+    const linkCode = await tx.query.telegramLinkCodes.findFirst({
+      where: eq(telegramLinkCodes.code, code),
+      columns: {
+        id: true,
+        batchId: true,
+        createdBy: true,
+        expiresAt: true,
+        usedAt: true,
+      },
+    });
+
+    if (!linkCode) {
+      throw new TelegramConnectionError(
+        'INVALID_OR_EXPIRED_CODE',
+        INVALID_CODE_MESSAGE,
+      );
+    }
+
+    const [batch] = await tx
+      .select({
+        id: batches.id,
+        name: batches.name,
+        telegramTopicSyncMode: batches.telegramTopicSyncMode,
+      })
+      .from(batches)
+      .where(eq(batches.id, linkCode.batchId))
+      .for('update');
+
+    if (!batch) {
+      throw new TelegramConnectionError('BATCH_NOT_FOUND', 'Batch not found.');
+    }
+
+    // 3. Validate Telegram group requirements.
+    if (!isForum) {
+      throw new TelegramConnectionError(
+        'NOT_A_FORUM',
+        'Enable Topics in this Telegram group and try again.',
+      );
+    }
+
+    if (!canManageTopics) {
+      throw new TelegramConnectionError(
+        'LINK_BLOCKED',
+        'The bot must be an administrator with Manage Topics permission.',
+      );
+    }
+
+    // 4. Atomically consume the code.
     const [used] = await tx
       .update(telegramLinkCodes)
       .set({ usedAt: now })
       .where(
         and(
           eq(telegramLinkCodes.code, code),
+          eq(telegramLinkCodes.batchId, batch.id),
           isNull(telegramLinkCodes.usedAt),
           gt(telegramLinkCodes.expiresAt, now),
         ),
       )
-      .returning();
+      .returning({
+        createdBy: telegramLinkCodes.createdBy,
+      });
+
     if (!used) {
       throw new TelegramConnectionError(
         'INVALID_OR_EXPIRED_CODE',
-        'This link code is invalid, expired or already used.',
+        INVALID_CODE_MESSAGE,
       );
     }
 
-    const batch = await tx.query.batches.findFirst({
-      where: eq(batches.id, used.batchId),
-      columns: { id: true, name: true },
-    });
-    if (!batch) {
-      throw new TelegramConnectionError('BATCH_NOT_FOUND', 'Batch not found.');
-    }
+    const groupLink = await findChatLink(tx, chatId);
 
-    if (
-      await tx.query.telegramChats.findFirst({
-        where: eq(telegramChats.chatId, chatId),
-        columns: { id: true },
-      })
-    ) {
+    if (groupLink && groupLink.batchId !== batch.id) {
       throw new TelegramConnectionError(
         'CHAT_ALREADY_LINKED',
         'This Telegram group is already linked to a batch.',
       );
     }
-    if (
-      await tx.query.telegramChats.findFirst({
-        where: eq(telegramChats.batchId, batch.id),
-        columns: { id: true },
-      })
-    ) {
+
+    // 6. This batch must not already have an active group.
+    //    A 'bot_removed' row is allowed: it is being reconnected.
+    const current = await tx.query.telegramChats.findFirst({
+      where: eq(telegramChats.batchId, batch.id),
+      columns: { id: true, chatId: true, status: true },
+    });
+
+    if (current?.status === 'active') {
       throw new TelegramConnectionError(
         'BATCH_ALREADY_LINKED',
-        'This batch already has a Telegram group. Disconnect it in the system first.',
-      );
-    }
-
-    if (!isForum) {
-      throw new TelegramConnectionError(
-        'NOT_A_FORUM',
-        'Topics are not enabled in this group. Turn on Topics in the group settings, then send /link again with the same code.',
+        'This batch already has a Telegram group.',
       );
     }
 
     try {
-      const [chat] = await tx
-        .insert(telegramChats)
-        .values({
-          chatId,
-          batchId: batch.id,
-          title,
-          isForum,
-          canManageTopics,
-          linkedBy: used.createdBy,
-        })
-        .returning();
-      return { chat, batchName: batch.name };
+      if (current && current.chatId !== chatId) {
+        await tx.delete(telegramChats).where(eq(telegramChats.id, current.id));
+      }
+
+      const [chat] =
+        current && current.chatId === chatId
+          ? await tx
+              .update(telegramChats)
+              .set({
+                title,
+                isForum,
+                canManageTopics,
+                status: 'active',
+                linkedBy: used.createdBy,
+                linkedAt: now,
+                updatedAt: now,
+              })
+              .where(eq(telegramChats.id, current.id))
+              .returning()
+          : await tx
+              .insert(telegramChats)
+              .values({
+                chatId,
+                batchId: batch.id,
+                title,
+                isForum,
+                canManageTopics,
+                linkedBy: used.createdBy,
+              })
+              .returning();
+
+      return {
+        chat,
+        batchName: batch.name,
+        batchId: batch.id,
+        topicSyncMode: batch.telegramTopicSyncMode,
+      };
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new TelegramConnectionError(
@@ -116,14 +193,64 @@ export async function consumeLinkCode(
           'This Telegram group or batch is already linked.',
         );
       }
+
       throw error;
     }
   });
+}
+/**
+ * The group wasn't ready (Topics off or bot not admin yet). Remember which chat
+ * the code was used in so linking can retry once the bot is promoted.
+ * Runs outside the consume transaction on purpose: a rollback must not erase it.
+ */
+export async function markLinkCodePending(
+  executor: DbOrTx,
+  code: string,
+  chatId: bigint,
+) {
+  await executor
+    .update(telegramLinkCodes)
+    .set({ pendingChatId: chatId })
+    .where(
+      and(eq(telegramLinkCodes.code, code), isNull(telegramLinkCodes.usedAt)),
+    );
+}
+
+/** The active, unused code waiting for this chat, if any. */
+export async function findPendingLinkCode(
+  executor: DbOrTx,
+  chatId: bigint,
+  now: Date = new Date(),
+) {
+  return executor.query.telegramLinkCodes.findFirst({
+    where: and(
+      eq(telegramLinkCodes.pendingChatId, chatId),
+      isNull(telegramLinkCodes.usedAt),
+      gt(telegramLinkCodes.expiresAt, now),
+    ),
+    columns: { code: true },
+  });
+}
+
+/** True when this Telegram chat is already linked to a batch. */
+async function findChatLink(executor: DbOrTx, chatId: bigint) {
+  return executor.query.telegramChats.findFirst({
+    where: eq(telegramChats.chatId, chatId),
+    columns: { id: true, batchId: true, status: true },
+  });
+}
+
+/** True when this chat is linked and the bot is still in it. */
+export async function isChatLinked(executor: DbOrTx, chatId: bigint) {
+  const row = await findChatLink(executor, chatId);
+  return row?.status === 'active';
 }
 
 export type TelegramConnectionView =
   | {
       connected: false;
+      botRemoved: boolean;
+      previousTitle: string | null;
       activeCode: { code: string; expiresAt: Date; minutesLeft: number } | null;
     }
   | {
@@ -141,7 +268,21 @@ export type TelegramConnectionView =
         name: string;
         messageThreadId: number | null;
       }[];
+      discoveredTopics: {
+        id: string;
+        messageThreadId: number;
+        topicName: string | null;
+      }[];
     };
+
+export type TelegramNotConnected = Extract<
+  TelegramConnectionView,
+  { connected: false }
+>;
+export type TelegramConnected = Extract<
+  TelegramConnectionView,
+  { connected: true }
+>;
 
 /** Read model for the admin card. Never exposes the raw chat id to the browser. */
 export async function getConnection(
@@ -154,10 +295,12 @@ export async function getConnection(
   const chat = await executor.query.telegramChats.findFirst({
     where: eq(telegramChats.batchId, batchId),
   });
-  if (!chat) {
+  if (!chat || chat.status === 'bot_removed') {
     const active = await findActiveLinkCode(executor, batchId, now);
     return {
       connected: false,
+      botRemoved: chat !== undefined,
+      previousTitle: chat?.title ?? null,
       activeCode: active
         ? {
             code: active.code,
@@ -171,7 +314,7 @@ export async function getConnection(
     };
   }
 
-  const [groups, topics] = await Promise.all([
+  const [groups, topics, discoveries] = await Promise.all([
     executor.query.paceGroups.findMany({
       where: and(
         eq(paceGroups.batchId, batchId),
@@ -183,6 +326,11 @@ export async function getConnection(
     }),
     executor.query.telegramChatTopics.findMany({
       where: eq(telegramChatTopics.telegramChatId, chat.id),
+    }),
+    executor.query.telegramTopicDiscoveries.findMany({
+      where: eq(telegramTopicDiscoveries.telegramChatId, chat.id),
+      orderBy: asc(telegramTopicDiscoveries.messageThreadId),
+      limit: MAX_PACE_GROUPS_LISTED,
     }),
   ]);
 
@@ -208,17 +356,49 @@ export async function getConnection(
       name: g.name,
       messageThreadId: threadByGroup.get(g.id) ?? null,
     })),
+    discoveredTopics: discoveries.map((topic) => ({
+      id: topic.id,
+      messageThreadId: topic.messageThreadId,
+      topicName: topic.topicName,
+    })),
   };
 }
 
 /** Removes the link (and its topic mappings). Does not remove the bot from Telegram. */
-export async function disconnect(executor: DbOrTx, batchId: string) {
+export async function disconnect(
+  executor: DbOrTx,
+  api: Pick<TelegramApiPort, 'leaveChat'>,
+  batchId: string,
+) {
   batchIdSchema.parse(batchId);
-  const deleted = await executor
-    .delete(telegramChats)
-    .where(eq(telegramChats.batchId, batchId))
-    .returning({ id: telegramChats.id });
-  return deleted.length > 0;
+
+  const chat = await executor.query.telegramChats.findFirst({
+    where: eq(telegramChats.batchId, batchId),
+    columns: { id: true, chatId: true, status: true },
+  });
+  if (!chat) return false;
+
+  if (chat.status === 'active') {
+    try {
+      await api.leaveChat(toApiChatId(chat.chatId));
+    } catch (error) {
+      console.warn(
+        '[telegram] leaveChat failed:',
+        describeTelegramError(error),
+      );
+    }
+  }
+
+  await executor
+    .update(telegramChats)
+    .set({
+      status: 'bot_removed',
+      canManageTopics: false,
+      updatedAt: new Date(),
+    })
+    .where(eq(telegramChats.id, chat.id));
+
+  return true;
 }
 
 /**
@@ -245,18 +425,13 @@ export async function syncChatInfo(
   try {
     const [info, me] = await Promise.all([api.getChat(apiChatId), api.getMe()]);
     const member = await api.getChatMember(apiChatId, me.id);
-    const stillIn =
-      member.status === 'creator' ||
-      member.status === 'administrator' ||
-      member.status === 'member' ||
-      member.status === 'restricted';
     await executor
       .update(telegramChats)
       .set({
         title: info.title ?? chat.title,
         isForum: info.isForum,
         canManageTopics: memberCanManageTopics(member),
-        status: stillIn ? 'active' : 'bot_removed',
+        status: isBotStillIn(member.status) ? 'active' : 'bot_removed',
         updatedAt: new Date(),
       })
       .where(eq(telegramChats.id, chat.id));
@@ -284,15 +459,10 @@ export async function applyBotMembershipChange(
   chatId: bigint,
   change: { status: string; canManageTopics: boolean },
 ) {
-  const stillIn =
-    change.status === 'creator' ||
-    change.status === 'administrator' ||
-    change.status === 'member' ||
-    change.status === 'restricted';
   await executor
     .update(telegramChats)
     .set({
-      status: stillIn ? 'active' : 'bot_removed',
+      status: isBotStillIn(change.status) ? 'active' : 'bot_removed',
       canManageTopics: memberCanManageTopics(change),
       updatedAt: new Date(),
     })
@@ -300,13 +470,22 @@ export async function applyBotMembershipChange(
 }
 
 /** Group upgraded to a supergroup: Telegram gives it a new id. */
+
 export async function migrateChatId(
   executor: DbOrTx,
   oldChatId: bigint,
   newChatId: bigint,
 ) {
-  await executor
-    .update(telegramChats)
-    .set({ chatId: newChatId, updatedAt: new Date() })
-    .where(eq(telegramChats.chatId, oldChatId));
+  await executor.transaction(async (tx) => {
+    await tx
+      .update(telegramChats)
+      .set({ chatId: newChatId, updatedAt: new Date() })
+      .where(eq(telegramChats.chatId, oldChatId));
+
+    // A code waiting for the old id now waits for the new one.
+    await tx
+      .update(telegramLinkCodes)
+      .set({ pendingChatId: newChatId })
+      .where(eq(telegramLinkCodes.pendingChatId, oldChatId));
+  });
 }

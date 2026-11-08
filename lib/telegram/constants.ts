@@ -17,11 +17,6 @@ export const BOT_ADMIN_RIGHTS: ChatAdministratorRights = {
   can_send_welcome_messages: false,
 };
 
-export const ADMIN_LINK_RIGHTS = [
-  'manage_topics',
-  'pin_messages',
-  'delete_messages',
-];
 export const ALLOWED_UPDATES = [
   'message',
   'callback_query',

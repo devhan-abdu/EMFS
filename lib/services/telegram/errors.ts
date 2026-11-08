@@ -7,6 +7,8 @@ export type TelegramConnectionErrorCode =
   | 'NOT_A_FORUM'
   | 'PACE_GROUP_NOT_FOUND'
   | 'TOPIC_ALREADY_MAPPED'
+  | 'LINK_BLOCKED'
+  | 'NOTHING_TO_RESOLVE'
   | 'TELEGRAM_API_ERROR';
 
 export class TelegramConnectionError extends Error {

@@ -1,28 +1,28 @@
 import { randomInt } from 'node:crypto';
 import { and, desc, eq, gt, isNull } from 'drizzle-orm';
-import { batches, telegramLinkCodes } from '@/db/schema';
+
+import { batches, telegramChats, telegramLinkCodes } from '@/db/schema';
 import type { DbOrTx } from '@/lib/services/membership';
+import { db } from '@/db';
 import {
   LINK_CODE_ALPHABET,
   LINK_CODE_LENGTH,
   LINK_CODE_TTL_MINUTES,
+  LinkMode,
   batchIdSchema,
 } from '@/lib/validations/telegram';
-import { TelegramConnectionError, isUniqueViolation } from './errors';
+import { TelegramConnectionError } from './errors';
 
 export function generateLinkCode(): string {
   let code = '';
+
   for (let i = 0; i < LINK_CODE_LENGTH; i++) {
     code += LINK_CODE_ALPHABET[randomInt(LINK_CODE_ALPHABET.length)];
   }
+
   return code;
 }
 
-/**
- * Issues a single-use code that binds one Telegram group to this batch.
- * Older unused codes for the batch are expired so only one is ever valid.
- * `actorProfileId` must come from the session, never from client input.
- */
 export async function createLinkCode(
   executor: DbOrTx,
   batchId: string,
@@ -31,31 +31,53 @@ export async function createLinkCode(
 ) {
   batchIdSchema.parse(batchId);
 
-  const batch = await executor.query.batches.findFirst({
-    where: eq(batches.id, batchId),
-    columns: { id: true },
-  });
-  if (!batch) {
-    throw new TelegramConnectionError('BATCH_NOT_FOUND', 'Batch not found.');
-  }
+  const create = async (tx: DbOrTx) => {
+    const [batch] = await tx
+      .select({ id: batches.id })
+      .from(batches)
+      .where(eq(batches.id, batchId))
+      .for('update');
 
-  await executor
-    .update(telegramLinkCodes)
-    .set({ expiresAt: now })
-    .where(
-      and(
-        eq(telegramLinkCodes.batchId, batchId),
-        isNull(telegramLinkCodes.usedAt),
-        gt(telegramLinkCodes.expiresAt, now),
-      ),
-    );
+    if (!batch) {
+      throw new TelegramConnectionError('BATCH_NOT_FOUND', 'Batch not found.');
+    }
 
-  const expiresAt = new Date(now.getTime() + LINK_CODE_TTL_MINUTES * 60_000);
+    // 2. Block only when the bot is really in a group.
+    //    A 'bot_removed' row doesn't block, so the admin can reconnect.
+    const [existing] = await tx
+      .select({ status: telegramChats.status })
+      .from(telegramChats)
+      .where(eq(telegramChats.batchId, batchId))
+      .limit(1);
 
-  // A collision on a 31^8 code space is practically impossible; retry anyway.
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const [row] = await executor
+    if (existing?.status === 'active') {
+      throw new TelegramConnectionError(
+        'BATCH_ALREADY_LINKED',
+        'This batch is already connected to a Telegram group.',
+      );
+    }
+
+    const expiresAt = new Date(now.getTime() + LINK_CODE_TTL_MINUTES * 60_000);
+
+    const [active] = await tx
+      .update(telegramLinkCodes)
+      .set({ expiresAt, createdBy: actorProfileId })
+      .where(
+        and(
+          eq(telegramLinkCodes.batchId, batchId),
+          isNull(telegramLinkCodes.usedAt),
+          gt(telegramLinkCodes.expiresAt, now),
+        ),
+      )
+      .returning({
+        code: telegramLinkCodes.code,
+        expiresAt: telegramLinkCodes.expiresAt,
+      });
+
+    if (active) return active;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const [row] = await tx
         .insert(telegramLinkCodes)
         .values({
           code: generateLinkCode(),
@@ -63,16 +85,29 @@ export async function createLinkCode(
           createdBy: actorProfileId,
           expiresAt,
         })
-        .returning();
-      return row;
-    } catch (error) {
-      if (!isUniqueViolation(error)) throw error;
+        .onConflictDoNothing({
+          target: telegramLinkCodes.code,
+        })
+        .returning({
+          code: telegramLinkCodes.code,
+          expiresAt: telegramLinkCodes.expiresAt,
+        });
+
+      if (row) return row;
     }
+
+    throw new Error('Could not generate a unique link code.');
+  };
+
+  // Reuse an existing transaction.
+  if (executor !== db) {
+    return create(executor);
   }
-  throw new Error('Could not generate a unique link code.');
+
+  return db.transaction(create);
 }
 
-/** The currently valid code for a batch, if any (so the page survives a reload). */
+/** The currently valid code for a batch, if any. */
 export async function findActiveLinkCode(
   executor: DbOrTx,
   batchId: string,
@@ -86,5 +121,6 @@ export async function findActiveLinkCode(
     ),
     orderBy: desc(telegramLinkCodes.createdAt),
   });
+
   return row ?? null;
 }

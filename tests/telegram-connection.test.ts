@@ -22,6 +22,17 @@ const baseInput = {
 };
 
 const usedCode = { batchId: BATCH_ID, createdBy: 'actor-1' };
+const linkCode = {
+  id: 'link-1',
+  ...usedCode,
+  expiresAt: new Date('2099-01-15T00:00:00Z'),
+  usedAt: null,
+};
+const batchRecord = {
+  id: BATCH_ID,
+  name: 'Batch 5',
+  telegramTopicSyncMode: 'managed',
+};
 
 describe('consumeLinkCode', () => {
   it('fails when the code is unknown, expired or already used', async () => {
@@ -34,8 +45,9 @@ describe('consumeLinkCode', () => {
   it('rejects a chat that is already linked', async () => {
     const executor = makeFakeExecutor({
       updates: [[usedCode]],
+      selects: [[batchRecord]],
       first: {
-        batches: [{ id: BATCH_ID, name: 'Batch 5' }],
+        telegramLinkCodes: [linkCode],
         telegramChats: [{ id: CHAT_ROW_ID }],
       },
     });
@@ -47,8 +59,9 @@ describe('consumeLinkCode', () => {
   it('rejects a batch that already has a group', async () => {
     const executor = makeFakeExecutor({
       updates: [[usedCode]],
+      selects: [[batchRecord]],
       first: {
-        batches: [{ id: BATCH_ID, name: 'Batch 5' }],
+        telegramLinkCodes: [linkCode],
         telegramChats: [undefined, { id: CHAT_ROW_ID }],
       },
     });
@@ -60,8 +73,9 @@ describe('consumeLinkCode', () => {
   it('rejects a group without Topics enabled', async () => {
     const executor = makeFakeExecutor({
       updates: [[usedCode]],
+      selects: [[batchRecord]],
       first: {
-        batches: [{ id: BATCH_ID, name: 'Batch 5' }],
+        telegramLinkCodes: [linkCode],
         telegramChats: [undefined, undefined],
       },
     });
@@ -80,8 +94,9 @@ describe('consumeLinkCode', () => {
   it('links the chat to the code batch and returns the batch name', async () => {
     const executor = makeFakeExecutor({
       updates: [[usedCode]],
+      selects: [[batchRecord]],
       first: {
-        batches: [{ id: BATCH_ID, name: 'Batch 5' }],
+        telegramLinkCodes: [linkCode],
         telegramChats: [undefined, undefined],
       },
       inserts: [[{ id: CHAT_ROW_ID, batchId: BATCH_ID, chatId: CHAT_ID }]],
@@ -149,6 +164,15 @@ describe('getConnection', () => {
             { kind: 'announcement', paceGroupId: null, messageThreadId: 5 },
           ],
         ],
+        telegramTopicDiscoveries: [
+          [
+            {
+              id: 'discovery-1',
+              messageThreadId: 12,
+              topicName: 'Reading 10',
+            },
+          ],
+        ],
       },
     });
 
@@ -161,6 +185,9 @@ describe('getConnection', () => {
       { id: 'g2', name: 'Beta', messageThreadId: null },
     ]);
     expect(view.announcementThreadId).toBe(5);
+    expect(view.discoveredTopics).toEqual([
+      { id: 'discovery-1', messageThreadId: 12, topicName: 'Reading 10' },
+    ]);
     expect(
       JSON.stringify(view, (_, v) => (typeof v === 'bigint' ? 'big' : v)),
     ).not.toContain('1001234567890');
