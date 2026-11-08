@@ -105,6 +105,7 @@ describe('Batch Server Actions - Authorization & Execution', () => {
     formData.append('paceGroupCount', '1');
     formData.append('startDate', '2099-01-15');
     formData.append('readingDaysPerWeek', '6');
+    formData.append('telegramTopicSyncMode', 'managed');
 
     const result = await createBatchAction(null, formData);
 
@@ -158,6 +159,7 @@ describe('Batch Server Actions - Authorization & Execution', () => {
     formData.append('paceGroupCount', '1');
     formData.append('startDate', '2099-01-15');
     formData.append('readingDaysPerWeek', '6');
+    formData.append('telegramTopicSyncMode', 'managed');
     formData.append('registrationOpen', 'true');
 
     const result = await createBatchAction(null, formData);
@@ -197,6 +199,7 @@ describe('Batch Server Actions - Authorization & Execution', () => {
     formData.append('paceGroupCount', '2');
     formData.append('startDate', '2099-01-15');
     formData.append('readingDaysPerWeek', '6');
+    formData.append('telegramTopicSyncMode', 'managed');
 
     const result = await createBatchAction(null, formData);
 
@@ -219,6 +222,46 @@ describe('Batch Server Actions - Authorization & Execution', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
+  it('creates a batch configured to connect an existing Telegram group', async () => {
+    vi.mocked(authorizeModule.requireRole).mockResolvedValue(
+      mockSuperAdminUser,
+    );
+
+    vi.mocked(batchService.createBatch).mockResolvedValue({
+      batch: {
+        id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
+        name: 'Existing Group Batch',
+        maxMembers: 50,
+        paceGroupCount: 1,
+        registrationOpen: false,
+        autoApprove: true,
+        startDate: '2099-01-15',
+        readingDaysPerWeek: 6,
+        telegramTopicSyncMode: 'manual',
+        createdBy: superAdminProfileId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      assignedAdminIds: [superAdminProfileId],
+    });
+
+    const formData = new FormData();
+    formData.append('name', 'Existing Group Batch');
+    formData.append('maxMembers', '50');
+    formData.append('paceGroupCount', '1');
+    formData.append('startDate', '2099-01-15');
+    formData.append('readingDaysPerWeek', '6');
+    formData.append('telegramTopicSyncMode', 'manual');
+
+    const result = await createBatchAction(null, formData);
+
+    expect(batchService.createBatch).toHaveBeenCalledWith(
+      superAdminProfileId,
+      expect.objectContaining({ telegramTopicSyncMode: 'manual' }),
+    );
+    expect(result?.ok).toBe(true);
+  });
+
   it('rejects unauthorized access when user is not a super_admin', async () => {
     vi.mocked(authorizeModule.requireRole).mockRejectedValue(
       new authorizeModule.AuthzError(
@@ -233,6 +276,7 @@ describe('Batch Server Actions - Authorization & Execution', () => {
     formData.append('paceGroupCount', '1');
     formData.append('startDate', '2099-01-15');
     formData.append('readingDaysPerWeek', '6');
+    formData.append('telegramTopicSyncMode', 'managed');
 
     await expect(createBatchAction(null, formData)).rejects.toThrow(
       "Role 'batch_admin' is not permitted",
@@ -253,6 +297,7 @@ describe('Batch Server Actions - Authorization & Execution', () => {
     formData.append('paceGroupCount', '-1'); // Negative values are invalid
     formData.append('startDate', 'invalid');
     formData.append('readingDaysPerWeek', '10'); // > 7
+    formData.append('telegramTopicSyncMode', 'managed');
 
     const res = await createBatchAction(null, formData);
     expect(res?.ok).toBe(false);
@@ -285,6 +330,7 @@ describe('Batch Server Actions - Authorization & Execution', () => {
     formData.append('paceGroupCount', '1');
     formData.append('startDate', '2099-01-15');
     formData.append('readingDaysPerWeek', '6');
+    formData.append('telegramTopicSyncMode', 'managed');
     formData.append('adminIds', '11111111-1111-4111-8111-111111111111');
 
     const res = await createBatchAction(null, formData);

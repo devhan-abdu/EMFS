@@ -56,7 +56,6 @@ export async function createBatch(
   input: CreateBatchInput,
   executor: DbOrTx = db,
 ): Promise<CreateBatchResult> {
-  // Determine admin profile IDs to assign (at least 1; no upper limit)
   const candidateAdminIds =
     input.adminIds && input.adminIds.length > 0
       ? Array.from(new Set(input.adminIds))
@@ -74,57 +73,69 @@ export async function createBatch(
       ? input.startDate.toISOString().split('T')[0]
       : String(input.startDate);
 
-  // Execute in single transaction
-  return await executor.transaction(async (tx) => {
-    // Verify all candidate admin profiles exist and have allowed roles
-    const existingProfiles = await tx
-      .select({ id: profiles.id })
-      .from(profiles)
-      .where(inArray(profiles.id, candidateAdminIds));
+  try {
+    return await executor.transaction(async (tx) => {
+      const existingProfiles = await tx
+        .select({ id: profiles.id })
+        .from(profiles)
+        .where(inArray(profiles.id, candidateAdminIds));
 
-    if (existingProfiles.length !== candidateAdminIds.length) {
-      const foundIds = new Set(existingProfiles.map((p) => p.id));
-      const missingIds = candidateAdminIds.filter((id) => !foundIds.has(id));
-      throw new BatchError(
-        'ADMIN_NOT_FOUND',
-        `Admin profile(s) not found: ${missingIds.join(', ')}`,
-      );
+      if (existingProfiles.length !== candidateAdminIds.length) {
+        const foundIds = new Set(existingProfiles.map((p) => p.id));
+        const missingIds = candidateAdminIds.filter((id) => !foundIds.has(id));
+
+        throw new BatchError(
+          'ADMIN_NOT_FOUND',
+          `Admin profile(s) not found: ${missingIds.join(', ')}`,
+        );
+      }
+
+      const [newBatch] = await tx
+        .insert(batches)
+        .values({
+          name: input.name.trim(),
+          maxMembers: input.maxMembers,
+          paceGroupCount: input.paceGroupCount,
+          registrationOpen: false,
+          autoApprove: true,
+          startDate: formattedStartDate,
+          readingDaysPerWeek: input.readingDaysPerWeek,
+          telegramTopicSyncMode: input.telegramTopicSyncMode,
+          createdBy: creatorProfileId,
+        })
+        .returning();
+
+      if (!newBatch) {
+        throw new BatchError(
+          'TRANSACTION_FAILED',
+          'Failed to create batch record.',
+        );
+      }
+
+      for (const adminId of candidateAdminIds) {
+        await tx.insert(batchAdmins).values({
+          batchId: newBatch.id,
+          profileId: adminId,
+        });
+      }
+
+      return {
+        batch: newBatch,
+        assignedAdminIds: candidateAdminIds,
+      };
+    });
+  } catch (error) {
+    if (error instanceof BatchError) {
+      throw error;
     }
 
-    const [newBatch] = await tx
-      .insert(batches)
-      .values({
-        name: input.name.trim(),
-        maxMembers: input.maxMembers,
-        paceGroupCount: input.paceGroupCount,
-        registrationOpen: false,
-        autoApprove: true,
-        startDate: formattedStartDate,
-        readingDaysPerWeek: input.readingDaysPerWeek,
-        createdBy: creatorProfileId,
-      })
-      .returning();
+    console.error('[createBatch] Failed:', error);
 
-    if (!newBatch) {
-      throw new BatchError(
-        'TRANSACTION_FAILED',
-        'Failed to create batch record.',
-      );
-    }
-
-    // Assign initial batch admins
-    for (const adminId of candidateAdminIds) {
-      await tx.insert(batchAdmins).values({
-        batchId: newBatch.id,
-        profileId: adminId,
-      });
-    }
-
-    return {
-      batch: newBatch,
-      assignedAdminIds: candidateAdminIds,
-    };
-  });
+    throw new BatchError(
+      'TRANSACTION_FAILED',
+      'Unable to create the batch. Please check your information and try again.',
+    );
+  }
 }
 export async function updateBatch(
   creatorProfileId: string,
@@ -176,6 +187,7 @@ export async function updateBatch(
         autoApprove: true,
         startDate: formattedStartDate,
         readingDaysPerWeek: input.readingDaysPerWeek,
+        telegramTopicSyncMode: input.telegramTopicSyncMode,
         createdBy: creatorProfileId,
       })
       .onConflictDoUpdate({
@@ -187,6 +199,7 @@ export async function updateBatch(
           autoApprove: true,
           startDate: formattedStartDate,
           readingDaysPerWeek: input.readingDaysPerWeek,
+          telegramTopicSyncMode: input.telegramTopicSyncMode,
         },
       })
       .returning();

@@ -13,6 +13,7 @@ export function TelegramActionButton({
   variant = 'default',
   confirmMessage,
   disabled = false,
+  extra,
 }: {
   action: (
     prev: TelegramActionState,
@@ -24,12 +25,17 @@ export function TelegramActionButton({
   variant?: 'default' | 'outline' | 'destructive';
   confirmMessage?: string;
   disabled?: boolean;
+  extra?: Record<string, string>;
 }) {
   const [state, formAction, isPending] = useActionState(action, null);
 
   return (
     <form action={formAction} className="space-y-2">
       <input type="hidden" name="batchId" value={batchId} />
+      {extra &&
+        Object.entries(extra).map(([k, v]) => (
+          <input key={k} type="hidden" name={k} value={v} />
+        ))}
       <Button
         type="submit"
         variant={variant}
@@ -43,7 +49,10 @@ export function TelegramActionButton({
         {isPending ? pendingLabel : label}
       </Button>
       {state?.ok && state.message ? (
-        <p role="status" className="text-sm text-muted-foreground">
+        <p
+          role="status"
+          className="whitespace-pre-line text-sm text-muted-foreground"
+        >
           {state.message}
         </p>
       ) : null}

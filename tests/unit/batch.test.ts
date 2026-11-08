@@ -73,6 +73,7 @@ describe('Batch Validation - createBatchSchema', () => {
     paceGroupCount: 2,
     startDate: futureStartDate,
     readingDaysPerWeek: 6,
+    telegramTopicSyncMode: 'managed',
   };
 
   it('parses valid batch input with explicit readingDaysPerWeek', () => {
@@ -107,6 +108,32 @@ describe('Batch Validation - createBatchSchema', () => {
     if (result.success) {
       expect(result.data.readingDaysPerWeek).toBe(6);
     }
+  });
+
+  it('requires a Telegram connection option', () => {
+    const result = createBatchSchema.safeParse({
+      ...validBatch,
+      telegramTopicSyncMode: undefined,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.flatten().fieldErrors.telegramTopicSyncMode,
+      ).toContain('Select a Telegram connection option');
+    }
+  });
+
+  it('accepts either Telegram connection mode without a duplicate group name', () => {
+    const result = createBatchSchema.safeParse({
+      ...validBatch,
+      telegramTopicSyncMode: 'managed',
+    });
+    expect(result.success).toBe(true);
+    const manualResult = createBatchSchema.safeParse({
+      ...validBatch,
+      telegramTopicSyncMode: 'manual',
+    });
+    expect(manualResult.success).toBe(true);
   });
 
   it('parses valid batch with custom readingDaysPerWeek (1-7)', () => {
@@ -300,6 +327,7 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       paceGroupCount: 1,
       startDate: new Date('2026-09-01'),
       readingDaysPerWeek: 6,
+      telegramTopicSyncMode: 'managed',
     });
 
     expect(mockTransaction).toHaveBeenCalledTimes(1);
@@ -317,6 +345,7 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       autoApprove: true,
       startDate: '2026-09-01',
       readingDaysPerWeek: 6,
+      telegramTopicSyncMode: 'managed',
       createdBy: creatorId,
     });
 
@@ -354,6 +383,7 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       paceGroupCount: 1,
       startDate: new Date('2026-09-01'),
       readingDaysPerWeek: 6,
+      telegramTopicSyncMode: 'managed',
       adminIds: [memberProfileId],
     });
 
@@ -392,6 +422,7 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       paceGroupCount: 3,
       startDate: new Date('2026-10-01'),
       readingDaysPerWeek: 3,
+      telegramTopicSyncMode: 'managed',
       adminIds: [admin1, admin2],
     });
 
@@ -433,7 +464,7 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       paceGroupCount: 4,
       startDate: new Date('2026-11-01'),
       readingDaysPerWeek: 6,
-      registrationOpen: false,
+      telegramTopicSyncMode: 'managed',
       adminIds,
     });
 
@@ -468,6 +499,7 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       paceGroupCount: 1,
       startDate: new Date('2026-09-01'),
       readingDaysPerWeek: 6,
+      telegramTopicSyncMode: 'managed',
       adminIds: [adminId],
     });
 
@@ -488,7 +520,7 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
         paceGroupCount: 1,
         startDate: new Date('2026-09-01'),
         readingDaysPerWeek: 6,
-        registrationOpen: false,
+        telegramTopicSyncMode: 'managed',
         adminIds: [fakeAdminId],
       }),
     ).rejects.toThrow(BatchError);
@@ -530,7 +562,7 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
         paceGroupCount: 1,
         startDate: new Date('2026-09-01'),
         readingDaysPerWeek: 6,
-        registrationOpen: false,
+        telegramTopicSyncMode: 'managed',
       }),
     ).rejects.toThrow('Foreign key constraint violation on batch_admins');
   });
@@ -560,6 +592,7 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       paceGroupCount: 4,
       startDate: new Date('2026-09-01'),
       readingDaysPerWeek: 6,
+      telegramTopicSyncMode: 'managed',
     });
 
     expect(result.batch.name).toBe('Clean Batch');
@@ -598,6 +631,7 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
       paceGroupCount: 1,
       startDate: new Date('2026-09-01'),
       readingDaysPerWeek: 6,
+      telegramTopicSyncMode: 'managed',
       // @ts-expect-error - testing runtime resilience against extra property
       registrationOpen: true,
     });
@@ -644,6 +678,7 @@ describe('Minimum-One-Admin Enforcement (EMF-82)', () => {
     paceGroupCount: 1,
     startDate: futureDate,
     readingDaysPerWeek: 6,
+    telegramTopicSyncMode: 'managed',
     registrationOpen: false,
   };
 

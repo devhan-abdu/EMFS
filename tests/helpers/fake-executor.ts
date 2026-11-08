@@ -10,6 +10,8 @@ export type FakeScript = {
   inserts?: Row[][];
   /** Results for `.delete(...).returning()` calls, in order. */
   deletes?: Row[][];
+  /** Results for select query builders, in order. */
+  selects?: Row[][];
   /** Per-table queues for query.<table>.findFirst / findMany, in order. */
   first?: Partial<Record<TableName, (Row | undefined)[]>>;
   many?: Partial<Record<TableName, Row[][]>>;
@@ -20,7 +22,8 @@ type TableName =
   | 'paceGroups'
   | 'telegramChats'
   | 'telegramChatTopics'
-  | 'telegramLinkCodes';
+  | 'telegramLinkCodes'
+  | 'telegramTopicDiscoveries';
 
 const TABLES: TableName[] = [
   'batches',
@@ -28,6 +31,7 @@ const TABLES: TableName[] = [
   'telegramChats',
   'telegramChatTopics',
   'telegramLinkCodes',
+  'telegramTopicDiscoveries',
 ];
 
 /** A chainable query builder that is also awaitable. */
@@ -41,6 +45,8 @@ function builder(result: unknown, onValues?: (v: unknown) => void) {
     'orderBy',
     'limit',
     'onConflictDoNothing',
+    'onConflictDoUpdate',
+    'for',
   ]) {
     self[method] = () => self;
   }
@@ -61,6 +67,7 @@ export function makeFakeExecutor(script: FakeScript = {}) {
   const updates = [...(script.updates ?? [])];
   const inserts = [...(script.inserts ?? [])];
   const deletes = [...(script.deletes ?? [])];
+  const selects = [...(script.selects ?? [])];
   const inserted: unknown[] = [];
 
   const query: Record<string, unknown> = {};
@@ -77,6 +84,7 @@ export function makeFakeExecutor(script: FakeScript = {}) {
     query,
     inserted,
     execute: vi.fn(async () => []),
+    select: vi.fn(() => builder(selects.shift() ?? [])),
     update: vi.fn(() => builder(updates.shift() ?? [])),
     insert: vi.fn(() =>
       builder(inserts.shift() ?? [], (v) => inserted.push(v)),

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TELEGRAM_TOPIC_SYNC_MODES } from '@/db/schema/telegram-topic-sync-mode';
 
 export const createBatchSchema = z
   .object({
@@ -26,6 +27,10 @@ export const createBatchSchema = z
       .min(1, 'Reading days per week must be between 1 and 7')
       .max(7, 'Reading days per week must be between 1 and 7')
       .default(6),
+
+    telegramTopicSyncMode: z.enum(TELEGRAM_TOPIC_SYNC_MODES, {
+      message: 'Select a Telegram connection option',
+    }),
 
     adminIds: z
       .array(z.string().uuid('Invalid admin UUID'))
@@ -59,6 +64,7 @@ export type BatchDetail = {
   registrationOpen: boolean;
   startDate: string | null;
   readingDaysPerWeek: number;
+  telegramTopicSyncMode: (typeof TELEGRAM_TOPIC_SYNC_MODES)[number];
   enrolled: number;
   admins: Admins[];
 };

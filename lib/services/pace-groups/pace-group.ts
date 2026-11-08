@@ -1,6 +1,7 @@
 import { and, asc, count, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { books, catalogSlots, paceGroups, batches } from '@/db/schema';
+import type { DbTransaction } from '@/lib/services/membership';
 import type {
   CreatePaceGroupInput,
   UpdatePaceGroupInput,
@@ -52,71 +53,76 @@ export async function getPaceGroupById(paceGroupId: string) {
 export async function createPaceGroup(
   input: CreatePaceGroupInput,
 ): Promise<PaceGroupRow> {
+  return db.transaction((tx) => createPaceGroupInTransaction(tx, input));
+}
+
+export async function createPaceGroupInTransaction(
+  tx: DbTransaction,
+  input: CreatePaceGroupInput,
+): Promise<PaceGroupRow> {
   const { batchId, name, size, overridePlannedCount } = input;
 
-  return db.transaction(async (tx) => {
-    const [batch] = await tx
-      .select({ id: batches.id, paceGroupCount: batches.paceGroupCount })
-      .from(batches)
-      .where(eq(batches.id, batchId))
-      .limit(1);
+  const [batch] = await tx
+    .select({ id: batches.id, paceGroupCount: batches.paceGroupCount })
+    .from(batches)
+    .where(eq(batches.id, batchId))
+    .limit(1);
 
-    if (!batch) {
-      throw new PaceGroupError('BATCH_NOT_FOUND', 'Batch not found.');
-    }
+  if (!batch) {
+    throw new PaceGroupError('BATCH_NOT_FOUND', 'Batch not found.');
+  }
 
-    const [initialSlot] = await tx
-      .select({ id: catalogSlots.id })
-      .from(catalogSlots)
-      .where(eq(catalogSlots.sequenceOrder, 1))
-      .limit(1);
+  const [initialSlot] = await tx
+    .select({ id: catalogSlots.id })
+    .from(catalogSlots)
+    .where(eq(catalogSlots.sequenceOrder, 1))
+    .limit(1);
 
-    if (!initialSlot) {
-      throw new PaceGroupError(
-        'CATALOG_NOT_CONFIGURED',
-        'Add a catalog slot 1 before creating pace groups.',
-      );
-    }
+  if (!initialSlot) {
+    throw new PaceGroupError(
+      'CATALOG_NOT_CONFIGURED',
+      'Add a catalog slot 1 before creating pace groups.',
+    );
+  }
 
-    const [initialBook] = await tx
-      .select({ id: books.id })
-      .from(books)
+  const [initialBook] = await tx
+    .select({ id: books.id })
+    .from(books)
+    .where(
+      and(eq(books.catalogSlotId, initialSlot.id), eq(books.language, 'en')),
+    )
+    .orderBy(asc(books.language))
+    .limit(1);
+
+  if (!initialBook) {
+    throw new PaceGroupError(
+      'CATALOG_NOT_CONFIGURED',
+      'Add an English book to catalog slot 1 before creating pace groups.',
+    );
+  }
+
+  if (!overridePlannedCount) {
+    const [{ existingCount }] = await tx
+      .select({ existingCount: count() })
+      .from(paceGroups)
       .where(
-        and(eq(books.catalogSlotId, initialSlot.id), eq(books.language, 'en')),
-      )
-      .orderBy(asc(books.language))
-      .limit(1);
+        and(eq(paceGroups.batchId, batchId), eq(paceGroups.archived, false)),
+      );
 
-    if (!initialBook) {
+    if (Number(existingCount) >= batch.paceGroupCount) {
       throw new PaceGroupError(
-        'CATALOG_NOT_CONFIGURED',
-        'Add an English book to catalog slot 1 before creating pace groups.',
+        'PLANNED_COUNT_EXCEEDED',
+        `This batch planned for ${batch.paceGroupCount} pace group(s). Pass overridePlannedCount to add more.`,
       );
     }
+  }
 
-    if (!overridePlannedCount) {
-      const [{ existingCount }] = await tx
-        .select({ existingCount: count() })
-        .from(paceGroups)
-        .where(
-          and(eq(paceGroups.batchId, batchId), eq(paceGroups.archived, false)),
-        );
+  const [created] = await tx
+    .insert(paceGroups)
+    .values({ batchId, name, size, activeCatalogSlotId: initialSlot.id })
+    .returning(PACE_GROUP_RETURNING);
 
-      if (Number(existingCount) >= batch.paceGroupCount) {
-        throw new PaceGroupError(
-          'PLANNED_COUNT_EXCEEDED',
-          `This batch planned for ${batch.paceGroupCount} pace group(s). Pass overridePlannedCount to add more.`,
-        );
-      }
-    }
-
-    const [created] = await tx
-      .insert(paceGroups)
-      .values({ batchId, name, size, activeCatalogSlotId: initialSlot.id })
-      .returning(PACE_GROUP_RETURNING);
-
-    return created;
-  });
+  return created;
 }
 
 export async function updatePaceGroup(

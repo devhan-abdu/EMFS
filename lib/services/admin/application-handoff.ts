@@ -8,7 +8,7 @@ import {
   handoffRecords,
   profiles,
 } from '@/db/schema';
-import { buildTelegramStartLink } from '@/lib/services/bot';
+import { buildTelegramStartLink } from '@/lib/telegram/add-to-group';
 import type { CurrentUser } from '@/lib/auth/session';
 import { getAuthorizedBatchIds } from '@/lib/auth/authorize';
 

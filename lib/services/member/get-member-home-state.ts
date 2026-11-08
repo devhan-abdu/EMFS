@@ -15,8 +15,8 @@ import {
   paceGroups,
   waitlist,
 } from '@/db/schema';
-import { buildTelegramStartLink } from '@/lib/services/bot';
 import { formatDateKey } from '@/lib/services/daily-progress';
+import { buildTelegramStartLink } from '@/lib/telegram/add-to-group';
 
 export type MemberScheduleState =
   | {

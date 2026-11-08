@@ -13,16 +13,15 @@ export default async function BatchTelegramPage({
   params: Promise<{ batchId: string }>;
 }) {
   const { batchId } = await params;
+
   await requireBatchAccess(batchId);
 
-  const batch = await getBatchDetail(batchId);
-  if (!batch) notFound();
+  const [batch, connection] = await Promise.all([
+    getBatchDetail(batchId),
+    getConnection(db, batchId),
+  ]);
 
-  const connection = await getConnection(db, batchId);
-  const activeCode =
-    !connection.connected && connection.activeCode
-      ? connection.activeCode
-      : null;
+  if (!batch) notFound();
 
   return (
     <div className="space-y-6">
@@ -30,12 +29,11 @@ export default async function BatchTelegramPage({
         title="Telegram"
         description={`${batch.name} · connect the batch group and its pace group topics`}
       />
-
       <TelegramConnectionCard
         batchId={batchId}
-        botUsername={process.env.TELEGRAM_BOT_USERNAME ?? null}
+        batchName={batch.name}
+        topicSyncMode={batch.telegramTopicSyncMode}
         connection={connection}
-        activeCode={activeCode}
       />
     </div>
   );

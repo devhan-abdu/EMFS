@@ -100,7 +100,18 @@ export default async function BatchWorkspacePage({
         eyebrow={batchStatusLabels[status]}
         title={batch.name}
         description={`${batch.readingDaysPerWeek} reading days a week · starts ${batch.startDate ?? 'to be announced'}`}
-        actions={<StatusBadge status={status} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/admin/b/${batch.id}/telegram`}>
+                Telegram settings
+                <ArrowRight />
+              </Link>
+            </Button>
+
+            <StatusBadge status={status} />
+          </div>
+        }
       />
 
       <Card className="card-soft">

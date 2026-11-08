@@ -45,6 +45,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { BatchDetail } from '@/lib/validations/batch';
+import type { TelegramTopicSyncMode } from '@/db/schema/telegram-topic-sync-mode';
 
 export type AdminOption = {
   profileId: string;
@@ -73,6 +74,9 @@ export function CreateBatchForm({
   const [selectedIds, setSelectedIds] = useState<string[]>(
     initialData?.admins?.map((a) => a.profileId) ?? [],
   );
+  const [telegramTopicSyncMode, setTelegramTopicSyncMode] = useState<
+    TelegramTopicSyncMode | ''
+  >(initialData?.telegramTopicSyncMode ?? '');
   const [pickerOpen, setPickerOpen] = useState(false);
   const fieldErrors = state?.errors?.fieldErrors ?? {};
   const formattedDefaultDate = initialData?.startDate
@@ -134,6 +138,63 @@ export function CreateBatchForm({
               />
               <FieldError message={fieldErrors.name?.[0]} />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="card-soft">
+          <CardHeader>
+            <CardTitle className="font-display text-xl">
+              Telegram connection
+            </CardTitle>
+            <CardDescription>
+              Choose whether this batch will use a new or existing Telegram
+              group.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <fieldset className="space-y-4">
+              <legend className="sr-only">Telegram connection option</legend>
+              <label className="block cursor-pointer">
+                <input
+                  className="peer sr-only"
+                  type="radio"
+                  name="telegramTopicSyncMode"
+                  value="managed"
+                  required
+                  checked={telegramTopicSyncMode === 'managed'}
+                  onChange={() => setTelegramTopicSyncMode('managed')}
+                />
+                <div className="rounded-lg border border-border p-4 peer-checked:border-primary peer-checked:bg-accent peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-ring">
+                  <p className="font-medium">Create a new Telegram group</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    I don&apos;t have a Telegram group yet. I&apos;ll create one
+                    after setting up this batch. EMFS will automatically create
+                    the required topics after connecting the bot.
+                  </p>
+                </div>
+              </label>
+              <label className="block cursor-pointer">
+                <input
+                  className="peer sr-only"
+                  type="radio"
+                  name="telegramTopicSyncMode"
+                  value="manual"
+                  required
+                  checked={telegramTopicSyncMode === 'manual'}
+                  onChange={() => setTelegramTopicSyncMode('manual')}
+                />
+                <div className="rounded-lg border border-border p-4 peer-checked:border-primary peer-checked:bg-accent peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-ring">
+                  <p className="font-medium">
+                    Connect an existing Telegram group
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    This batch already has a Telegram group. I want to preserve
+                    its existing topics and connect them to EMFS.
+                  </p>
+                </div>
+              </label>
+            </fieldset>
+            <FieldError message={fieldErrors.telegramTopicSyncMode?.[0]} />
           </CardContent>
         </Card>
 
@@ -229,7 +290,7 @@ export function CreateBatchForm({
             <CardTitle className="flex items-center justify-between">
               <p className="font-display text-xl">Batch admins</p>
 
-              <Button asChild variant="ghost" size="sm" className="gap-1.5 ">
+              <Button asChild variant="ghost" size="sm" className="gap-2">
                 <Link href="/admin/platform/roles">
                   <UserPlus className="size-4" />
                   Invite admin
@@ -317,7 +378,7 @@ export function CreateBatchForm({
                     <Badge
                       key={admin.profileId}
                       variant="secondary"
-                      className="gap-1 rounded-full py-1 pl-3 pr-1.5"
+                      className="gap-2 rounded-full py-2 pl-4 pr-2"
                     >
                       {admin.displayName}
                       <button
@@ -344,7 +405,7 @@ export function CreateBatchForm({
           </p>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex gap-4">
           <Button
             type="submit"
             className="flex-1"

@@ -31,6 +31,7 @@ import {
   createPaceGroupAction,
   updatePaceGroupAction,
 } from '@/actions/pace-group';
+import { createPaceGroupForDiscoveredTopicAction } from '@/actions/telegram';
 import type { PaceGroupWithAdmins } from './types';
 
 export function PaceGroupFormDialog({
@@ -38,12 +39,18 @@ export function PaceGroupFormDialog({
   onOpenChange,
   batchId,
   initial,
+  discovery,
   onSuccess,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   batchId: string;
   initial: PaceGroupWithAdmins | null;
+  discovery?: {
+    id: string;
+    topicName: string | null;
+    messageThreadId: number;
+  };
   onSuccess: () => void;
 }) {
   const isEdit = Boolean(initial);
@@ -56,9 +63,11 @@ export function PaceGroupFormDialog({
             {isEdit ? 'Edit pace group' : 'Create pace group'}
           </DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? 'Update the name or daily page pace for this group.'
-              : 'This group will live inside the current batch.'}
+            {discovery
+              ? `Create an EMFS pace group for ${discovery.topicName ? `“${discovery.topicName}”` : `Telegram topic #${discovery.messageThreadId}`}.`
+              : isEdit
+                ? 'Update the name or daily page pace for this group.'
+                : 'This group will live inside the current batch.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -67,6 +76,7 @@ export function PaceGroupFormDialog({
             key={initial?.id ?? 'create'}
             batchId={batchId}
             initial={initial}
+            discovery={discovery}
             onSuccess={onSuccess}
             onClose={() => onOpenChange(false)}
           />
@@ -79,16 +89,26 @@ export function PaceGroupFormDialog({
 function PaceGroupForm({
   batchId,
   initial,
+  discovery,
   onSuccess,
   onClose,
 }: {
   batchId: string;
   initial: PaceGroupWithAdmins | null;
+  discovery:
+    | {
+        id: string;
+        topicName: string | null;
+        messageThreadId: number;
+      }
+    | undefined;
   onSuccess: () => void;
   onClose: () => void;
 }) {
   const isEdit = Boolean(initial);
-  const [name, setName] = React.useState(initial?.name ?? '');
+  const [name, setName] = React.useState(
+    initial?.name ?? discovery?.topicName ?? '',
+  );
   const [size, setSize] = React.useState(String(initial?.size ?? 10));
   const [fieldErrors, setFieldErrors] = React.useState<
     Record<string, string[]>
@@ -108,14 +128,27 @@ function PaceGroupForm({
             name,
             size: Number(size),
           })
-        : await createPaceGroupAction({
-            batchId,
-            name,
-            size: Number(size),
-          });
+        : discovery
+          ? await createPaceGroupForDiscoveredTopicAction({
+              batchId,
+              discoveryId: discovery.id,
+              name,
+              size: Number(size),
+            })
+          : await createPaceGroupAction({
+              batchId,
+              name,
+              size: Number(size),
+            });
 
       if (result.ok) {
-        toast.success(isEdit ? 'Pace group updated' : 'Pace group created');
+        toast.success(
+          isEdit
+            ? 'Pace group updated'
+            : discovery
+              ? 'Pace group created and topic connected'
+              : 'Pace group created',
+        );
         onSuccess();
         onClose();
         return;
