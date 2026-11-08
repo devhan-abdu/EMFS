@@ -8,6 +8,7 @@ import {
   date,
 } from 'drizzle-orm/pg-core';
 import { profiles } from './users';
+import { telegramTopicSyncModeEnum } from './telegram-topic-sync-mode';
 
 export const batches = pgTable('batches', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -18,6 +19,9 @@ export const batches = pgTable('batches', {
   autoApprove: boolean('auto_approve').notNull().default(true),
   startDate: date('start_date'),
   readingDaysPerWeek: integer('reading_days_per_week').notNull().default(6),
+  telegramTopicSyncMode: telegramTopicSyncModeEnum('telegram_topic_sync_mode')
+    .notNull()
+    .default('manual'),
   createdBy: uuid('created_by')
     .notNull()
     .references(() => profiles.id),

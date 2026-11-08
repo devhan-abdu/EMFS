@@ -25,3 +25,5 @@ export * from './member-slot-editions';
 export * from './telegram-chats';
 export * from './telegram-chat-topics';
 export * from './telegram-link-codes';
+export * from './telegram-topic-discoveries';
+export * from './telegram-topic-sync-mode';

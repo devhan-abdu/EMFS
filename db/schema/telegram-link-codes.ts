@@ -5,6 +5,7 @@ import {
   uuid,
   uniqueIndex,
   index,
+  bigint,
 } from 'drizzle-orm/pg-core';
 import { batches } from './batches';
 import { profiles } from './users';
@@ -13,6 +14,7 @@ import { profiles } from './users';
  * Short-lived, single-use codes an admin sends as `/link CODE` inside a
  * Telegram group so the bot can bind that group to a batch.
  */
+
 export const telegramLinkCodes = pgTable(
   'telegram_link_codes',
   {
@@ -21,6 +23,7 @@ export const telegramLinkCodes = pgTable(
     batchId: uuid('batch_id')
       .notNull()
       .references(() => batches.id, { onDelete: 'cascade' }),
+    pendingChatId: bigint('pending_chat_id', { mode: 'bigint' }),
     createdBy: uuid('created_by').references(() => profiles.id, {
       onDelete: 'set null',
     }),

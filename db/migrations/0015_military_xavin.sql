@@ -1,0 +1,1 @@
+ALTER TABLE "telegram_link_codes" ADD COLUMN "pending_chat_id" bigint;

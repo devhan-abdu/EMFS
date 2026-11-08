@@ -17,11 +17,6 @@ export const telegramChatStatusEnum = pgEnum(
   TELEGRAM_CHAT_STATUSES,
 );
 
-/**
- * One Telegram supergroup per batch. Pace groups are enforced inside it
- * through forum topics (see telegram_chat_topics).
- * Supergroup ids look like -100xxxxxxxxxx, so chat_id must be bigint.
- */
 export const telegramChats = pgTable('telegram_chats', {
   id: uuid('id').primaryKey().defaultRandom(),
   chatId: bigint('chat_id', { mode: 'bigint' }).notNull().unique(),

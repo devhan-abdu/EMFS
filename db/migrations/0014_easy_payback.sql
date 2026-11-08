@@ -1,5 +1,6 @@
 CREATE TYPE "public"."telegram_chat_status" AS ENUM('active', 'bot_removed');--> statement-breakpoint
 CREATE TYPE "public"."telegram_topic_kind" AS ENUM('pace_group', 'announcement');--> statement-breakpoint
+CREATE TYPE "public"."telegram_topic_sync_mode" AS ENUM('managed', 'manual');--> statement-breakpoint
 CREATE TABLE "telegram_chats" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"chat_id" bigint NOT NULL,
@@ -37,13 +38,24 @@ CREATE TABLE "telegram_link_codes" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "telegram_topic_discoveries" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"telegram_chat_id" uuid NOT NULL,
+	"message_thread_id" integer NOT NULL,
+	"topic_name" text,
+	"discovered_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "batches" ADD COLUMN "telegram_topic_sync_mode" "telegram_topic_sync_mode" DEFAULT 'manual' NOT NULL;--> statement-breakpoint
 ALTER TABLE "telegram_chats" ADD CONSTRAINT "telegram_chats_batch_id_batches_id_fk" FOREIGN KEY ("batch_id") REFERENCES "public"."batches"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "telegram_chats" ADD CONSTRAINT "telegram_chats_linked_by_profiles_id_fk" FOREIGN KEY ("linked_by") REFERENCES "public"."profiles"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "telegram_chat_topics" ADD CONSTRAINT "telegram_chat_topics_telegram_chat_id_telegram_chats_id_fk" FOREIGN KEY ("telegram_chat_id") REFERENCES "public"."telegram_chats"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "telegram_chat_topics" ADD CONSTRAINT "telegram_chat_topics_pace_group_id_pace_groups_id_fk" FOREIGN KEY ("pace_group_id") REFERENCES "public"."pace_groups"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "telegram_link_codes" ADD CONSTRAINT "telegram_link_codes_batch_id_batches_id_fk" FOREIGN KEY ("batch_id") REFERENCES "public"."batches"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "telegram_link_codes" ADD CONSTRAINT "telegram_link_codes_created_by_profiles_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."profiles"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "telegram_topic_discoveries" ADD CONSTRAINT "telegram_topic_discoveries_telegram_chat_id_telegram_chats_id_fk" FOREIGN KEY ("telegram_chat_id") REFERENCES "public"."telegram_chats"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "telegram_chat_topics_chat_thread_idx" ON "telegram_chat_topics" USING btree ("telegram_chat_id","message_thread_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "telegram_chat_topics_one_announcement_idx" ON "telegram_chat_topics" USING btree ("telegram_chat_id") WHERE "telegram_chat_topics"."kind" = 'announcement';--> statement-breakpoint
 CREATE UNIQUE INDEX "telegram_link_codes_code_idx" ON "telegram_link_codes" USING btree ("code");--> statement-breakpoint
-CREATE INDEX "telegram_link_codes_batch_idx" ON "telegram_link_codes" USING btree ("batch_id");
+CREATE INDEX "telegram_link_codes_batch_idx" ON "telegram_link_codes" USING btree ("batch_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "telegram_topic_discoveries_chat_thread_idx" ON "telegram_topic_discoveries" USING btree ("telegram_chat_id","message_thread_id");
