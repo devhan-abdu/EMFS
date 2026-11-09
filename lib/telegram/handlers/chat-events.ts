@@ -6,6 +6,9 @@ import {
   migrateChatId,
 } from '@/lib/services/telegram/connection';
 import { attemptLink } from './start';
+import { restoreLinkedChat } from '@/lib/services/telegram/topic-sync';
+import { toApiPort } from '../api-port-adapter';
+import { describeTelegramError } from '@/lib/services/telegram/errors';
 
 export function registerChatEventHandlers(bot: Bot) {
   bot.on('my_chat_member', async (ctx) => {
@@ -17,10 +20,25 @@ export function registerChatEventHandlers(bot: Bot) {
       'can_manage_topics' in member &&
       member.can_manage_topics === true;
 
-    await applyBotMembershipChange(db, BigInt(chat.id), {
+    const change = await applyBotMembershipChange(db, BigInt(chat.id), {
       status: member.status,
       canManageTopics,
     });
+
+    // Linked group, and the bot just (re)gained Manage Topics.
+    if (change?.gainedTopicRights) {
+      try {
+        await restoreLinkedChat(db, toApiPort(ctx.api), change.batchId);
+      } catch (error) {
+        // Best effort. The new status is already saved, so a retried update
+        // would not run this again; the admin can press Re-check instead.
+        console.error(
+          '[telegram] restoreLinkedChat failed:',
+          describeTelegramError(error),
+        );
+      }
+      return;
+    }
 
     if (!canManageTopics) return;
 

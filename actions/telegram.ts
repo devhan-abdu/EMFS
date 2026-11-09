@@ -1,18 +1,32 @@
 'use server';
 
+import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import { db } from '@/db';
-import { AuthzError, requireBatchAccess } from '@/lib/auth/authorize';
+import {
+  AuthzError,
+  requireBatchAccess,
+  requireRole,
+} from '@/lib/auth/authorize';
 import { getTelegramApiPort } from '@/lib/telegram/client';
+import { buildAddToGroupLink } from '@/lib/telegram/add-to-group';
 import { disconnect, syncChatInfo } from '@/lib/services/telegram/connection';
 import { createLinkCode } from '@/lib/services/telegram/link-codes';
 import {
-  createMissingPaceTopics,
-  sendTestMessage,
-} from '@/lib/services/telegram/topics';
+  createPaceGroupForDiscoveredTopic,
+  mapDiscoveredTopic,
+  TelegramTopicDiscoveryError,
+} from '@/lib/services/telegram/topic-discovery';
+import { PaceGroupError } from '@/lib/services/pace-groups/pace-group';
+import { getConnectBlocker } from '@/lib/telegram/readiness';
 import { TelegramConnectionError } from '@/lib/services/telegram/errors';
-import { batchActionSchema } from '@/lib/validations/telegram';
+import {
+  createLinkCodeActionSchema,
+  createPaceGroupForDiscoveredTopicActionSchema,
+  mapDiscoveredTopicActionSchema,
+} from '@/lib/validations/telegram';
+import { getTelegramConfig } from '@/lib/config/telegram';
 
 export type TelegramActionState = {
   ok: boolean;
@@ -28,17 +42,13 @@ const fail = (message: string): TelegramActionState => ({
   errors: { formErrors: [message], fieldErrors: {} },
 });
 
-/**
- * Shared guard for every Telegram admin action: validates the batch id, enforces
- * batch-scoped authorization (super admin or admin of THIS batch) BEFORE doing
- * any work, then maps known errors to form errors. Unknown errors are not leaked.
- */
 async function runBatchAction(
   formData: FormData,
   work: (ctx: { batchId: string; actorProfileId: string }) => Promise<string>,
 ): Promise<TelegramActionState> {
-  const parsed = batchActionSchema.safeParse({
+  const parsed = createLinkCodeActionSchema.safeParse({
     batchId: formData.get('batchId'),
+    topicSyncMode: formData.get('topicSyncMode') ?? undefined,
   });
   if (!parsed.success) return { ok: false, errors: parsed.error.flatten() };
 
@@ -46,7 +56,7 @@ async function runBatchAction(
   try {
     const user = await requireBatchAccess(batchId);
     const message = await work({ batchId, actorProfileId: user.profile.id });
-    revalidatePath(`/admin/b/${batchId}/telegram`);
+    revalidatePath(`/admin/batches/${batchId}`);
     return { ok: true, message };
   } catch (error) {
     if (
@@ -60,42 +70,52 @@ async function runBatchAction(
   }
 }
 
-export async function generateTelegramLinkCodeAction(
+export async function connectTelegramAction(
   _prev: TelegramActionState,
   formData: FormData,
 ): Promise<TelegramActionState> {
-  return runBatchAction(formData, async ({ batchId, actorProfileId }) => {
-    await createLinkCode(db, batchId, actorProfileId);
-    return 'New link code generated. It is valid for 15 minutes.';
+  const parsed = createLinkCodeActionSchema.safeParse({
+    batchId: formData.get('batchId'),
   });
-}
+  if (!parsed.success) return { ok: false, errors: parsed.error.flatten() };
 
-export async function createTelegramTopicsAction(
-  _prev: TelegramActionState,
-  formData: FormData,
-): Promise<TelegramActionState> {
-  let partialFailure: string | null = null;
+  let url: string;
 
-  const result = await runBatchAction(formData, async ({ batchId }) => {
-    const outcome = await createMissingPaceTopics(
-      db,
-      getTelegramApiPort(),
-      batchId,
-    );
-    if (outcome.failed) {
-      partialFailure = `Stopped at "${outcome.failed.name}": ${outcome.failed.reason}. ${outcome.created.length} topic(s) were created before that.`;
-      return partialFailure;
+  try {
+    const user = await requireBatchAccess(parsed.data.batchId);
+
+    const config = getTelegramConfig();
+    if (!config) {
+      console.error('[telegram] bot is not configured');
+      return fail(
+        'Telegram is temporarily unavailable. Please contact support.',
+      );
     }
-    return outcome.created.length
-      ? `Created ${outcome.created.length} topic(s): ${outcome.created.join(', ')}.`
-      : 'Every pace group already has a topic.';
-  });
 
-  // Topics made before the failure are saved; surface the failure as an error.
-  return partialFailure ? fail(partialFailure) : result;
+    const blocker = await getConnectBlocker(db, parsed.data.batchId);
+    if (blocker) return fail(blocker);
+
+    const linkCode = await createLinkCode(
+      db,
+      parsed.data.batchId,
+      user.profile.id,
+    );
+    url = buildAddToGroupLink(config.username, linkCode.code);
+  } catch (error) {
+    if (
+      error instanceof AuthzError ||
+      error instanceof TelegramConnectionError
+    ) {
+      return fail(error.message);
+    }
+    console.error('telegram connect failed:', error);
+    return fail('Could not create the link.');
+  }
+
+  redirect(url);
 }
 
-export async function syncTelegramChatAction(
+export async function refreshTelegramAction(
   _prev: TelegramActionState,
   formData: FormData,
 ): Promise<TelegramActionState> {
@@ -105,24 +125,96 @@ export async function syncTelegramChatAction(
   });
 }
 
-export async function sendTelegramTestMessageAction(
-  _prev: TelegramActionState,
-  formData: FormData,
-): Promise<TelegramActionState> {
-  return runBatchAction(formData, async ({ batchId }) => {
-    await sendTestMessage(db, getTelegramApiPort(), batchId);
-    return 'Test message sent to the group.';
-  });
-}
-
 export async function disconnectTelegramAction(
   _prev: TelegramActionState,
   formData: FormData,
 ): Promise<TelegramActionState> {
   return runBatchAction(formData, async ({ batchId }) => {
-    const removed = await disconnect(db, batchId);
+    const removed = await disconnect(db, getTelegramApiPort(), batchId);
+
     return removed
-      ? 'Telegram group disconnected. The bot is still in the group until you remove it there.'
+      ? 'Telegram group disconnected. The bot has left the group.'
       : 'This batch had no Telegram group.';
   });
+}
+
+export async function mapDiscoveredTopicAction(
+  _prev: TelegramActionState,
+  formData: FormData,
+): Promise<TelegramActionState> {
+  const parsed = mapDiscoveredTopicActionSchema.safeParse({
+    batchId: formData.get('batchId'),
+    discoveryId: formData.get('discoveryId'),
+    paceGroupId: formData.get('paceGroupId'),
+  });
+
+  if (!parsed.success) {
+    return { ok: false, errors: parsed.error.flatten() };
+  }
+
+  try {
+    await requireBatchAccess(parsed.data.batchId);
+    const result = await mapDiscoveredTopic(db, parsed.data);
+    revalidatePath(`/admin/b/${parsed.data.batchId}/telegram`);
+    return { ok: true, message: result.message };
+  } catch (error) {
+    if (
+      error instanceof AuthzError ||
+      error instanceof TelegramTopicDiscoveryError
+    ) {
+      return fail(error.message);
+    }
+
+    console.error('telegram topic mapping failed:', error);
+    return fail('Could not map this Telegram topic.');
+  }
+}
+
+export async function createPaceGroupForDiscoveredTopicAction(input: unknown) {
+  try {
+    await requireRole(['batch_admin', 'super_admin']);
+  } catch (error) {
+    if (error instanceof AuthzError) {
+      return {
+        ok: false as const,
+        errors: { formErrors: [error.message], fieldErrors: {} },
+      };
+    }
+    throw error;
+  }
+
+  const parsed = createPaceGroupForDiscoveredTopicActionSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false as const, errors: parsed.error.flatten() };
+  }
+
+  try {
+    await requireBatchAccess(parsed.data.batchId);
+    const result = await createPaceGroupForDiscoveredTopic(db, parsed.data);
+    revalidatePath(`/admin/b/${parsed.data.batchId}/telegram`);
+    revalidatePath(`/admin/b/${parsed.data.batchId}`);
+    revalidatePath('/admin/pace-groups');
+    return { ok: true as const, data: result };
+  } catch (error) {
+    if (
+      error instanceof AuthzError ||
+      error instanceof TelegramTopicDiscoveryError ||
+      error instanceof PaceGroupError
+    ) {
+      return {
+        ok: false as const,
+        errors: { formErrors: [error.message], fieldErrors: {} },
+      };
+    }
+
+    console.error('telegram pace group creation failed:', error);
+    return {
+      ok: false as const,
+      errors: {
+        formErrors: ['Could not create and connect this pace group.'],
+        fieldErrors: {},
+      },
+    };
+  }
 }

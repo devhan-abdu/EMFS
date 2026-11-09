@@ -459,14 +459,27 @@ export async function applyBotMembershipChange(
   chatId: bigint,
   change: { status: string; canManageTopics: boolean },
 ) {
+  const before = await executor.query.telegramChats.findFirst({
+    where: eq(telegramChats.chatId, chatId),
+    columns: { id: true, batchId: true, canManageTopics: true },
+  });
+  if (!before) return null;
+
+  const canManageTopics = memberCanManageTopics(change);
+
   await executor
     .update(telegramChats)
     .set({
       status: isBotStillIn(change.status) ? 'active' : 'bot_removed',
-      canManageTopics: memberCanManageTopics(change),
+      canManageTopics,
       updatedAt: new Date(),
     })
-    .where(eq(telegramChats.chatId, chatId));
+    .where(eq(telegramChats.id, before.id));
+
+  return {
+    batchId: before.batchId,
+    gainedTopicRights: canManageTopics && !before.canManageTopics,
+  };
 }
 
 /** Group upgraded to a supergroup: Telegram gives it a new id. */

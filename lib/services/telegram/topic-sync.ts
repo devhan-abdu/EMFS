@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import {
+  batches,
   paceGroups,
   telegramChats,
   telegramChatTopics,
@@ -9,6 +10,7 @@ import type { DbOrTx } from '@/lib/services/membership';
 import { toApiChatId, type TelegramApiPort } from './api-port';
 import { TelegramConnectionError, describeTelegramError } from './errors';
 import { paceTopicName } from './topic-names';
+import { syncChatInfo } from './connection';
 
 export const ANNOUNCEMENT_TOPIC_NAME = '📢 Announcements';
 
@@ -232,4 +234,22 @@ export async function syncNewBatchTopics(
   }
 
   return report.length > 0 ? report : ['Everything already matches.'];
+}
+
+export async function restoreLinkedChat(
+  executor: DbOrTx,
+  api: TelegramApiPort,
+  batchId: string,
+): Promise<string[]> {
+  await syncChatInfo(executor, api, batchId);
+
+  const [batch] = await executor
+    .select({ mode: batches.telegramTopicSyncMode })
+    .from(batches)
+    .where(eq(batches.id, batchId))
+    .limit(1);
+
+  return batch?.mode === 'managed'
+    ? syncNewBatchTopics(executor, api, batchId)
+    : [];
 }
