@@ -2,22 +2,20 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-export function AutoRefresh({
-  active,
-  everyMs = 3000,
-}: {
-  active: boolean;
-  everyMs?: number;
-}) {
+export function AutoRefresh({ everyMs = 3000 }: { everyMs?: number }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!active) return;
-    const id = setInterval(() => {
+    const refreshIfVisible = () => {
       if (document.visibilityState === 'visible') router.refresh();
-    }, everyMs);
-    return () => clearInterval(id);
-  }, [active, everyMs, router]);
+    };
+    const id = setInterval(refreshIfVisible, everyMs);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+    };
+  }, [everyMs, router]);
 
   return null;
 }

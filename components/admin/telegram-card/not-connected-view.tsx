@@ -7,7 +7,6 @@ import type { TelegramNotConnected } from '@/lib/services/telegram/connection';
 
 import { Checklist } from './checklist';
 import { Section } from './section';
-import { AutoRefresh } from './auto-refresh';
 
 function setupSteps(managed: boolean): ReactNode[] {
   return managed
@@ -51,9 +50,6 @@ export function NotConnectedView({
 
   return (
     <div className="space-y-4">
-      {/* Re-fetches the page every few seconds while waiting for the group. */}
-      <AutoRefresh active={waiting} />
-
       {botRemoved ? (
         <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-5 py-4 text-sm">
           <CircleAlert className="mt-0.5 size-4 shrink-0 text-destructive" />
