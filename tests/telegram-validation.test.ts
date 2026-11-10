@@ -144,13 +144,15 @@ describe('mapDiscoveredTopicActionSchema', () => {
           batchId: '3f2b8f0e-6a52-4a7e-9c55-0d1d9f6a1111',
           discoveryId: '4f2b8f0e-6a52-4a7e-9c55-0d1d9f6a2222',
           name: '  Reading 10 ',
-          size: '10',
+          min_pages: '10',
+          max_pages: '20',
         }),
       ).toEqual({
         batchId: '3f2b8f0e-6a52-4a7e-9c55-0d1d9f6a1111',
         discoveryId: '4f2b8f0e-6a52-4a7e-9c55-0d1d9f6a2222',
         name: 'Reading 10',
-        size: 10,
+        min_pages: 10,
+        max_pages: 20,
       });
     });
 
@@ -160,7 +162,8 @@ describe('mapDiscoveredTopicActionSchema', () => {
           batchId: '3f2b8f0e-6a52-4a7e-9c55-0d1d9f6a1111',
           discoveryId: '4f2b8f0e-6a52-4a7e-9c55-0d1d9f6a2222',
           name: 'Reading 12',
-          size: 12,
+          min_pages: 12,
+          max_pages: 12,
         }).success,
       ).toBe(false);
     });
