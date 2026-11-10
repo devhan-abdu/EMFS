@@ -47,7 +47,8 @@ describe('Pace Group Service', () => {
       createPaceGroup({
         batchId: '11111111-1111-1111-1111-111111111111',
         name: 'Group Alpha',
-        size: 10,
+        min_pages: 10,
+        max_pages: 10,
         overridePlannedCount: false,
       }),
     ).rejects.toThrowError(PaceGroupError);

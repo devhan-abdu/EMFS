@@ -38,6 +38,12 @@ export default async function MeHomePage() {
   }
 
   const state = await getMemberHomeState(currentUser.profile.id);
+  const paceGroupPageRange =
+    state.kind === 'active_placed'
+      ? state.paceGroupMinPages === state.paceGroupMaxPages
+        ? `${state.paceGroupMaxPages}`
+        : `${state.paceGroupMinPages}–${state.paceGroupMaxPages}`
+      : '';
 
   switch (state.kind) {
     case 'no_batch':
@@ -169,7 +175,7 @@ export default async function MeHomePage() {
             }
             description={
               state.schedule.status === 'published'
-                ? `Day ${state.schedule.dayNumber} · ${state.paceGroupSize} pages/day`
+                ? `Day ${state.schedule.dayNumber} · ${paceGroupPageRange} pages/day`
                 : state.schedule.status === 'before_batch_start'
                   ? `Reading begins on ${state.schedule.startDate ?? 'the announced start date'}.`
                   : state.schedule.status === 'break_day'
@@ -251,7 +257,7 @@ export default async function MeHomePage() {
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-foreground">
                     You are placed in {state.paceGroupName} (
-                    {state.paceGroupSize} pages/day).
+                    {paceGroupPageRange} pages/day).
                   </p>
                   <p className="text-xs text-muted-foreground">
                     The reading curriculum will unlock automatically on{' '}

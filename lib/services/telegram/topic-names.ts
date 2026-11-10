@@ -1,5 +1,13 @@
-export function paceTopicName(group: { name: string; size: number }): string {
-  return `${group.name.trim().replace(/\s+/g, ' ')} · ${group.size} pages`;
+export function paceTopicName(group: {
+  name: string;
+  min_pages: number;
+  max_pages: number;
+}): string {
+  const pace =
+    group.min_pages === group.max_pages
+      ? `${group.max_pages} pages`
+      : `${group.min_pages}–${group.max_pages} pages`;
+  return `${group.name.trim().replace(/\s+/g, ' ')} · ${pace}`;
 }
 
 /** Case-, spacing- and Unicode-insensitive form used only for comparison. */

@@ -138,7 +138,8 @@ describe('Daily Progress - Secure Actor Resolution & Invariant Enforcement', () 
       id: validPaceGroupId,
       batchId: validBatchId,
       name: 'Group A',
-      size: 10,
+      min_pages: 10,
+      max_pages: 10,
       activeBookId: validBookId,
     });
     mockFindFirstScheduledTask.mockResolvedValue({

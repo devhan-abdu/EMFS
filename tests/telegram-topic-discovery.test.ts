@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   createPaceGroupForDiscoveredTopic,
@@ -8,6 +8,8 @@ import {
 } from '../lib/services/telegram/topic-discovery';
 import { PaceGroupError } from '../lib/services/pace-groups/pace-group';
 import { makeFakeExecutor } from './helpers/fake-executor';
+
+vi.mock('@/db', () => ({ db: {} }));
 
 const BATCH_ID = '3f2b8f0e-6a52-4a7e-9c55-0d1d9f6a1111';
 const CHAT_ROW_ID = '7c1d2e3f-0000-4000-8000-000000000001';
@@ -125,7 +127,8 @@ describe('createPaceGroupForDiscoveredTopic', () => {
             id: PACE_GROUP_ID,
             batchId: BATCH_ID,
             name: 'Reading 10',
-            size: 10,
+            min_pages: 10,
+            max_pages: 10,
             archived: false,
           },
         ],
@@ -137,14 +140,16 @@ describe('createPaceGroupForDiscoveredTopic', () => {
       batchId: BATCH_ID,
       discoveryId: DISCOVERY_ID,
       name: 'Reading 10',
-      size: 10,
+      min_pages: 10,
+      max_pages: 10,
     });
 
     expect(result.paceGroup).toMatchObject({
       id: PACE_GROUP_ID,
       batchId: BATCH_ID,
       name: 'Reading 10',
-      size: 10,
+      min_pages: 10,
+      max_pages: 10,
     });
     expect(executor.inserted).toContainEqual({
       telegramChatId: CHAT_ROW_ID,
@@ -182,7 +187,8 @@ describe('createPaceGroupForDiscoveredTopic', () => {
         batchId: BATCH_ID,
         discoveryId: DISCOVERY_ID,
         name: 'Reading 10',
-        size: 10,
+        min_pages: 10,
+        max_pages: 10,
       }),
     ).rejects.toBeInstanceOf(PaceGroupError);
     expect(executor.inserted).toEqual([]);
