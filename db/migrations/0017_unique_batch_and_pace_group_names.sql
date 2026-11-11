@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "batches_name_lower_unique_idx" ON "batches" USING btree (lower(btrim("name")));--> statement-breakpoint
+CREATE UNIQUE INDEX "pace_groups_batch_name_lower_unique_idx" ON "pace_groups" USING btree ("batch_id",lower(btrim("name")));

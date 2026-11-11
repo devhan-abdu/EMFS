@@ -6,7 +6,9 @@ import {
   uuid,
   index,
   boolean,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { batches } from './batches';
 import { catalogSlots } from './catalog-slots';
 
@@ -28,5 +30,11 @@ export const paceGroups = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
-  (table) => [index('pace_groups_batch_id_idx').on(table.batchId)],
+  (table) => [
+    index('pace_groups_batch_id_idx').on(table.batchId),
+    uniqueIndex('pace_groups_batch_name_lower_unique_idx').on(
+      table.batchId,
+      sql`lower(btrim(${table.name}))`,
+    ),
+  ],
 );

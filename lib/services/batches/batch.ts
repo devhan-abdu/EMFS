@@ -1,4 +1,4 @@
-import { and, count, eq, inArray } from 'drizzle-orm';
+import { and, count, eq, inArray, ne, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   batches,
@@ -8,7 +8,12 @@ import {
   profiles,
   user,
 } from '@/db/schema';
+import { isUniqueConstraintViolation } from '@/lib/services/database-errors';
 import type { CreateBatchInput } from '@/lib/validations/batch';
+
+const BATCH_NAME_UNIQUE_INDEX = 'batches_name_lower_unique_idx';
+const DUPLICATE_BATCH_NAME_MESSAGE =
+  'A batch with this name already exists. Please choose a different name.';
 
 export type Batch = typeof batches.$inferSelect;
 export type NewBatch = typeof batches.$inferInsert;
@@ -26,7 +31,8 @@ export type BatchErrorCode =
   | 'BATCH_NOT_FOUND'
   | 'NO_BATCH_ADMIN'
   | 'NO_PACE_GROUP'
-  | 'BATCH_FULL';
+  | 'BATCH_FULL'
+  | 'DUPLICATE_NAME';
 
 export const CAPACITY_STATUSES = ['approved', 'active'] as const;
 
@@ -90,6 +96,17 @@ export async function createBatch(
         );
       }
 
+      const [existingBatch] = await tx
+        .select({ id: batches.id })
+        .from(batches)
+        .where(
+          sql`lower(btrim(${batches.name})) = lower(btrim(${input.name.trim()}))`,
+        );
+
+      if (existingBatch) {
+        throw new BatchError('DUPLICATE_NAME', DUPLICATE_BATCH_NAME_MESSAGE);
+      }
+
       const [newBatch] = await tx
         .insert(batches)
         .values({
@@ -125,6 +142,10 @@ export async function createBatch(
       };
     });
   } catch (error) {
+    if (isUniqueConstraintViolation(error, BATCH_NAME_UNIQUE_INDEX)) {
+      throw new BatchError('DUPLICATE_NAME', DUPLICATE_BATCH_NAME_MESSAGE);
+    }
+
     if (error instanceof BatchError) {
       throw error;
     }
@@ -160,7 +181,7 @@ export async function updateBatch(
       ? input.startDate.toISOString().split('T')[0]
       : String(input.startDate);
 
-  return await executor.transaction(async (tx) => {
+  return executor.transaction(async (tx) => {
     // Verify all candidate admin profiles exist and have allowed roles
     const existingProfiles = await tx
       .select({ id: profiles.id })
@@ -176,33 +197,53 @@ export async function updateBatch(
       );
     }
 
-    const [newBatch] = await tx
-      .insert(batches)
-      .values({
-        ...(input.id ? { id: input.id } : {}),
-        name: input.name.trim(),
-        maxMembers: input.maxMembers,
-        paceGroupCount: input.paceGroupCount,
-        registrationOpen: false,
-        autoApprove: true,
-        startDate: formattedStartDate,
-        readingDaysPerWeek: input.readingDaysPerWeek,
-        telegramTopicSyncMode: input.telegramTopicSyncMode,
-        createdBy: creatorProfileId,
-      })
-      .onConflictDoUpdate({
-        target: [batches.id],
-        set: {
+    const nameCondition = sql`lower(btrim(${batches.name})) = lower(btrim(${input.name.trim()}))`;
+    const [existingBatch] = await tx
+      .select({ id: batches.id })
+      .from(batches)
+      .where(
+        input.id ? and(nameCondition, ne(batches.id, input.id)) : nameCondition,
+      );
+
+    if (existingBatch) {
+      throw new BatchError('DUPLICATE_NAME', DUPLICATE_BATCH_NAME_MESSAGE);
+    }
+
+    let newBatch: Batch | undefined;
+    try {
+      [newBatch] = await tx
+        .insert(batches)
+        .values({
+          ...(input.id ? { id: input.id } : {}),
           name: input.name.trim(),
           maxMembers: input.maxMembers,
           paceGroupCount: input.paceGroupCount,
+          registrationOpen: false,
           autoApprove: true,
           startDate: formattedStartDate,
           readingDaysPerWeek: input.readingDaysPerWeek,
           telegramTopicSyncMode: input.telegramTopicSyncMode,
-        },
-      })
-      .returning();
+          createdBy: creatorProfileId,
+        })
+        .onConflictDoUpdate({
+          target: [batches.id],
+          set: {
+            name: input.name.trim(),
+            maxMembers: input.maxMembers,
+            paceGroupCount: input.paceGroupCount,
+            autoApprove: true,
+            startDate: formattedStartDate,
+            readingDaysPerWeek: input.readingDaysPerWeek,
+            telegramTopicSyncMode: input.telegramTopicSyncMode,
+          },
+        })
+        .returning();
+    } catch (error) {
+      if (isUniqueConstraintViolation(error, BATCH_NAME_UNIQUE_INDEX)) {
+        throw new BatchError('DUPLICATE_NAME', DUPLICATE_BATCH_NAME_MESSAGE);
+      }
+      throw error;
+    }
 
     if (!newBatch) {
       throw new BatchError(

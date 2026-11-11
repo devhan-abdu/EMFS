@@ -1,6 +1,7 @@
-import { and, asc, count, eq } from 'drizzle-orm';
+import { and, asc, count, eq, ne, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { books, catalogSlots, paceGroups, batches } from '@/db/schema';
+import { isUniqueConstraintViolation } from '@/lib/services/database-errors';
 import type { DbTransaction } from '@/lib/services/membership';
 import type {
   CreatePaceGroupInput,
@@ -15,7 +16,8 @@ export type PaceGroupErrorCode =
   | 'PLANNED_COUNT_EXCEEDED'
   | 'CATALOG_NOT_CONFIGURED'
   | 'ALREADY_ARCHIVED'
-  | 'INVALID_PACE_RANGE';
+  | 'INVALID_PACE_RANGE'
+  | 'DUPLICATE_NAME';
 
 export class PaceGroupError extends Error {
   code: PaceGroupErrorCode;
@@ -25,6 +27,10 @@ export class PaceGroupError extends Error {
     this.name = 'PaceGroupError';
   }
 }
+
+const PACE_GROUP_NAME_UNIQUE_INDEX = 'pace_groups_batch_name_lower_unique_idx';
+const DUPLICATE_PACE_GROUP_NAME_MESSAGE =
+  'A pace group with this name already exists in this batch. Please choose a different name.';
 
 export type PaceGroupRow = {
   id: string;
@@ -82,6 +88,24 @@ export async function createPaceGroupInTransaction(
     throw new PaceGroupError('BATCH_NOT_FOUND', 'Batch not found.');
   }
 
+  const [existingGroup] = await tx
+    .select({ id: paceGroups.id })
+    .from(paceGroups)
+    .where(
+      and(
+        eq(paceGroups.batchId, batchId),
+        sql`lower(btrim(${paceGroups.name})) = lower(btrim(${name.trim()}))`,
+      ),
+    )
+    .limit(1);
+
+  if (existingGroup) {
+    throw new PaceGroupError(
+      'DUPLICATE_NAME',
+      DUPLICATE_PACE_GROUP_NAME_MESSAGE,
+    );
+  }
+
   const [initialSlot] = await tx
     .select({ id: catalogSlots.id })
     .from(catalogSlots)
@@ -127,16 +151,27 @@ export async function createPaceGroupInTransaction(
     }
   }
 
-  const [created] = await tx
-    .insert(paceGroups)
-    .values({
-      batchId,
-      name,
-      min_pages,
-      max_pages,
-      activeCatalogSlotId: initialSlot.id,
-    })
-    .returning(PACE_GROUP_RETURNING);
+  let created: PaceGroupRow | undefined;
+  try {
+    [created] = await tx
+      .insert(paceGroups)
+      .values({
+        batchId,
+        name: name.trim(),
+        min_pages,
+        max_pages,
+        activeCatalogSlotId: initialSlot.id,
+      })
+      .returning(PACE_GROUP_RETURNING);
+  } catch (error) {
+    if (isUniqueConstraintViolation(error, PACE_GROUP_NAME_UNIQUE_INDEX)) {
+      throw new PaceGroupError(
+        'DUPLICATE_NAME',
+        DUPLICATE_PACE_GROUP_NAME_MESSAGE,
+      );
+    }
+    throw error;
+  }
 
   return created;
 }
@@ -160,18 +195,49 @@ export async function updatePaceGroup(
     );
   }
 
-  const [updated] = await db
-    .update(paceGroups)
-    .set({
-      ...(name !== undefined ? { name } : {}),
-      ...(min_pages !== undefined ? { min_pages } : {}),
-      ...(max_pages !== undefined ? { max_pages } : {}),
-      updatedAt: new Date(),
-    })
-    .where(eq(paceGroups.id, paceGroupId))
-    .returning(PACE_GROUP_RETURNING);
+  if (name !== undefined) {
+    const [existingGroup] = await db
+      .select({ id: paceGroups.id })
+      .from(paceGroups)
+      .where(
+        and(
+          eq(paceGroups.batchId, existing.batchId),
+          ne(paceGroups.id, paceGroupId),
+          sql`lower(btrim(${paceGroups.name})) = lower(btrim(${name.trim()}))`,
+        ),
+      )
+      .limit(1);
 
-  return updated;
+    if (existingGroup) {
+      throw new PaceGroupError(
+        'DUPLICATE_NAME',
+        DUPLICATE_PACE_GROUP_NAME_MESSAGE,
+      );
+    }
+  }
+
+  try {
+    const [updated] = await db
+      .update(paceGroups)
+      .set({
+        ...(name !== undefined ? { name: name.trim() } : {}),
+        ...(min_pages !== undefined ? { min_pages } : {}),
+        ...(max_pages !== undefined ? { max_pages } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(paceGroups.id, paceGroupId))
+      .returning(PACE_GROUP_RETURNING);
+
+    return updated;
+  } catch (error) {
+    if (isUniqueConstraintViolation(error, PACE_GROUP_NAME_UNIQUE_INDEX)) {
+      throw new PaceGroupError(
+        'DUPLICATE_NAME',
+        DUPLICATE_PACE_GROUP_NAME_MESSAGE,
+      );
+    }
+    throw error;
+  }
 }
 
 export async function archivePaceGroup(

@@ -23,7 +23,7 @@ const {
     values: mockInsertValues,
   });
 
-  const mockSelectWhere = vi.fn();
+  const mockSelectWhere = vi.fn().mockResolvedValue([]);
   const mockSelectFrom = vi.fn().mockReturnValue({
     where: mockSelectWhere,
   });
@@ -529,6 +529,29 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
     expect(mockInsertReturning).not.toHaveBeenCalled();
   });
 
+  it('rejects a case-insensitive duplicate batch name with a user-friendly error', async () => {
+    mockSelectWhere
+      .mockResolvedValueOnce([{ id: creatorId }])
+      .mockResolvedValueOnce([{ id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' }]);
+
+    await expect(
+      createBatch(creatorId, {
+        name: 'Test batch',
+        maxMembers: 50,
+        paceGroupCount: 1,
+        startDate: new Date('2026-09-01'),
+        readingDaysPerWeek: 6,
+        telegramTopicSyncMode: 'managed',
+      }),
+    ).rejects.toMatchObject({
+      code: 'DUPLICATE_NAME',
+      message:
+        'A batch with this name already exists. Please choose a different name.',
+    });
+
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
+
   it('rolls back transaction if batch admin insert throws', async () => {
     mockSelectWhere.mockResolvedValueOnce([
       { id: creatorId, role: 'super_admin' },
@@ -564,7 +587,9 @@ describe('Batch Service - createBatch & Transactional Admin Assignment', () => {
         readingDaysPerWeek: 6,
         telegramTopicSyncMode: 'managed',
       }),
-    ).rejects.toThrow('Foreign key constraint violation on batch_admins');
+    ).rejects.toThrow(
+      'Unable to create the batch. Please check your information and try again.',
+    );
   });
 
   it('does not insert any pace-group rows or book tracking fields and remains not-yet-open', async () => {
