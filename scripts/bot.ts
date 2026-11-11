@@ -1,4 +1,4 @@
-import { ALLOWED_UPDATES, createBot } from '@/lib/telegram/bot';
+import { createBot } from '@/lib/telegram/bot';
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 if (!token) {
@@ -13,6 +13,5 @@ process.once('SIGTERM', () => bot.stop());
 
 // Local development only. Production uses the webhook route.
 void bot.start({
-  allowed_updates: ALLOWED_UPDATES,
   onStart: (me) => console.log(`🤖 @${me.username} is polling for updates...`),
 });

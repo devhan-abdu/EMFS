@@ -1,5 +1,4 @@
 import { Api } from 'grammy';
-import { ALLOWED_UPDATES } from '@/lib/telegram/bot';
 
 /**
  * Usage:
@@ -27,7 +26,6 @@ async function main() {
 
   await api.setWebhook(arg, {
     secret_token: secret,
-    allowed_updates: [...ALLOWED_UPDATES],
   });
   const info = await api.getWebhookInfo();
   console.log('Webhook set:', {
