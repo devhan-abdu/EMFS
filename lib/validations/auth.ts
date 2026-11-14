@@ -33,3 +33,37 @@ export type SignInFormState = {
   success: boolean;
   redirectTo?: string;
 };
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+});
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export type ForgotPasswordFormState = {
+  values?: Partial<ForgotPasswordInput>;
+  errors?: Partial<Record<keyof ForgotPasswordInput, string[]>> | null;
+  formError?: string | null;
+  success: boolean;
+  message?: string | null;
+};
+
+export const resetPasswordSchema = z
+  .object({
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string().min(1, 'Please confirm your password'),
+    token: z.string().min(1, 'Reset token is missing or invalid'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+export type ResetPasswordFormState = {
+  values?: Partial<ResetPasswordInput>;
+  errors?: Partial<Record<keyof ResetPasswordInput, string[]>> | null;
+  formError?: string | null;
+  success: boolean;
+};
