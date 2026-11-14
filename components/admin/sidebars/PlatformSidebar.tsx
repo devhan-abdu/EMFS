@@ -25,7 +25,6 @@ const platformNavItems: NavItem[] = [
     url: '/admin/platform/invitations',
     icon: TicketCheck,
   },
-  //   { title: 'Audit Log', url: '/admin/platform/audit', icon: History },
 ];
 
 export function PlatformSidebar({
