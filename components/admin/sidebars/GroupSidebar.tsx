@@ -8,6 +8,7 @@ import {
   MessageSquareQuote,
   Sparkles,
   TrendingUp,
+  Settings,
 } from 'lucide-react';
 import {
   AppSidebar,
@@ -76,6 +77,11 @@ export function GroupSidebar({
       title: 'Group Progress',
       url: `/admin/g/${groupId}/progress`,
       icon: TrendingUp,
+    },
+    {
+      title: 'Settings & Offsets',
+      url: `/admin/g/${groupId}/settings`,
+      icon: Settings,
     },
   ];
 
