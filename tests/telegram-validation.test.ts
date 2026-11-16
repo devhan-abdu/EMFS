@@ -156,14 +156,14 @@ describe('mapDiscoveredTopicActionSchema', () => {
       });
     });
 
-    it('rejects unsupported pace sizes', () => {
+    it('rejects a page range where the minimum exceeds the maximum', () => {
       expect(
         createPaceGroupForDiscoveredTopicActionSchema.safeParse({
           batchId: '3f2b8f0e-6a52-4a7e-9c55-0d1d9f6a1111',
           discoveryId: '4f2b8f0e-6a52-4a7e-9c55-0d1d9f6a2222',
-          name: 'Reading 12',
+          name: 'Reading 12-10',
           min_pages: 12,
-          max_pages: 12,
+          max_pages: 10,
         }).success,
       ).toBe(false);
     });

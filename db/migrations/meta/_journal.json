@@ -127,6 +127,13 @@
       "when": 1794424362585,
       "tag": "0017_unique_batch_and_pace_group_names",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794862319132,
+      "tag": "0018_role_audit_logs",
+      "breakpoints": true
     }
   ]
 }
