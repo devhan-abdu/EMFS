@@ -26,7 +26,7 @@ Read with:
 
 ```text
 batch (max_members, registration_open, auto_approve, start_date, pacing)
-  ├── batch_admin (1–3) — assigned by super_admin before intake
+  ├── batch_admin (≥1) — assigned by super_admin before intake
   ├── waiting_list
   ├── optional pace groups (created later by batch admin when needed)
   │     └── placed members, pace admins, page cursor, group posts
@@ -35,13 +35,13 @@ batch (max_members, registration_open, auto_approve, start_date, pacing)
 
 ## Who creates what
 
-| Action                                                                                                                                                                                            | Role                                |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| **Book catalog** — create/reorder books, metadata, curriculum tasks                                                                                                                               | `super_admin` only                  |
-| Assign **batch admins** (1–3) to a batch                                                                                                                                                          | `super_admin` only                  |
-| Create batch (max members, # pace groups, `auto_approve`, start date, pacing; catalog always from sequence 1)                                                                                     | `super_admin`                       |
-| Create/edit/archive pace groups when needed; configure batch pacing; assign pace admins; open/close registration; optional manual review when `auto_approve = false`; bot-mediated intake handoff | `batch_admin` (1–3) / `super_admin` |
-| Daily ops inside pace group (approve/edit today’s page draft)                                                                                                                                     | `pace_admin`                        |
+| Action                                                                                                                                                                                            | Role                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| **Book catalog** — create/reorder books, metadata, curriculum tasks                                                                                                                               | `super_admin` only                 |
+| Assign **batch admins** (at least 1) to a batch                                                                                                                                                   | `super_admin` only                 |
+| Create batch (max members, # pace groups, `auto_approve`, start date, pacing; catalog always from sequence 1)                                                                                     | `super_admin`                      |
+| Create/edit/archive pace groups when needed; configure batch pacing; assign pace admins; open/close registration; optional manual review when `auto_approve = false`; bot-mediated intake handoff | `batch_admin` (≥1) / `super_admin` |
+| Daily ops inside pace group (approve/edit today’s page draft)                                                                                                                                     | `pace_admin`                       |
 
 ## Pre-intake setup (super admin → batch admin)
 
@@ -51,7 +51,7 @@ can be added after members have joined the batch.
 
 ```text
 1. super_admin — build book catalog (sequence 1, 2, 3, … + metadata + curriculum tasks)
-2. super_admin — assign 1–3 batch_admin users to the batch
+2. super_admin — assign at least 1 batch_admin user to the batch
 3. super_admin — create batch (capacity, pace_group_count, start_date, pacing)
                  (batch reads from catalog sequence 1; no per-batch book copies)
 4. batch_admin — confirm batch pacing / offsets if needed

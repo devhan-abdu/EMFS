@@ -308,7 +308,12 @@ async function ensurePaceAdmin(
   }
 }
 
-async function ensurePaceGroup(batchId: string, name: string, size: number) {
+async function ensurePaceGroup(
+  batchId: string,
+  name: string,
+  minPages: number,
+  maxPages: number,
+) {
   const existing = await db
     .select()
     .from(paceGroups)
@@ -348,7 +353,8 @@ async function ensurePaceGroup(batchId: string, name: string, size: number) {
     id: paceGroupId,
     batchId,
     name,
-    size,
+    min_pages: minPages,
+    max_pages: maxPages,
     activeCatalogSlotId: initialSlot.id,
   });
 
@@ -356,7 +362,8 @@ async function ensurePaceGroup(batchId: string, name: string, size: number) {
     id: paceGroupId,
     batchId,
     name,
-    size,
+    min_pages: minPages,
+    max_pages: maxPages,
   } as typeof paceGroups.$inferSelect;
 }
 
@@ -606,13 +613,13 @@ async function main() {
   }
 
   const seededBooks = await db.select().from(books);
-  const paceGroupOne = await ensurePaceGroup(batchOne.id, 'Nur', 20);
-  await ensurePaceGroup(batchOne.id, 'Sakina', 20);
-  await ensurePaceGroup(batchOne.id, 'Rahma', 20);
+  const paceGroupOne = await ensurePaceGroup(batchOne.id, 'Nur', 20, 20);
+  await ensurePaceGroup(batchOne.id, 'Sakina', 15, 20);
+  await ensurePaceGroup(batchOne.id, 'Rahma', 10, 20);
   await ensurePaceAdmin(paceAdminProfile.id, paceGroupOne.id, ownerProfile.id);
-  await ensurePaceGroup(batchTwo.id, 'Nur', 16);
-  await ensurePaceGroup(batchTwo.id, 'Sakina', 15);
-  await ensurePaceGroup(batchTwo.id, 'Rahma', 14);
+  await ensurePaceGroup(batchTwo.id, 'Nur', 16, 20);
+  await ensurePaceGroup(batchTwo.id, 'Sakina', 15, 20);
+  await ensurePaceGroup(batchTwo.id, 'Rahma', 14, 20);
 
   for (const bookSeed of catalogList.filter((book) => book.language === 'en')) {
     const slot = await db

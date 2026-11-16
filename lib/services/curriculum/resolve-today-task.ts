@@ -45,21 +45,41 @@ export async function resolveTodayTask(paceGroupId: string) {
       })
     : null;
 
+  const lastStepEdition =
+    lastStep &&
+    lastStep.catalogSlotId === group.activeCatalogSlotId &&
+    lastStep.paceSize === group.max_pages
+      ? await db.query.curriculumStepEditions.findFirst({
+          where: and(
+            eq(curriculumStepEditions.curriculumStepId, lastStep.id),
+            eq(curriculumStepEditions.bookId, book.id),
+          ),
+          columns: { endPage: true },
+        })
+      : null;
+
   const nextStepNumber =
     lastStep &&
     lastStep.catalogSlotId === group.activeCatalogSlotId &&
-    lastStep.paceSize === group.size
+    lastStep.paceSize === group.max_pages
       ? lastStep.stepNumber + 1
       : 1;
 
   const bankStep = await db.query.curriculumSteps.findFirst({
     where: and(
       eq(curriculumSteps.catalogSlotId, group.activeCatalogSlotId),
-      eq(curriculumSteps.paceSize, group.size),
+      eq(curriculumSteps.paceSize, group.max_pages),
       eq(curriculumSteps.stepNumber, nextStepNumber),
     ),
     orderBy: [desc(curriculumSteps.version)],
   });
+
+  const cursor =
+    lastStep &&
+    lastStep.catalogSlotId === group.activeCatalogSlotId &&
+    lastStep.paceSize === group.max_pages
+      ? (lastStepEdition?.endPage ?? (nextStepNumber - 1) * group.max_pages)
+      : 0;
 
   if (bankStep) {
     const stepEdition = await db.query.curriculumStepEditions.findFirst({
@@ -69,16 +89,28 @@ export async function resolveTodayTask(paceGroupId: string) {
       ),
     });
 
-    return {
-      isPioneer: false,
-      stepNumber: nextStepNumber,
-      book,
-      step: bankStep,
-      range: stepEdition
-        ? { startPage: stepEdition.startPage, endPage: stepEdition.endPage }
-        : null,
-      stepEdition,
-    };
+    if (stepEdition) {
+      const stepPages = stepEdition.endPage - stepEdition.startPage + 1;
+      const isFinalPartialRange =
+        book.pageCount !== null && stepEdition.endPage === book.pageCount;
+      const isWithinPaceBounds =
+        stepPages <= group.max_pages &&
+        (stepPages >= group.min_pages || isFinalPartialRange);
+
+      if (stepEdition.startPage === cursor + 1 && isWithinPaceBounds) {
+        return {
+          isPioneer: false,
+          stepNumber: nextStepNumber,
+          book,
+          step: bankStep,
+          range: {
+            startPage: stepEdition.startPage,
+            endPage: stepEdition.endPage,
+          },
+          stepEdition,
+        };
+      }
+    }
   }
 
   if (!book.pageCount) {
@@ -86,8 +118,9 @@ export async function resolveTodayTask(paceGroupId: string) {
   }
 
   const range = proposeRange({
-    cursor: (nextStepNumber - 1) * group.size,
-    size: group.size,
+    cursor,
+    minPages: group.min_pages,
+    maxPages: group.max_pages,
     pageCount: book.pageCount,
   });
 

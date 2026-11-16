@@ -180,7 +180,8 @@ describe('Daily Progress - Active Membership Resolution', () => {
       id: 'group-10-pages',
       batchId: 'batch-1',
       name: '10 Pages/Day',
-      size: 10,
+      min_pages: 10,
+      max_pages: 10,
     });
 
     const result = await getMemberActivePaceGroup(
@@ -266,7 +267,8 @@ describe('Daily Progress - validateDailyProgressEligibility', () => {
       id: validPaceGroupId,
       batchId: validBatchId,
       name: 'Group A',
-      size: 10,
+      min_pages: 10,
+      max_pages: 10,
       activeBookId: validBookId,
     });
     mockFindFirstScheduledTask.mockResolvedValue({

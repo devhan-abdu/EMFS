@@ -19,6 +19,7 @@ const platformNavItems: NavItem[] = [
   { title: 'Batches', url: '/admin/platform/batches', icon: Layers },
   { title: 'Catalog', url: '/admin/platform/catalog', icon: BookOpen },
   { title: 'Roles & Access', url: '/admin/platform/roles', icon: ShieldCheck },
+  //   { title: 'Audit Log', url: '/admin/platform/audit', icon: History },
 ];
 
 export function PlatformSidebar({

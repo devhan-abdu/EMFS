@@ -160,7 +160,8 @@ describe('Member Placement, Schedule, and Daily Progress Integration', () => {
     id: GROUP_A_ID,
     batchId: BATCH_ID,
     name: 'Group 5A (5 p/d)',
-    size: 5,
+    min_pages: 5,
+    max_pages: 5,
     activeBookId: BOOK_ID,
     archived: false,
   };
@@ -169,7 +170,8 @@ describe('Member Placement, Schedule, and Daily Progress Integration', () => {
     id: GROUP_B_ID,
     batchId: BATCH_ID,
     name: 'Group 10B (10 p/d)',
-    size: 10,
+    min_pages: 10,
+    max_pages: 10,
     activeBookId: BOOK_ID,
     archived: false,
   };

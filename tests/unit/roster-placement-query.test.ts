@@ -50,7 +50,8 @@ const MOCK_RAW_ROWS = [
     paceGroupMembershipId: 'pgm1',
     paceGroupId: 'pg-nur',
     paceGroupName: 'Nur � 10 pages',
-    paceGroupSize: 10,
+    paceGroupMinPages: 10,
+    paceGroupMaxPages: 20,
     placedAt: new Date('2026-01-05'),
   },
   {
@@ -73,7 +74,8 @@ const MOCK_RAW_ROWS = [
     paceGroupMembershipId: null,
     paceGroupId: null,
     paceGroupName: null,
-    paceGroupSize: null,
+    paceGroupMinPages: null,
+    paceGroupMaxPages: null,
     placedAt: null,
   },
   {
@@ -96,7 +98,8 @@ const MOCK_RAW_ROWS = [
     paceGroupMembershipId: null,
     paceGroupId: null,
     paceGroupName: null,
-    paceGroupSize: null,
+    paceGroupMinPages: null,
+    paceGroupMaxPages: null,
     placedAt: null,
   },
 ];
@@ -168,7 +171,8 @@ describe('Member Roster & Placement Query Service', () => {
     expect(hanan?.placementStatus).toBe('placed');
     expect(hanan?.paceGroupId).toBe('pg-nur');
     expect(hanan?.paceGroupName).toBe('Nur � 10 pages');
-    expect(hanan?.paceGroupSize).toBe(10);
+    expect(hanan?.paceGroupMinPages).toBe(10);
+    expect(hanan?.paceGroupMaxPages).toBe(20);
     expect(hanan?.pacePreference).toBe('10');
 
     // Member 2 is UNPLACED

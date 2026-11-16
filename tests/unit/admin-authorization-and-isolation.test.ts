@@ -299,6 +299,87 @@ describe('Admin Authorization & Data Isolation Security Suite', () => {
       }
     });
 
+    it('toggleRegistrationAction blocks non-admin member from opening batch registration', async () => {
+      mockGetCurrentUser.mockReturnValueOnce(MEMBER_USER);
+      mockFindFirstBatchAdmin.mockResolvedValueOnce(null);
+
+      const result = await toggleRegistrationAction({
+        batchId: BATCH_1_ID,
+        open: true,
+      });
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.errors.formErrors).toContain(
+          'You are not an assigned admin for this batch.',
+        );
+      }
+    });
+
+    it('toggleRegistrationAction blocks unauthenticated user from opening batch registration', async () => {
+      mockGetCurrentUser.mockReturnValueOnce(null);
+
+      const result = await toggleRegistrationAction({
+        batchId: BATCH_1_ID,
+        open: true,
+      });
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.errors.formErrors).toContain('You must be signed in.');
+      }
+    });
+
+    it('toggleRegistrationAction permits assigned batch admin to toggle registration', async () => {
+      mockGetCurrentUser.mockReturnValueOnce(BATCH_1_ADMIN_USER);
+      mockFindFirstBatchAdmin.mockResolvedValueOnce({
+        batchId: BATCH_1_ID,
+        profileId: BATCH_1_ADMIN_USER.profile.id,
+      });
+
+      mockUpdate.mockReturnValueOnce({
+        set: vi.fn().mockReturnValueOnce({
+          where: vi.fn().mockReturnValueOnce({
+            returning: vi
+              .fn()
+              .mockResolvedValueOnce([
+                { id: BATCH_1_ID, registrationOpen: true },
+              ]),
+          }),
+        }),
+      });
+
+      const result = await toggleRegistrationAction({
+        batchId: BATCH_1_ID,
+        open: true,
+      });
+
+      expect(result.ok).toBe(true);
+    });
+
+    it('toggleRegistrationAction permits super admin to toggle registration', async () => {
+      mockGetCurrentUser.mockReturnValueOnce(SUPER_ADMIN_USER);
+
+      mockUpdate.mockReturnValueOnce({
+        set: vi.fn().mockReturnValueOnce({
+          where: vi.fn().mockReturnValueOnce({
+            returning: vi
+              .fn()
+              .mockResolvedValueOnce([
+                { id: BATCH_1_ID, registrationOpen: false },
+              ]),
+          }),
+        }),
+      });
+
+      const result = await toggleRegistrationAction({
+        batchId: BATCH_1_ID,
+        open: false,
+      });
+
+      expect(result.ok).toBe(true);
+    });
+
     it('reviewApplicationAction blocks batch admin from reviewing applicant from unassigned batch', async () => {
       mockGetCurrentUser.mockReturnValueOnce(BATCH_1_ADMIN_USER);
       // Application belongs to Batch 2

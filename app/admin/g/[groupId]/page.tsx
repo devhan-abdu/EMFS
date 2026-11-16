@@ -38,7 +38,8 @@ export default async function PaceGroupWorkspacePage({ params }: Props) {
       name: paceGroups.name,
       batchId: batches.id,
       batchName: batches.name,
-      size: paceGroups.size,
+      min_pages: paceGroups.min_pages,
+      max_pages: paceGroups.max_pages,
       archived: paceGroups.archived,
     })
     .from(paceGroups)
@@ -91,7 +92,11 @@ export default async function PaceGroupWorkspacePage({ params }: Props) {
           group.archived ? 'Archived pace group' : 'Pace-group workspace'
         }
         title={group.name}
-        description={`${group.batchName} · capacity ${group.size}`}
+        description={`${group.batchName} · ${
+          group.min_pages === group.max_pages
+            ? `${group.max_pages} pages/day`
+            : `${group.min_pages}–${group.max_pages} pages/day`
+        }`}
       />
 
       <Card className="card-soft">

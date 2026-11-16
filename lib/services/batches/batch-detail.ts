@@ -38,6 +38,7 @@ export async function getBatchDetail(
     autoApprove: batch.autoApprove,
     startDate: batch.startDate,
     readingDaysPerWeek: batch.readingDaysPerWeek,
+    telegramTopicSyncMode: batch.telegramTopicSyncMode,
     enrolled: Number(enrolled ?? 0),
     admins: adminRows.map((a) => ({
       profileId: a.profileId,

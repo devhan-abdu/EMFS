@@ -30,7 +30,9 @@ export function PaceGroupCard({
               {group.name}
             </p>
             <p className="text-sm text-muted-foreground">
-              {group.size} pages / day
+              {group.min_pages === group.max_pages
+                ? `${group.max_pages} pages / day`
+                : `${group.min_pages}–${group.max_pages} pages / day`}
             </p>
           </div>
           <div className="flex items-center gap-2">

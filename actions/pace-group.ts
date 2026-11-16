@@ -39,6 +39,15 @@ export async function createPaceGroupAction(rawInput: unknown) {
       };
     }
     if (e instanceof PaceGroupError) {
+      if (e.code === 'INVALID_PACE_RANGE') {
+        return {
+          ok: false as const,
+          errors: {
+            formErrors: [],
+            fieldErrors: { min_pages: [e.message] },
+          },
+        };
+      }
       if (e.code === 'BATCH_NOT_FOUND') {
         return {
           ok: false as const,
@@ -86,6 +95,15 @@ export async function updatePaceGroupAction(rawInput: unknown) {
     revalidatePath('/admin/pace-groups');
     return { ok: true as const, data: result };
   } catch (e) {
+    if (e instanceof PaceGroupError && e.code === 'INVALID_PACE_RANGE') {
+      return {
+        ok: false as const,
+        errors: {
+          formErrors: [],
+          fieldErrors: { min_pages: [e.message] },
+        },
+      };
+    }
     if (e instanceof AuthzError || e instanceof PaceGroupError) {
       return {
         ok: false as const,

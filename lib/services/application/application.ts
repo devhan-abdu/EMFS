@@ -124,6 +124,16 @@ export async function createApplication(
       if (batch.registrationOpen && capacityRemains) {
         await createBatchMembership(profileId, input.batchId, 'approved', tx);
 
+        if (Number(activeCount) + 1 >= batch.maxMembers) {
+          await tx
+            .update(batches)
+            .set({
+              registrationOpen: false,
+              updatedAt: new Date(),
+            })
+            .where(eq(batches.id, input.batchId));
+        }
+
         await tx.insert(membershipAuditLogs).values({
           memberId: profileId,
           fromState: 'applied',

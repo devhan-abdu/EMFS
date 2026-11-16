@@ -6,7 +6,8 @@ import type { PageRange } from './types';
  */
 export interface ProposeRangeParams {
   cursor: number;
-  size: number;
+  minPages: number;
+  maxPages: number;
   pageCount: number;
   delta?: number;
 }
@@ -20,18 +21,25 @@ function clamp(val: number, min: number, max: number): number {
 
 /**
  * Proposes the next 1-indexed inclusive reading page range [startPage, endPage]
- * based on current reading cursor, pace size, book page count, and manual adjustment delta.
+ * based on the current cursor, pace bounds, book page count, and manual adjustment.
  *
- * @param params - Object containing cursor, size, pageCount, and delta
+ * @param params - Object containing cursor, minPages, maxPages, pageCount, and delta
  * @returns Proposed PageRange { startPage, endPage } or null if cursor is already at or past the end of the book.
  * @throws RangeError if delta is not a multiple of PAGE_UNIT (5).
  */
 export function proposeRange({
   cursor,
-  size,
+  minPages,
+  maxPages,
   pageCount,
   delta = 0,
 }: ProposeRangeParams): PageRange | null {
+  if (minPages < 1 || maxPages < minPages) {
+    throw new RangeError(
+      'Page bounds must be positive and minimum cannot exceed maximum',
+    );
+  }
+
   if (cursor >= pageCount) {
     return null;
   }
@@ -42,7 +50,7 @@ export function proposeRange({
     );
   }
 
-  const span = clamp(size + delta, 5, size * 2);
+  const span = clamp(minPages + delta, minPages, maxPages);
   const start = cursor + 1;
   const end = Math.min(cursor + span, pageCount);
 

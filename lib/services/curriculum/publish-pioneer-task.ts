@@ -26,7 +26,8 @@ export async function createAndPublishPioneerTask(params: {
         id: true,
         batchId: true,
         activeCatalogSlotId: true,
-        size: true,
+        min_pages: true,
+        max_pages: true,
       },
     });
     if (!group) throw new Error('Group not found');
@@ -39,11 +40,23 @@ export async function createAndPublishPioneerTask(params: {
     });
     if (!book) throw new Error('Active English edition not found');
 
+    const pageSpan = params.endPage - params.startPage + 1;
+    const isFinalPartialRange = params.endPage === book.pageCount;
+    if (
+      params.startPage > params.endPage ||
+      pageSpan > group.max_pages ||
+      (pageSpan < group.min_pages && !isFinalPartialRange)
+    ) {
+      throw new Error(
+        `Task must include between ${group.min_pages} and ${group.max_pages} pages, except for a final partial range.`,
+      );
+    }
+
     const [savedStep] = await tx
       .insert(curriculumSteps)
       .values({
         catalogSlotId: group.activeCatalogSlotId,
-        paceSize: group.size,
+        paceSize: group.max_pages,
         stepNumber: params.stepNumber,
         imageUrl: params.imageUrl ?? null,
         sourceBatchId: group.batchId,

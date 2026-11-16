@@ -15,8 +15,8 @@ import {
   paceGroups,
   waitlist,
 } from '@/db/schema';
-import { buildTelegramStartLink } from '@/lib/services/bot';
 import { formatDateKey } from '@/lib/services/daily-progress';
+import { buildTelegramStartLink } from '@/lib/telegram/add-to-group';
 
 export type MemberScheduleState =
   | {
@@ -72,7 +72,8 @@ export type MemberHomeState =
       batchName: string;
       paceGroupId: string;
       paceGroupName: string;
-      paceGroupSize: number;
+      paceGroupMinPages: number;
+      paceGroupMaxPages: number;
       schedule: MemberScheduleState;
     };
 
@@ -264,7 +265,7 @@ export async function getMemberHomeState(
             curriculumStep &&
             book &&
             curriculumStep.catalogSlotId === book.catalogSlotId &&
-            curriculumStep.paceSize === paceGroup.size
+            curriculumStep.paceSize === paceGroup.max_pages
           ) {
             const stepEdition = await db.query.curriculumStepEditions.findFirst(
               {
@@ -314,7 +315,8 @@ export async function getMemberHomeState(
     batchName,
     paceGroupId: paceGroup.id,
     paceGroupName: paceGroup.name,
-    paceGroupSize: paceGroup.size,
+    paceGroupMinPages: paceGroup.min_pages,
+    paceGroupMaxPages: paceGroup.max_pages,
     schedule,
   };
 }

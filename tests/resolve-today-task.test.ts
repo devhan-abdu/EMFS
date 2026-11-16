@@ -27,7 +27,8 @@ describe('resolveTodayTask', () => {
     mocks.findPaceGroup.mockResolvedValue({
       id: 'group-1',
       activeCatalogSlotId: 'slot-2',
-      size: 5,
+      min_pages: 5,
+      max_pages: 5,
     });
     mocks.findBook.mockResolvedValue({
       id: 'edition-2-en',
@@ -41,9 +42,9 @@ describe('resolveTodayTask', () => {
       curriculumStepId: 'step-slot-2-pace-5-day-1',
       catalogSlotId: 'slot-2',
       bookId: 'edition-2-en',
-      startPage: 11,
-      endPage: 15,
-      caption: 'Read pages 11–15',
+      startPage: 1,
+      endPage: 5,
+      caption: 'Read pages 1–5',
       chapterLabel: null,
     });
   });
@@ -65,7 +66,7 @@ describe('resolveTodayTask', () => {
       stepNumber: 1,
       book: { id: 'edition-2-en' },
       step,
-      range: { startPage: 11, endPage: 15 },
+      range: { startPage: 1, endPage: 5 },
     });
     expect(mocks.findCurriculumStep).toHaveBeenCalledTimes(1);
     expect(mocks.findStepEdition).toHaveBeenCalledTimes(1);

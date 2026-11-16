@@ -1,43 +1,55 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
-import { db } from '@/db';
-import { batches } from '@/db/schema';
 import { AuthzError, requireBatchAccess } from '@/lib/auth/authorize';
+import {
+  BatchError,
+  updateBatchRegistration,
+} from '@/lib/services/batches/batch';
+import { toggleRegistrationSchema } from '@/lib/validations/batch';
 
 export async function toggleRegistrationAction(input: {
   batchId: string;
   open: boolean;
 }) {
-  if (!input?.batchId || typeof input.open !== 'boolean') {
+  const parsed = toggleRegistrationSchema.safeParse(input);
+  if (!parsed.success) {
     return {
       ok: false as const,
-      errors: { formErrors: ['Invalid request.'], fieldErrors: {} },
+      errors: {
+        formErrors: ['Invalid request.'],
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      },
     };
   }
 
   try {
-    await requireBatchAccess(input.batchId);
+    await requireBatchAccess(parsed.data.batchId);
 
-    await db
-      .update(batches)
-      .set({ registrationOpen: input.open, updatedAt: new Date() })
-      .where(eq(batches.id, input.batchId));
+    await updateBatchRegistration(input.batchId, input.open);
 
-    revalidatePath(`/admin/b/${input.batchId}`);
+    revalidatePath(`/admin/b/${parsed.data.batchId}`);
     revalidatePath('/admin/platform/batches');
     return { ok: true as const };
   } catch (e) {
     if (e instanceof AuthzError) {
       return {
         ok: false as const,
+        error: e.code,
         errors: { formErrors: [e.message], fieldErrors: {} },
+      };
+    }
+    if (e instanceof BatchError) {
+      return {
+        ok: false as const,
+        error: e.code,
+        errors: { formErrors: [e.code], fieldErrors: {} },
       };
     }
     return {
       ok: false as const,
+      error: 'UNEXPECTED_ERROR',
       errors: {
         formErrors: ['An unexpected error occurred.'],
         fieldErrors: {},

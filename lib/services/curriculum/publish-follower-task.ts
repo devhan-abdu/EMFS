@@ -16,7 +16,11 @@ export async function publishFollowerTask(params: {
 }) {
   const group = await db.query.paceGroups.findFirst({
     where: eq(paceGroups.id, params.paceGroupId),
-    columns: { batchId: true, activeCatalogSlotId: true, size: true },
+    columns: {
+      batchId: true,
+      activeCatalogSlotId: true,
+      max_pages: true,
+    },
   });
   if (!group) throw new Error('Group not found');
 
@@ -36,7 +40,7 @@ export async function publishFollowerTask(params: {
     !curriculumStep ||
     !activeBook ||
     curriculumStep.catalogSlotId !== group.activeCatalogSlotId ||
-    curriculumStep.paceSize !== group.size
+    curriculumStep.paceSize !== group.max_pages
   ) {
     throw new Error('Curriculum step does not match the pace group.');
   }

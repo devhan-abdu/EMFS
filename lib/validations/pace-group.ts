@@ -1,28 +1,54 @@
 import { z } from 'zod';
 
-export const PACE_GROUP_SIZE_PRESETS = [5, 10, 20, 40] as const;
-
-const paceSizeSchema = z.coerce
+const minPagesSchema = z.coerce
   .number()
-  .int('Pace must be a whole number')
-  .refine((v) => (PACE_GROUP_SIZE_PRESETS as readonly number[]).includes(v), {
-    message: 'Pace must be one of 5, 10, 20, or 40 pages/day',
-  });
+  .int('Minimum pages must be a whole number')
+  .min(1, 'Minimum pages must be at least 1');
+const maxPagesSchema = z.coerce
+  .number()
+  .int('Maximum pages must be a whole number')
+  .min(1, 'Maximum pages must be at least 1');
 
-export const createPaceGroupSchema = z.object({
+export const createPaceGroupBaseSchema = z.object({
   batchId: z.string().uuid('Invalid batch ID'),
   name: z.string().trim().min(1, 'Group name is required').max(100),
-  size: paceSizeSchema,
+  min_pages: minPagesSchema,
+  max_pages: maxPagesSchema,
   /** Deliberate override of the batch's planned pace-group count. */
   overridePlannedCount: z.boolean().optional().default(false),
 });
+
+export const createPaceGroupSchema = createPaceGroupBaseSchema.refine(
+  (value) => value.min_pages <= value.max_pages,
+  {
+    message: 'Minimum pages cannot exceed maximum pages',
+    path: ['min_pages'],
+  },
+);
 export type CreatePaceGroupInput = z.infer<typeof createPaceGroupSchema>;
 
-export const updatePaceGroupSchema = z.object({
-  paceGroupId: z.string().uuid('Invalid pace group ID'),
-  name: z.string().trim().min(1, 'Group name is required').max(100).optional(),
-  size: paceSizeSchema.optional(),
-});
+export const updatePaceGroupSchema = z
+  .object({
+    paceGroupId: z.string().uuid('Invalid pace group ID'),
+    name: z
+      .string()
+      .trim()
+      .min(1, 'Group name is required')
+      .max(100)
+      .optional(),
+    min_pages: minPagesSchema.optional(),
+    max_pages: maxPagesSchema.optional(),
+  })
+  .refine(
+    (value) =>
+      value.min_pages === undefined ||
+      value.max_pages === undefined ||
+      value.min_pages <= value.max_pages,
+    {
+      message: 'Minimum pages cannot exceed maximum pages',
+      path: ['min_pages'],
+    },
+  );
 export type UpdatePaceGroupInput = z.infer<typeof updatePaceGroupSchema>;
 
 export const archivePaceGroupSchema = z.object({

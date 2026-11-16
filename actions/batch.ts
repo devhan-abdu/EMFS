@@ -2,6 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth/authorize';
+import {
+  TELEGRAM_TOPIC_SYNC_MODES,
+  type TelegramTopicSyncMode,
+} from '@/db/schema/telegram-topic-sync-mode';
 import { createBatchSchema } from '@/lib/validations/batch';
 import {
   createBatch,
@@ -16,7 +20,7 @@ export type CreateBatchFormFields = {
   paceGroupCount?: number;
   startDate?: string;
   readingDaysPerWeek?: number;
-  registrationOpen?: boolean;
+  telegramTopicSyncMode?: TelegramTopicSyncMode;
   adminIds?: string[];
 };
 export type CreateBatchActionState = {
@@ -28,6 +32,10 @@ export type CreateBatchActionState = {
   data?: CreateBatchResult;
   fields?: CreateBatchFormFields;
 } | null;
+
+function getTopicSyncMode(value: unknown): TelegramTopicSyncMode | undefined {
+  return TELEGRAM_TOPIC_SYNC_MODES.find((mode) => mode === value);
+}
 
 export async function createBatchAction(
   _prevState: CreateBatchActionState,
@@ -55,7 +63,7 @@ export async function createBatchAction(
     paceGroupCount: parseNumber(formData.get('paceGroupCount')),
     startDate: formData.get('startDate') || undefined,
     readingDaysPerWeek: parseNumber(formData.get('readingDaysPerWeek')),
-    registrationOpen: formData.get('registrationOpen') === 'true',
+    telegramTopicSyncMode: formData.get('telegramTopicSyncMode'),
     ...(adminIds.length > 0 ? { adminIds } : {}),
   };
 
@@ -72,7 +80,7 @@ export async function createBatchAction(
         startDate:
           typeof raw.startDate === 'string' ? raw.startDate : undefined,
         readingDaysPerWeek: raw.readingDaysPerWeek,
-        registrationOpen: raw.registrationOpen,
+        telegramTopicSyncMode: getTopicSyncMode(raw.telegramTopicSyncMode),
         adminIds: raw.adminIds,
       },
     };
@@ -140,7 +148,7 @@ export async function updateBatchAction(
     paceGroupCount: parseNumber(formData.get('paceGroupCount')),
     startDate: formData.get('startDate') || undefined,
     readingDaysPerWeek: parseNumber(formData.get('readingDaysPerWeek')),
-    registrationOpen: formData.get('registrationOpen') === 'true',
+    telegramTopicSyncMode: formData.get('telegramTopicSyncMode'),
     ...(adminIds.length > 0 ? { adminIds } : {}),
   };
 
@@ -157,7 +165,7 @@ export async function updateBatchAction(
         startDate:
           typeof raw.startDate === 'string' ? raw.startDate : undefined,
         readingDaysPerWeek: raw.readingDaysPerWeek,
-        registrationOpen: raw.registrationOpen,
+        telegramTopicSyncMode: getTopicSyncMode(raw.telegramTopicSyncMode),
         adminIds: raw.adminIds,
       },
     };

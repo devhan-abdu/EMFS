@@ -100,7 +100,18 @@ export default async function BatchWorkspacePage({
         eyebrow={batchStatusLabels[status]}
         title={batch.name}
         description={`${batch.readingDaysPerWeek} reading days a week · starts ${batch.startDate ?? 'to be announced'}`}
-        actions={<StatusBadge status={status} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/admin/b/${batch.id}/telegram`}>
+                Telegram settings
+                <ArrowRight />
+              </Link>
+            </Button>
+
+            <StatusBadge status={status} />
+          </div>
+        }
       />
 
       <Card className="card-soft">
@@ -209,8 +220,11 @@ export default async function BatchWorkspacePage({
                         {group.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Capacity {group.size} · {group.admins.length} pace
-                        admins
+                        {group.min_pages === group.max_pages
+                          ? `${group.max_pages} pages/day`
+                          : `${group.min_pages}–${group.max_pages} pages/day`}
+                        {' · '}
+                        {group.admins.length} pace admins
                       </p>
                     </div>
                     <Badge

@@ -1,6 +1,6 @@
 {
-  "id": "a3dd8259-a080-47b6-a130-4eb58839de7d",
-  "prevId": "9beb3f90-853e-4b4e-a386-292edafff199",
+  "id": "3702f9be-0aea-4b79-b795-8b951565d634",
+  "prevId": "192aea29-194e-44cd-93d2-dfe720ad8b6c",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -522,6 +522,14 @@
           "primaryKey": false,
           "notNull": true,
           "default": 6
+        },
+        "telegram_topic_sync_mode": {
+          "name": "telegram_topic_sync_mode",
+          "type": "telegram_topic_sync_mode",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'manual'"
         },
         "created_by": {
           "name": "created_by",
@@ -3556,8 +3564,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.invitations": {
-      "name": "invitations",
+    "public.telegram_chats": {
+      "name": "telegram_chats",
       "schema": "",
       "columns": {
         "id": {
@@ -3567,16 +3575,9 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "role": {
-          "name": "role",
-          "type": "role",
-          "typeSchema": "public",
+        "chat_id": {
+          "name": "chat_id",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
@@ -3584,7 +3585,136 @@
           "name": "batch_id",
           "type": "uuid",
           "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
           "notNull": false
+        },
+        "is_forum": {
+          "name": "is_forum",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "status": {
+          "name": "status",
+          "type": "telegram_chat_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "can_manage_topics": {
+          "name": "can_manage_topics",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "linked_by": {
+          "name": "linked_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "linked_at": {
+          "name": "linked_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "telegram_chats_batch_id_batches_id_fk": {
+          "name": "telegram_chats_batch_id_batches_id_fk",
+          "tableFrom": "telegram_chats",
+          "tableTo": "batches",
+          "columnsFrom": [
+            "batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "telegram_chats_linked_by_profiles_id_fk": {
+          "name": "telegram_chats_linked_by_profiles_id_fk",
+          "tableFrom": "telegram_chats",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "linked_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "telegram_chats_chat_id_unique": {
+          "name": "telegram_chats_chat_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "chat_id"
+          ]
+        },
+        "telegram_chats_batch_id_unique": {
+          "name": "telegram_chats_batch_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "batch_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.telegram_chat_topics": {
+      "name": "telegram_chat_topics",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "telegram_chat_id": {
+          "name": "telegram_chat_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message_thread_id": {
+          "name": "message_thread_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "telegram_topic_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
         },
         "pace_group_id": {
           "name": "pace_group_id",
@@ -3592,51 +3722,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "pace_duty": {
-          "name": "pace_duty",
-          "type": "pace_admin_duty",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "token_hash": {
-          "name": "token_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "used_at": {
-          "name": "used_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "accepted_profile_id": {
-          "name": "accepted_profile_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "telegram_chat_id": {
-          "name": "telegram_chat_id",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "telegram_username": {
-          "name": "telegram_username",
+        "name": {
+          "name": "name",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -3650,11 +3737,17 @@
         }
       },
       "indexes": {
-        "invitations_token_hash_unique": {
-          "name": "invitations_token_hash_unique",
+        "telegram_chat_topics_chat_thread_idx": {
+          "name": "telegram_chat_topics_chat_thread_idx",
           "columns": [
             {
-              "expression": "token_hash",
+              "expression": "telegram_chat_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "message_thread_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3665,26 +3758,146 @@
           "method": "btree",
           "with": {}
         },
-        "invitations_created_at_idx": {
-          "name": "invitations_created_at_idx",
+        "telegram_chat_topics_one_announcement_idx": {
+          "name": "telegram_chat_topics_one_announcement_idx",
           "columns": [
             {
-              "expression": "created_at",
+              "expression": "telegram_chat_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
+          "where": "\"telegram_chat_topics\".\"kind\" = 'announcement'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "telegram_chat_topics_telegram_chat_id_telegram_chats_id_fk": {
+          "name": "telegram_chat_topics_telegram_chat_id_telegram_chats_id_fk",
+          "tableFrom": "telegram_chat_topics",
+          "tableTo": "telegram_chats",
+          "columnsFrom": [
+            "telegram_chat_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "telegram_chat_topics_pace_group_id_pace_groups_id_fk": {
+          "name": "telegram_chat_topics_pace_group_id_pace_groups_id_fk",
+          "tableFrom": "telegram_chat_topics",
+          "tableTo": "pace_groups",
+          "columnsFrom": [
+            "pace_group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "telegram_chat_topics_pace_group_id_unique": {
+          "name": "telegram_chat_topics_pace_group_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "pace_group_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "telegram_chat_topics_kind_pace_group_check": {
+          "name": "telegram_chat_topics_kind_pace_group_check",
+          "value": "(\"telegram_chat_topics\".\"kind\" = 'pace_group') = (\"telegram_chat_topics\".\"pace_group_id\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.telegram_link_codes": {
+      "name": "telegram_link_codes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pending_chat_id": {
+          "name": "pending_chat_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "used_at": {
+          "name": "used_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "telegram_link_codes_code_idx": {
+          "name": "telegram_link_codes_code_idx",
+          "columns": [
+            {
+              "expression": "code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
         },
-        "invitations_expires_at_idx": {
-          "name": "invitations_expires_at_idx",
+        "telegram_link_codes_batch_idx": {
+          "name": "telegram_link_codes_batch_idx",
           "columns": [
             {
-              "expression": "expires_at",
+              "expression": "batch_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3697,9 +3910,9 @@
         }
       },
       "foreignKeys": {
-        "invitations_batch_id_batches_id_fk": {
-          "name": "invitations_batch_id_batches_id_fk",
-          "tableFrom": "invitations",
+        "telegram_link_codes_batch_id_batches_id_fk": {
+          "name": "telegram_link_codes_batch_id_batches_id_fk",
+          "tableFrom": "telegram_link_codes",
           "tableTo": "batches",
           "columnsFrom": [
             "batch_id"
@@ -3707,41 +3920,15 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "invitations_pace_group_id_pace_groups_id_fk": {
-          "name": "invitations_pace_group_id_pace_groups_id_fk",
-          "tableFrom": "invitations",
-          "tableTo": "pace_groups",
-          "columnsFrom": [
-            "pace_group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "invitations_created_by_profiles_id_fk": {
-          "name": "invitations_created_by_profiles_id_fk",
-          "tableFrom": "invitations",
+        "telegram_link_codes_created_by_profiles_id_fk": {
+          "name": "telegram_link_codes_created_by_profiles_id_fk",
+          "tableFrom": "telegram_link_codes",
           "tableTo": "profiles",
           "columnsFrom": [
             "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "invitations_accepted_profile_id_profiles_id_fk": {
-          "name": "invitations_accepted_profile_id_profiles_id_fk",
-          "tableFrom": "invitations",
-          "tableTo": "profiles",
-          "columnsFrom": [
-            "accepted_profile_id"
           ],
           "columnsTo": [
             "id"
@@ -3756,8 +3943,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.role_audit_logs": {
-      "name": "role_audit_logs",
+    "public.telegram_topic_discoveries": {
+      "name": "telegram_topic_discoveries",
       "schema": "",
       "columns": {
         "id": {
@@ -3767,60 +3954,26 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "target_profile_id": {
-          "name": "target_profile_id",
+        "telegram_chat_id": {
+          "name": "telegram_chat_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "actor_profile_id": {
-          "name": "actor_profile_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "previous_role": {
-          "name": "previous_role",
-          "type": "role",
-          "typeSchema": "public",
+        "message_thread_id": {
+          "name": "message_thread_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
-        "new_role": {
-          "name": "new_role",
-          "type": "role",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "previous_is_super_admin": {
-          "name": "previous_is_super_admin",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "new_is_super_admin": {
-          "name": "new_is_super_admin",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "assignment_changes": {
-          "name": "assignment_changes",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reason": {
-          "name": "reason",
+        "topic_name": {
+          "name": "topic_name",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "created_at": {
-          "name": "created_at",
+        "discovered_at": {
+          "name": "discovered_at",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
@@ -3828,77 +3981,40 @@
         }
       },
       "indexes": {
-        "role_audit_logs_target_profile_id_idx": {
-          "name": "role_audit_logs_target_profile_id_idx",
+        "telegram_topic_discoveries_chat_thread_idx": {
+          "name": "telegram_topic_discoveries_chat_thread_idx",
           "columns": [
             {
-              "expression": "target_profile_id",
+              "expression": "telegram_chat_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "message_thread_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "role_audit_logs_actor_profile_id_idx": {
-          "name": "role_audit_logs_actor_profile_id_idx",
-          "columns": [
-            {
-              "expression": "actor_profile_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "role_audit_logs_created_at_idx": {
-          "name": "role_audit_logs_created_at_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
       "foreignKeys": {
-        "role_audit_logs_target_profile_id_profiles_id_fk": {
-          "name": "role_audit_logs_target_profile_id_profiles_id_fk",
-          "tableFrom": "role_audit_logs",
-          "tableTo": "profiles",
+        "telegram_topic_discoveries_telegram_chat_id_telegram_chats_id_fk": {
+          "name": "telegram_topic_discoveries_telegram_chat_id_telegram_chats_id_fk",
+          "tableFrom": "telegram_topic_discoveries",
+          "tableTo": "telegram_chats",
           "columnsFrom": [
-            "target_profile_id"
+            "telegram_chat_id"
           ],
           "columnsTo": [
             "id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "role_audit_logs_actor_profile_id_profiles_id_fk": {
-          "name": "role_audit_logs_actor_profile_id_profiles_id_fk",
-          "tableFrom": "role_audit_logs",
-          "tableTo": "profiles",
-          "columnsFrom": [
-            "actor_profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -3986,6 +4102,30 @@
         "approved",
         "rejected",
         "cancelled"
+      ]
+    },
+    "public.telegram_chat_status": {
+      "name": "telegram_chat_status",
+      "schema": "public",
+      "values": [
+        "active",
+        "bot_removed"
+      ]
+    },
+    "public.telegram_topic_kind": {
+      "name": "telegram_topic_kind",
+      "schema": "public",
+      "values": [
+        "pace_group",
+        "announcement"
+      ]
+    },
+    "public.telegram_topic_sync_mode": {
+      "name": "telegram_topic_sync_mode",
+      "schema": "public",
+      "values": [
+        "managed",
+        "manual"
       ]
     }
   },

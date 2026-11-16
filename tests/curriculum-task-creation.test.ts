@@ -38,7 +38,8 @@ describe('curriculum task creation', () => {
       id: 'group-1',
       batchId: 'batch-1',
       activeCatalogSlotId: 'slot-2',
-      size: 10,
+      min_pages: 10,
+      max_pages: 10,
     };
     const book = {
       id: 'book-en-2',
@@ -129,7 +130,8 @@ describe('curriculum task creation', () => {
       id: 'group-1',
       batchId: 'batch-1',
       activeCatalogSlotId: 'slot-2',
-      size: 10,
+      min_pages: 10,
+      max_pages: 10,
     };
     const step = {
       id: 'step-2',
@@ -183,7 +185,8 @@ describe('curriculum task creation', () => {
       id: 'group-1',
       batchId: 'batch-1',
       activeCatalogSlotId: 'slot-2',
-      size: 10,
+      min_pages: 10,
+      max_pages: 10,
     };
     const step = {
       id: 'step-3',

@@ -28,8 +28,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
   Popover,
@@ -47,6 +45,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { BatchDetail } from '@/lib/validations/batch';
+import type { TelegramTopicSyncMode } from '@/db/schema/telegram-topic-sync-mode';
 
 export type AdminOption = {
   profileId: string;
@@ -55,7 +54,6 @@ export type AdminOption = {
   previouslyAssigned: boolean;
 };
 
-const MAX_ADMINS = 3;
 const initialState: CreateBatchActionState = null;
 
 export function CreateBatchForm({
@@ -76,10 +74,10 @@ export function CreateBatchForm({
   const [selectedIds, setSelectedIds] = useState<string[]>(
     initialData?.admins?.map((a) => a.profileId) ?? [],
   );
+  const [telegramTopicSyncMode, setTelegramTopicSyncMode] = useState<
+    TelegramTopicSyncMode | ''
+  >(initialData?.telegramTopicSyncMode ?? '');
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [registrationOpen, setRegistrationOpen] = useState(
-    initialData?.registrationOpen ?? true,
-  );
   const fieldErrors = state?.errors?.fieldErrors ?? {};
   const formattedDefaultDate = initialData?.startDate
     ? new Date(initialData.startDate).toISOString().split('T')[0]
@@ -93,8 +91,6 @@ export function CreateBatchForm({
       router.push(`/admin/b/${state.data.batch.id}`);
     }
   }, [state, router, isEditing]);
-
-  const isMaxReached = selectedIds.length >= MAX_ADMINS;
 
   const selectedAdmins = selectedIds.map((id) => {
     const matchedOption = admins.find((a) => a.profileId === id);
@@ -114,17 +110,9 @@ export function CreateBatchForm({
   function toggleAdmin(id: string) {
     setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= MAX_ADMINS) return prev;
       return [...prev, id];
     });
   }
-
-  useEffect(() => {
-    if (state?.ok && state.data?.batch?.id) {
-      toast.success('Batch created successfully');
-      router.push(`/admin/b/${state.data.batch.id}`);
-    }
-  }, [state, router]);
 
   return (
     <form action={formAction} className="grid gap-6 lg:grid-cols-3">
@@ -150,6 +138,63 @@ export function CreateBatchForm({
               />
               <FieldError message={fieldErrors.name?.[0]} />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="card-soft">
+          <CardHeader>
+            <CardTitle className="font-display text-xl">
+              Telegram connection
+            </CardTitle>
+            <CardDescription>
+              Choose whether this batch will use a new or existing Telegram
+              group.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <fieldset className="space-y-4">
+              <legend className="sr-only">Telegram connection option</legend>
+              <label className="block cursor-pointer">
+                <input
+                  className="peer sr-only"
+                  type="radio"
+                  name="telegramTopicSyncMode"
+                  value="managed"
+                  required
+                  checked={telegramTopicSyncMode === 'managed'}
+                  onChange={() => setTelegramTopicSyncMode('managed')}
+                />
+                <div className="rounded-lg border border-border p-4 peer-checked:border-primary peer-checked:bg-accent peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-ring">
+                  <p className="font-medium">Create a new Telegram group</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    I don&apos;t have a Telegram group yet. I&apos;ll create one
+                    after setting up this batch. EMFS will automatically create
+                    the required topics after connecting the bot.
+                  </p>
+                </div>
+              </label>
+              <label className="block cursor-pointer">
+                <input
+                  className="peer sr-only"
+                  type="radio"
+                  name="telegramTopicSyncMode"
+                  value="manual"
+                  required
+                  checked={telegramTopicSyncMode === 'manual'}
+                  onChange={() => setTelegramTopicSyncMode('manual')}
+                />
+                <div className="rounded-lg border border-border p-4 peer-checked:border-primary peer-checked:bg-accent peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-ring">
+                  <p className="font-medium">
+                    Connect an existing Telegram group
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    This batch already has a Telegram group. I want to preserve
+                    its existing topics and connect them to EMFS.
+                  </p>
+                </div>
+              </label>
+            </fieldset>
+            <FieldError message={fieldErrors.telegramTopicSyncMode?.[0]} />
           </CardContent>
         </Card>
 
@@ -242,38 +287,10 @@ export function CreateBatchForm({
       <div className="space-y-6">
         <Card className="card-soft">
           <CardHeader>
-            <CardTitle className="font-display text-xl">Registration</CardTitle>
-            <CardDescription>
-              Registration starts closed. When you open it, applicants are
-              approved automatically and get a Telegram bot link
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between rounded-xl bg-surface-container p-4">
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  Open registration
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Members can apply and receive a bot link immediately
-                </p>
-              </div>
-              <Switch
-                name="registrationOpen"
-                value="true"
-                checked={registrationOpen}
-                onCheckedChange={setRegistrationOpen}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="card-soft">
-          <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <p className="font-display text-xl">Batch admins</p>
 
-              <Button asChild variant="ghost" size="sm" className="gap-1.5 ">
+              <Button asChild variant="ghost" size="sm" className="gap-2">
                 <Link href="/admin/platform/roles">
                   <UserPlus className="size-4" />
                   Invite admin
@@ -282,7 +299,7 @@ export function CreateBatchForm({
             </CardTitle>
 
             <CardDescription>
-              Pick 1 to 3. People previously assigned show up first.
+              Pick at least 1. People previously assigned show up first.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -305,9 +322,7 @@ export function CreateBatchForm({
                     aria-expanded={pickerOpen}
                     className="w-full justify-between font-normal"
                   >
-                    {isMaxReached
-                      ? 'Maximum admins selected'
-                      : 'Search admins…'}
+                    Search admins…
                     <ChevronsUpDown className="size-4 opacity-50" />
                   </Button>
                 }
@@ -328,10 +343,7 @@ export function CreateBatchForm({
                             key={admin.profileId}
                             admin={admin}
                             isSelected={selectedIds.includes(admin.profileId)}
-                            disabled={
-                              isMaxReached &&
-                              !selectedIds.includes(admin.profileId)
-                            }
+                            disabled={false}
                             onSelect={() => toggleAdmin(admin.profileId)}
                           />
                         ))}
@@ -344,10 +356,7 @@ export function CreateBatchForm({
                             key={admin.profileId}
                             admin={admin}
                             isSelected={selectedIds.includes(admin.profileId)}
-                            disabled={
-                              isMaxReached &&
-                              !selectedIds.includes(admin.profileId)
-                            }
+                            disabled={false}
                             onSelect={() => toggleAdmin(admin.profileId)}
                           />
                         ))}
@@ -369,7 +378,7 @@ export function CreateBatchForm({
                     <Badge
                       key={admin.profileId}
                       variant="secondary"
-                      className="gap-1 rounded-full py-1 pl-3 pr-1.5"
+                      className="gap-2 rounded-full py-2 pl-4 pr-2"
                     >
                       {admin.displayName}
                       <button
@@ -396,7 +405,7 @@ export function CreateBatchForm({
           </p>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex gap-4">
           <Button
             type="submit"
             className="flex-1"

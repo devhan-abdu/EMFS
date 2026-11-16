@@ -1,6 +1,8 @@
-import { and, asc, count, eq } from 'drizzle-orm';
+import { and, asc, count, eq, ne, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { books, catalogSlots, paceGroups, batches } from '@/db/schema';
+import { isUniqueConstraintViolation } from '@/lib/services/database-errors';
+import type { DbTransaction } from '@/lib/services/membership';
 import type {
   CreatePaceGroupInput,
   UpdatePaceGroupInput,
@@ -13,7 +15,9 @@ export type PaceGroupErrorCode =
   | 'PACE_GROUP_NOT_FOUND'
   | 'PLANNED_COUNT_EXCEEDED'
   | 'CATALOG_NOT_CONFIGURED'
-  | 'ALREADY_ARCHIVED';
+  | 'ALREADY_ARCHIVED'
+  | 'INVALID_PACE_RANGE'
+  | 'DUPLICATE_NAME';
 
 export class PaceGroupError extends Error {
   code: PaceGroupErrorCode;
@@ -24,11 +28,16 @@ export class PaceGroupError extends Error {
   }
 }
 
+const PACE_GROUP_NAME_UNIQUE_INDEX = 'pace_groups_batch_name_lower_unique_idx';
+const DUPLICATE_PACE_GROUP_NAME_MESSAGE =
+  'A pace group with this name already exists in this batch. Please choose a different name.';
+
 export type PaceGroupRow = {
   id: string;
   batchId: string;
   name: string;
-  size: number;
+  min_pages: number;
+  max_pages: number;
   archived: boolean;
 };
 
@@ -36,7 +45,8 @@ const PACE_GROUP_RETURNING = {
   id: paceGroups.id,
   batchId: paceGroups.batchId,
   name: paceGroups.name,
-  size: paceGroups.size,
+  min_pages: paceGroups.min_pages,
+  max_pages: paceGroups.max_pages,
   archived: paceGroups.archived,
 };
 
@@ -52,94 +62,182 @@ export async function getPaceGroupById(paceGroupId: string) {
 export async function createPaceGroup(
   input: CreatePaceGroupInput,
 ): Promise<PaceGroupRow> {
-  const { batchId, name, size, overridePlannedCount } = input;
+  return db.transaction((tx) => createPaceGroupInTransaction(tx, input));
+}
 
-  return db.transaction(async (tx) => {
-    const [batch] = await tx
-      .select({ id: batches.id, paceGroupCount: batches.paceGroupCount })
-      .from(batches)
-      .where(eq(batches.id, batchId))
-      .limit(1);
+export async function createPaceGroupInTransaction(
+  tx: DbTransaction,
+  input: CreatePaceGroupInput,
+): Promise<PaceGroupRow> {
+  const { batchId, name, min_pages, max_pages, overridePlannedCount } = input;
 
-    if (!batch) {
-      throw new PaceGroupError('BATCH_NOT_FOUND', 'Batch not found.');
-    }
+  if (min_pages > max_pages) {
+    throw new PaceGroupError(
+      'INVALID_PACE_RANGE',
+      'Minimum pages cannot exceed maximum pages.',
+    );
+  }
 
-    const [initialSlot] = await tx
-      .select({ id: catalogSlots.id })
-      .from(catalogSlots)
-      .where(eq(catalogSlots.sequenceOrder, 1))
-      .limit(1);
+  const [batch] = await tx
+    .select({ id: batches.id, paceGroupCount: batches.paceGroupCount })
+    .from(batches)
+    .where(eq(batches.id, batchId))
+    .limit(1);
 
-    if (!initialSlot) {
-      throw new PaceGroupError(
-        'CATALOG_NOT_CONFIGURED',
-        'Add a catalog slot 1 before creating pace groups.',
-      );
-    }
+  if (!batch) {
+    throw new PaceGroupError('BATCH_NOT_FOUND', 'Batch not found.');
+  }
 
-    const [initialBook] = await tx
-      .select({ id: books.id })
-      .from(books)
+  const [existingGroup] = await tx
+    .select({ id: paceGroups.id })
+    .from(paceGroups)
+    .where(
+      and(
+        eq(paceGroups.batchId, batchId),
+        sql`lower(btrim(${paceGroups.name})) = lower(btrim(${name.trim()}))`,
+      ),
+    )
+    .limit(1);
+
+  if (existingGroup) {
+    throw new PaceGroupError(
+      'DUPLICATE_NAME',
+      DUPLICATE_PACE_GROUP_NAME_MESSAGE,
+    );
+  }
+
+  const [initialSlot] = await tx
+    .select({ id: catalogSlots.id })
+    .from(catalogSlots)
+    .where(eq(catalogSlots.sequenceOrder, 1))
+    .limit(1);
+
+  if (!initialSlot) {
+    throw new PaceGroupError(
+      'CATALOG_NOT_CONFIGURED',
+      'Add a catalog slot 1 before creating pace groups.',
+    );
+  }
+
+  const [initialBook] = await tx
+    .select({ id: books.id })
+    .from(books)
+    .where(
+      and(eq(books.catalogSlotId, initialSlot.id), eq(books.language, 'en')),
+    )
+    .orderBy(asc(books.language))
+    .limit(1);
+
+  if (!initialBook) {
+    throw new PaceGroupError(
+      'CATALOG_NOT_CONFIGURED',
+      'Add an English book to catalog slot 1 before creating pace groups.',
+    );
+  }
+
+  if (!overridePlannedCount) {
+    const [{ existingCount }] = await tx
+      .select({ existingCount: count() })
+      .from(paceGroups)
       .where(
-        and(eq(books.catalogSlotId, initialSlot.id), eq(books.language, 'en')),
-      )
-      .orderBy(asc(books.language))
-      .limit(1);
+        and(eq(paceGroups.batchId, batchId), eq(paceGroups.archived, false)),
+      );
 
-    if (!initialBook) {
+    if (Number(existingCount) >= batch.paceGroupCount) {
       throw new PaceGroupError(
-        'CATALOG_NOT_CONFIGURED',
-        'Add an English book to catalog slot 1 before creating pace groups.',
+        'PLANNED_COUNT_EXCEEDED',
+        `This batch planned for ${batch.paceGroupCount} pace group(s). Pass overridePlannedCount to add more.`,
       );
     }
+  }
 
-    if (!overridePlannedCount) {
-      const [{ existingCount }] = await tx
-        .select({ existingCount: count() })
-        .from(paceGroups)
-        .where(
-          and(eq(paceGroups.batchId, batchId), eq(paceGroups.archived, false)),
-        );
-
-      if (Number(existingCount) >= batch.paceGroupCount) {
-        throw new PaceGroupError(
-          'PLANNED_COUNT_EXCEEDED',
-          `This batch planned for ${batch.paceGroupCount} pace group(s). Pass overridePlannedCount to add more.`,
-        );
-      }
-    }
-
-    const [created] = await tx
+  let created: PaceGroupRow | undefined;
+  try {
+    [created] = await tx
       .insert(paceGroups)
-      .values({ batchId, name, size, activeCatalogSlotId: initialSlot.id })
+      .values({
+        batchId,
+        name: name.trim(),
+        min_pages,
+        max_pages,
+        activeCatalogSlotId: initialSlot.id,
+      })
       .returning(PACE_GROUP_RETURNING);
+  } catch (error) {
+    if (isUniqueConstraintViolation(error, PACE_GROUP_NAME_UNIQUE_INDEX)) {
+      throw new PaceGroupError(
+        'DUPLICATE_NAME',
+        DUPLICATE_PACE_GROUP_NAME_MESSAGE,
+      );
+    }
+    throw error;
+  }
 
-    return created;
-  });
+  return created;
 }
 
 export async function updatePaceGroup(
   input: UpdatePaceGroupInput,
 ): Promise<PaceGroupRow> {
-  const { paceGroupId, name, size } = input;
+  const { paceGroupId, name, min_pages, max_pages } = input;
 
   const existing = await getPaceGroupById(paceGroupId);
   if (!existing) {
     throw new PaceGroupError('PACE_GROUP_NOT_FOUND', 'Pace group not found.');
   }
 
-  const [updated] = await db
-    .update(paceGroups)
-    .set({
-      ...(name !== undefined ? { name } : {}),
-      ...(size !== undefined ? { size } : {}),
-      updatedAt: new Date(),
-    })
-    .where(eq(paceGroups.id, paceGroupId))
-    .returning(PACE_GROUP_RETURNING);
+  const nextMinPages = min_pages ?? existing.min_pages;
+  const nextMaxPages = max_pages ?? existing.max_pages;
+  if (nextMinPages > nextMaxPages) {
+    throw new PaceGroupError(
+      'INVALID_PACE_RANGE',
+      'Minimum pages cannot exceed maximum pages.',
+    );
+  }
 
-  return updated;
+  if (name !== undefined) {
+    const [existingGroup] = await db
+      .select({ id: paceGroups.id })
+      .from(paceGroups)
+      .where(
+        and(
+          eq(paceGroups.batchId, existing.batchId),
+          ne(paceGroups.id, paceGroupId),
+          sql`lower(btrim(${paceGroups.name})) = lower(btrim(${name.trim()}))`,
+        ),
+      )
+      .limit(1);
+
+    if (existingGroup) {
+      throw new PaceGroupError(
+        'DUPLICATE_NAME',
+        DUPLICATE_PACE_GROUP_NAME_MESSAGE,
+      );
+    }
+  }
+
+  try {
+    const [updated] = await db
+      .update(paceGroups)
+      .set({
+        ...(name !== undefined ? { name: name.trim() } : {}),
+        ...(min_pages !== undefined ? { min_pages } : {}),
+        ...(max_pages !== undefined ? { max_pages } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(paceGroups.id, paceGroupId))
+      .returning(PACE_GROUP_RETURNING);
+
+    return updated;
+  } catch (error) {
+    if (isUniqueConstraintViolation(error, PACE_GROUP_NAME_UNIQUE_INDEX)) {
+      throw new PaceGroupError(
+        'DUPLICATE_NAME',
+        DUPLICATE_PACE_GROUP_NAME_MESSAGE,
+      );
+    }
+    throw error;
+  }
 }
 
 export async function archivePaceGroup(
